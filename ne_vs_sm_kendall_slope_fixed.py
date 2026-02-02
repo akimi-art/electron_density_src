@@ -71,7 +71,7 @@ plt.rcParams.update({
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
-Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re_no_agn.py")
+Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re.py")
 Mingozzi22out  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
 Harikane25out  = os.path.join(current_dir, "results/Harikane25/Harikane25out.py")
 Isobe23out     = os.path.join(current_dir, "results/Isobe23/Isobe23out.py")
@@ -173,7 +173,7 @@ spec13.loader.exec_module(module13)
 all_data.update(module13.all_data)
 
 # === inputファイルから情報を抜き出す ===
-Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re_no_agn.txt")
+Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re.txt")
 Mingozzi22in  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22in.txt")
 Harikane25in  = os.path.join(current_dir, "results/Harikane25/Harikane25in.txt")
 Isobe23in     = os.path.join(current_dir, "results/Isobe23/Isobe23in.txt")
@@ -359,7 +359,7 @@ for ref_name, galaxy_list in data_groups.items():
         z = g["z"]
 
         # zのフィルタリング
-        if z <= 7:
+        if z <= 1 or z >= 4:
             continue
 
         # --- x = SM (log10 M*) ---
@@ -490,7 +490,7 @@ yerr_m = np.clip(yerr_m, yerr_floor, None)
 # ============================================================
 # --- 固定する傾き ---
 # ============================================================
-a_fixed = 0.222   # ← 任意に設定（例：z~0 サンプル）
+a_fixed = 0.230   # ← 任意に設定（例：z~0 サンプル）
 
 print(f"[INFO] Fixed slope a = {a_fixed:.3f}")
 

@@ -67,7 +67,7 @@ plt.rcParams.update({
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
 out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass.csv")
-out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass.png")
+out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_1.1_1.5.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -234,6 +234,7 @@ ax.errorbar(
 
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731 (stacked)")
+ax.set_ylim(1.1, 1.5)
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
 for spine in ax.spines.values():

@@ -70,7 +70,7 @@ plt.rcParams.update({
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
-Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re_no_agn.py")
+Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v5.py")
 Mingozzi22out  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
 Harikane25out  = os.path.join(current_dir, "results/Harikane25/Harikane25out.py")
 Isobe23out     = os.path.join(current_dir, "results/Isobe23/Isobe23out.py")
@@ -172,7 +172,7 @@ spec13.loader.exec_module(module13)
 all_data.update(module13.all_data)
 
 # === inputファイルから情報を抜き出す ===
-Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re_no_agn.txt")
+Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v5.txt")
 Mingozzi22in  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22in.txt")
 Harikane25in  = os.path.join(current_dir, "results/Harikane25/Harikane25in.txt")
 Isobe23in     = os.path.join(current_dir, "results/Isobe23/Isobe23in.txt")
@@ -589,7 +589,7 @@ else:
     # ========================================================
     
     # x の代表グリッド（将来の描画用）
-    x_band = np.linspace(-11, -5, 500)
+    x_band = np.linspace(-13, -5, 500)
     
     # posterior から y(x) を生成
     y_band_samples = np.array([
@@ -620,7 +620,7 @@ else:
     # ========================================================
     # --- フィットの可視化 ---
     # ========================================================
-    x_fit = np.linspace(-11, -5, 500)
+    x_fit = np.linspace(-13, -5, 500)
     y_fit = a_mcmc * x_fit + b_mcmc
 
     # 1σ 信頼区間

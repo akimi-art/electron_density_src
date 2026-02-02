@@ -75,7 +75,7 @@ plt.rcParams.update({
 current_dir = os.getcwd()
 
 file_sii  = os.path.join(current_dir, "results/txt/sdss_ne_vs_sm_standard_re_integer.txt")
-file_msfr = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re_no_agn.txt")
+file_msfr = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re.txt")
 
 
 # === 1. SIIファイルの読み込み ===
@@ -88,8 +88,8 @@ with open(file_sii, "r") as f:
         target_id = parts[0]
         z = float(parts[3])
         try:
-            flux_6716 = float(parts[5]) * 1e-17
-            flux_6731 = float(parts[7]) * 1e-17
+            flux_6716 = float(parts[6]) * 1e-17
+            flux_6731 = float(parts[8]) * 1e-17
         except ValueError:
             continue
         if flux_6716 > 0 and flux_6731 > 0:
@@ -148,7 +148,7 @@ z = np.array(z)
 
 # === 4. 図を描く（余白ゼロ & 右列 y軸非表示） ===
 fig, axes = plt.subplots(
-    2, 1, figsize=(6, 6),
+    2, 1, figsize=(8, 8),
     sharex='col',  # 同じ列で x 軸を共有
     sharey='row'   # 同じ行で y 軸を共有
 )
@@ -157,31 +157,60 @@ ax1, ax2 = axes[0], axes[1]
 
 # 散布図
 ax1.scatter(z, L6716, s=8, color="C0", alpha=0.6)
-ax2.scatter(z, L6731, s=8, color="C1", alpha=0.6)
+ax2.scatter(z, L6731, s=8, color="C0", alpha=0.6)
 
 # y 軸：対数
 for ax in (ax1, ax2):
     ax.set_yscale("log")
 
+
+# =======================================
+# 追加: Plot L(SII 6717, flux一定のライン)
+# =======================================
+
+# 描画のためのzのグリッド
+z_grid = np.linspace(0.0, 0.25, 200)  # 適当なz範囲をグリッド化
+d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
+L_6717_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
+L_6717_2 = 4 * 3.141592653589793 * d_L_grid**2 * 3e-17
+L_6717_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-16
+L_6731_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
+L_6731_2 = 4 * 3.141592653589793 * d_L_grid**2 * 3e-17
+L_6731_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-16
+lum_6717_flux_const_1 = L_6717_1
+lum_6717_flux_const_2 = L_6717_2
+lum_6717_flux_const_3 = L_6717_3
+lum_6731_flux_const_1 = L_6731_1
+lum_6731_flux_const_2 = L_6731_2
+lum_6731_flux_const_3 = L_6731_3
+
+ax1.plot(z_grid, lum_6717_flux_const_1, color='black', linestyle='--',) # '-', '--', '-.', ':'が使える
+ax1.plot(z_grid, lum_6717_flux_const_2, color='black', linestyle='-.',)
+ax1.plot(z_grid, lum_6717_flux_const_3, color='black', linestyle=':', )
+ax2.plot(z_grid, lum_6731_flux_const_1, color='black', linestyle='--',) # '-', '--', '-.', ':'が使える
+ax2.plot(z_grid, lum_6731_flux_const_2, color='black', linestyle='-.',)
+ax2.plot(z_grid, lum_6731_flux_const_3, color='black', linestyle=':', )
+
+
+# x ラベルは下段のみ（共有のため上段は不要）
+ax1.set_xlabel(r"z")
+ax2.set_xlabel(r"z")
 # 左列だけ y ラベル・目盛を表示、右列は消す
 ax1.set_ylabel("L(SII 6716) [erg/s]")
 ax2.set_ylabel("L(SII 6731) [erg/s]")  # 下段左の y ラベル（必要に応じて 6731 に変更）
 # for ax in (ax2, ax4):
 #     ax.tick_params(labelleft=False)  # 目盛ラベル非表示
 #     ax.yaxis.set_ticks_position('none')  # 目盛線も消す（必要なら）
-
-# x ラベルは下段のみ（共有のため上段は不要）
-ax1.set_xlabel(r"z")
-ax2.set_xlabel(r"z")
-
+ax1.set_xlim(0, 0.25)
+ax2.set_xlim(0, 0.25)
 # y 範囲
-ax1.set_ylim(1e35, 1e39)
-ax2.set_ylim(1e37, 1e41)
+ax1.set_ylim(1e36, 1e42)
+ax2.set_ylim(1e36, 1e42)
 
 # サブプロット間の余白を完全にゼロ
-plt.subplots_adjust(left=0.07, right=0.98, bottom=0.08, top=0.98, wspace=0, hspace=0)
+plt.subplots_adjust(bottom=0.08, top=0.98, hspace=0)
 # ↑ left/right/bottom/top は図枠と軸ラベルが被らないように微調整（必要に応じて調整）
 
-savepath = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z.png")
+savepath = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_ms_only.png")
 plt.savefig(savepath, dpi=200)
 plt.show()

@@ -32,9 +32,9 @@ import numpy as np
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 16,                 # 全体フォントサイズ
-    "axes.labelsize": 18,            # 軸ラベルのサイズ
-    "axes.titlesize": 18,            # タイトルのサイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 24,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -44,8 +44,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 16,          # 長さ
-    "ytick.major.size": 16,
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -58,14 +58,18 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 18,           # x軸ラベルサイズ
-    "ytick.labelsize": 18,           # y軸ラベルサイズ
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
+
+    # --- フォント ---
+    "font.family": "STIXGeneral",
+    "mathtext.fontset": "stix",
 })
 
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
-Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re_no_agn.py")
+Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v5.py")
 Mingozzi22out  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
 Harikane25out  = os.path.join(current_dir, "results/Harikane25/Harikane25out.py")
 Isobe23out     = os.path.join(current_dir, "results/Isobe23/Isobe23out.py")
@@ -158,7 +162,7 @@ spec12.loader.exec_module(module12)
 all_data.update(module12.all_data)
 
 # === inputファイルから情報を抜き出す ===
-Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re_no_agn.txt")
+Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v5.txt")
 Mingozzi22in  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22in.txt")
 Harikane25in  = os.path.join(current_dir, "results/Harikane25/Harikane25in.txt")
 Isobe23in     = os.path.join(current_dir, "results/Isobe23/Isobe23in.txt")
@@ -187,8 +191,8 @@ galaxy_ids_Bayliss14   = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        if i >= 10000: # 現時点でまだSDSSのmetallicityの情報は載せていない
-            break
+        # if i >= 50000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        #     break
         parts = line.strip().split()
         if parts:
             galaxy_ids_Samir16.append(parts[0])
@@ -282,21 +286,6 @@ data_groups = {
 #     "very_high": "o"      # ○
 # }
 
-# エラーバーの太さ
-elinewidths = [0.1, 0.1, 0.1, 0.1]
-ecolors = ['gray', 'gray', 'gray', 'gray']
-
-# 色の対応
-def get_color(z):
-    if z < 1:
-        return "gray"
-    elif 1 <= z < 4:
-        return "blue"
-    elif 4 <= z <= 7:
-        return "green"
-    else:
-        return "red"
-
 def get_zorder(z):
     if z < 1:
         return 1
@@ -335,11 +324,54 @@ for ref_name, galaxy_list in data_groups.items():
                 else:
                     return "black"
             elif 1 <= z < 4:
-                return "blue"
+                return "tab:blue"
             elif 4 <= z <= 7:
-                return "green"
+                return "tab:green"
             else:
-                return "red"
+                return "tab:red"
+
+        # 薄さの対応
+        def get_alpha(z):
+            if z < 1:
+                if ref_name in sdss:
+                    return 0.3
+                else:
+                    return 1
+            elif 1 <= z < 4:
+                return 1
+            elif 4 <= z <= 7:
+                return 1
+            else:
+                return 1
+
+        # エラーバーの色
+        def get_ecolors(z):
+            if z < 1:
+                if ref_name in sdss:
+                    return "gray"
+                else:
+                    return "gray"
+            elif 1 <= z < 4:
+                return 'tab:blue'
+            elif 4 <= z <= 7:
+                return 'tab:green'
+            else:
+                return 'tab:red'
+
+        # エラーバーの太さ
+        def get_elinewidth(z):
+            if z < 1:
+                if ref_name in sdss:
+                    return 0.03
+                else:
+                    return 0.1
+                return 0.1
+            elif 1 <= z < 4:
+                return 0.15
+            elif 4 <= z <= 7:
+                return 0.15
+            else:
+                return 0.15
                 
         color = get_color(g["z"])
         fill = get_fill(g["AGN"])
@@ -416,7 +448,7 @@ for ref_name, galaxy_list in data_groups.items():
                 else:
                     yerr = 0.5 * (yerr_minus + yerr_plus)  
 
-            ms = 8     # マーカーサイズ
+            ms = 6 if z >= 1 else 3     # マーカーサイズ
             mew = 0.8  # マーカーの枠線の太さ
 
             # プロット
@@ -428,12 +460,13 @@ for ref_name, galaxy_list in data_groups.items():
                 markeredgewidth=mew,
                 markerfacecolor=facecolor,
                 markeredgecolor=edgecolor,
-                ecolor=ecolors,
+                ecolor=get_ecolors(z),
                 capsize=0,
-                elinewidth=elinewidths,
+                lw=get_elinewidth(z),
                 linestyle='none',
-                zorder=get_zorder(g["z"]),
-                label=f"{ref_name}" if g_name == galaxy_list[0] else None
+                zorder=get_zorder(z),
+                label=f"{ref_name}" if g_name == galaxy_list[0] else None,
+                alpha=get_alpha(z),
             )
 
         # ---- 相関計算用にリストに追加 ----
@@ -444,27 +477,29 @@ for ref_name, galaxy_list in data_groups.items():
             ne_yerr_list.append(yerr)
 
 
- # === 推定結果（あなたの値に置き換え） ===
+# === 推定結果（あなたの値に置き換え） ===
+xmin = -13
+xmax = -6
 # slope（固定）
-m_hat_z0   = -0.627
+m_hat_z0   = -0.297
 
 # intercept
-b_hat_z0   =  -3.846
-b_hat_z3   = -2.557
-b_hat_z6   = -1.801
-b_hat_z9   = -1.623
+b_hat_z0   = -0.537
+b_hat_z3   =  0.142
+b_hat_z6   =  0.670
+b_hat_z9   =  0.848
 
 # slope の標準誤差
-sigma_m_z0 = 0.014
+sigma_m_z0 = 0.002
 sigma_m_z3 = 0.000  
 sigma_m_z6 = 0.000  
 sigma_m_z9 = 0.000 
 
 # intercept の標準誤差 
-sigma_b_z0 = 0.138
-sigma_b_z3 = 0.029
-sigma_b_z6 = 0.057
-sigma_b_z9 = 0.130
+sigma_b_z0 = 0.024
+sigma_b_z3 = 0.023
+sigma_b_z6 = 0.051
+sigma_b_z9 = 0.127
 
 # slope と intercept の相関（例：不明なら 0）
 rho_mb_z0  = 0    
@@ -473,7 +508,7 @@ rho_mb_z6  = 0
 rho_mb_z9  = 0    
 
 # x 範囲
-x = np.linspace(-11, -5, 1000)
+x = np.linspace(xmin, xmax, 1000)
 # 推定直線
 y_hat_z0 = m_hat_z0 * x + b_hat_z0
 y_hat_z3 = m_hat_z0 * x + b_hat_z3
@@ -499,13 +534,13 @@ upper_z3 = y_hat_z3 + k * sigma_y_z3
 upper_z6 = y_hat_z6 + k * sigma_y_z6
 upper_z9 = y_hat_z9 + k * sigma_y_z9
 # ax.plot(x, y_hat_z0, color='black')
-ax.plot(x, y_hat_z3, color='blue')
-ax.plot(x, y_hat_z6, color='green')
-ax.plot(x, y_hat_z9, color='red')
+ax.plot(x, y_hat_z3, color='tab:blue')
+ax.plot(x, y_hat_z6, color='tab:green')
+ax.plot(x, y_hat_z9, color='tab:red')
 # ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
-ax.fill_between(x, lower_z3, upper_z3, color='blue' , alpha=0.15)
-ax.fill_between(x, lower_z6, upper_z6, color='green', alpha=0.15)
-ax.fill_between(x, lower_z9, upper_z9, color='red'  , alpha=0.15)
+ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
+ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
+ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
 
 # 変わりに回帰分析をした時に得るを使う
@@ -543,37 +578,25 @@ plt.fill_between(
 # 値の定義
 nc_6716 = np.log10(1917.5607046610592)
 
-x = np.linspace(-11, 5, 400)
+x = np.linspace(xmin, xmin+2, 400)
 y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
 T = 6  # 閾値（しきい値）
 # 曲線（水平線）
-ax.plot(x, y, color="gray")
-# y >= T の部分を塗る
-ax.fill_between(x, y, T, color="gray", alpha=0.3, interpolate=True)
+ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
 # しきい値の水平線
-ax.axhline(T, color="gray", linestyle="--", linewidth=1)
-# plt.axhline(y=np.log10(1917.5607046610592),  color='tab:red', linestyle='-.', alpha=0.7)
-# plt.axhline(y=np.log10(5067.434274587508),  color='tab:red', linestyle='-', alpha=0.7)
-plt.text(x=-11+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=12,)
-# plt.text(x=6+0.1, y=np.log10(5067.434274587508)+0.1,  s=r"$n_{\mathrm{crit}}$([SII]6731)", fontsize=12,)
+ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
+plt.text(x=xmin+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=16,)
 
 
-# SDSSのデータのみで線形回帰した時の直線を表示する
-# slope_sdss = 0.011
-# intercept_sdss = 2.806
-# x_range = np.linspace(-3, 3, 1000)
-# y_range = slope_sdss * x_range + intercept_sdss
-# plt.plot(x_range, y_range, color='black', linestyle='--')
-    
-# CLASSYのデータのみで線形回帰した時の直線を表示する
-slope_classy = -0.203
-intercept_classy = 0.565 
-x_range = np.linspace(-11, -5, 1000)
-y_range = slope_classy * x_range + intercept_classy
-plt.plot(x_range, y_range, color='black', linestyle='-.')
+# # CLASSYのデータのみで線形回帰した時の直線を表示する
+# slope_classy = -0.203
+# intercept_classy = 0.565 
+# x_range = np.linspace(-11, -5, 1000)
+# y_range = slope_classy * x_range + intercept_classy
+# plt.plot(x_range, y_range, color='black', linestyle='-.')
     
 
-plt.xlim(-11, -9)
+plt.xlim(xmin, xmax)
 plt.ylim(1.5, 4)
 ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$", fontsize=16) 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
@@ -583,7 +606,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_ms_only_v3_re_no_agn_editted_v1.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v5_editted.png"))
 plt.show()
 
 # Monitor memory usage
@@ -605,9 +628,10 @@ import matplotlib.pyplot as plt
 # ヒストグラム
 fig, ax = plt.subplots(figsize=(10, 6))
 sns.histplot(ssfr_list, bins=3000)
-plt.xlim(-13, -7)
+plt.xlim(xmin, xmax)
 # plt.ylim(0, 20000)
 ax.set_xlabel("log(sSFR)")
 ax.set_ylabel("Count")
 plt.tight_layout()
+plt.savefig(os.path.join(current_dir, "results/figure/sSFR_histogram.png"))
 plt.show()

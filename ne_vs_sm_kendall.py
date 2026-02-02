@@ -70,7 +70,7 @@ plt.rcParams.update({
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
-Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re_no_agn.py")
+Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v3_ms_only_v3_re.py")
 Mingozzi22out  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
 Harikane25out  = os.path.join(current_dir, "results/Harikane25/Harikane25out.py")
 Isobe23out     = os.path.join(current_dir, "results/Isobe23/Isobe23out.py")
@@ -172,7 +172,7 @@ spec13.loader.exec_module(module13)
 all_data.update(module13.all_data)
 
 # === inputファイルから情報を抜き出す ===
-Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re_no_agn.txt")
+Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v3_ms_only_v3_re.txt")
 Mingozzi22in  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22in.txt")
 Harikane25in  = os.path.join(current_dir, "results/Harikane25/Harikane25in.txt")
 Isobe23in     = os.path.join(current_dir, "results/Isobe23/Isobe23in.txt")
@@ -566,7 +566,7 @@ else:
         "y_high": y_band_high
     })
     
-    band_df.to_csv("results/csv/ne_vs_sm_regression_band_.csv", index=False)
+    band_df.to_csv("results/csv/ne_vs_sm_regression_band.csv", index=False)
     print("[INFO] Regression band saved to ne_vs_sm_regression_band.csv")
     a_mcmc, b_mcmc = np.mean(flat_samples, axis=0)
     a_std, b_std = np.std(flat_samples, axis=0)
