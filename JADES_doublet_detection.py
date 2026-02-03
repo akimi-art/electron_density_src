@@ -28,6 +28,9 @@ import os
 import numpy as np
 import pandas as pd
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+
 
 # ==============================
 # 1. FITS カタログを読む
@@ -39,6 +42,7 @@ with fits.open(fits_file) as hdul:
     cat = hdul[1].data
 
 df = pd.DataFrame(cat)
+
 
 # ==============================
 # 2. 検出条件を定義
@@ -76,20 +80,39 @@ df_ne = df_ne[physical]
 
 print(f"物理的に妥当な天体数: {len(df_ne)}")
 
+
+# ==============================
+# 5.0 RA, Dec を sexagesimal 形式に変換
+# ==============================
+coord = SkyCoord(
+    ra=df_ne["RA_NIRCam"].values * u.deg,
+    dec=df_ne["Dec_NIRCam"].values * u.deg,
+    frame="icrs"
+)
+
+df_ne["RA_hms"]  = coord.ra.to_string(unit=u.hour, sep=":", precision=2, pad=True)
+df_ne["Dec_dms"] = coord.dec.to_string(unit=u.deg,  sep=":", precision=2, alwayssign=True, pad=True)
+
+
 # ==============================
 # 5. 必要な列だけ残す
 # ==============================
 cols = [
     "NIRSpec_ID",
     "z_Spec",
+    'RA_NIRCam',
+    'Dec_NIRCam',
+    "RA_hms",      # ← 追加
+    "Dec_dms",     # ← 追加
     "O2_3727_flux",
     "S2_6718_flux",
     "S2_6733_flux",
     "SII_ratio",
-    "SII_ratio_err"
+    "SII_ratio_err",
 ]
 
 df_ne = df_ne[cols]
+
 
 # ==============================
 # 6. 保存（後でスペクトルと照合）
