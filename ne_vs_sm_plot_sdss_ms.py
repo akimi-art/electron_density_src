@@ -203,8 +203,8 @@ galaxy_ids_Berg25      = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        if i >= 10000: # 現時点でまだSDSSのmetallicityの情報は載せていない
-            break
+        # if i >= 10000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        #     break
         parts = line.strip().split()
         if parts:
             galaxy_ids_Samir16.append(parts[0])
