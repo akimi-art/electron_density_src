@@ -376,9 +376,10 @@ for ref_name, galaxy_list in data_groups.items():
 
         color = get_color(g["z"])
         fill = get_fill(g["AGN"])
-        edgecolor = color
-        facecolor = color if fill else "white"
         z = g["z"]
+        edgecolor = color
+        facecolor = color if (fill or z < 1) else "white"
+        
 
         if z <= 1:
             ne_types = {
@@ -650,7 +651,7 @@ plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([
 
 plt.xlim(-3, 3)
 plt.ylim(1.5, 4)
-ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$", fontsize=16) 
+ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
