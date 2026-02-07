@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+logSFR ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -10,10 +10,10 @@ logM* ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_mass.py [オプション]
+    stacked_sii_ne_vs_sfr.py [オプション]
 
 著者: A. M.
-作成日: 2026-02-01
+作成日: 2026-02-03
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -29,17 +29,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.table import Table
-import re
-import matplotlib.gridspec as gridspec
-from pathlib import Path
-from astropy.cosmology import Planck18 as cosmo
-import astropy.units as u
 
 
-
-# -----------------------
-# 軸の設定
-# -----------------------
 # 軸の設定
 plt.rcParams.update({
     # --- 図全体 ---
@@ -78,13 +69,14 @@ plt.rcParams.update({
     "mathtext.fontset": "stix",
 })
 
+
 # -----------------------
 # 入出力
 # -----------------------
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
-out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass.csv")
-out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass.png")
+out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_metallicity.csv")
+out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_metallicity.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -92,7 +84,7 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # -----------------------
 # パラメータ
 # -----------------------
-BIN_WIDTH = 0.1      # dex
+BIN_WIDTH = 0.05      # dex
 NMIN      = 100
 N_MC      = 5000
 
@@ -105,11 +97,13 @@ df  = tab.to_pandas()
 # -----------------------
 # マスク
 # -----------------------
-def valid_mass(x):
+def valid_metallicity(x):
     x = np.asarray(x, float)
     m = np.isfinite(x)
-    m &= (x > 0) & (x < 13)
+    m &= (x != -99.9)
+    m &= (x > 7.0) & (x < 10.0)
     return m
+
 
 m_sii = (
     np.isfinite(df["SII_6717_FLUX"]) &
@@ -120,17 +114,17 @@ m_sii = (
     (df["SII_6731_FLUX_ERR"] > 0)
 )
 
-m_sm = valid_mass(df["sm_MEDIAN"])
-mask = m_sii & m_sm
+m_oh = valid_metallicity(df["oh_MEDIAN"])
+mask = m_sii & m_oh
 
 # -----------------------
 # ビン作成
 # -----------------------
-logM = df.loc[mask, "sm_MEDIAN"].to_numpy()
+logOH = df.loc[mask, "oh_MEDIAN"].to_numpy()
 
 edges = np.arange(
-    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(logOH.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logOH.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
@@ -178,8 +172,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         mask &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] <  hi)
+        (df["oh_MEDIAN"] >= lo) &
+        (df["oh_MEDIAN"] <  hi)
     )
 
     N = int(np.sum(m_bin))
@@ -216,9 +210,9 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     R50, Rlo, Rhi = percentile_summary(R_mc)
 
     rows.append(dict(
-        logM_lo=lo,
-        logM_hi=hi,
-        logM_cen=0.5*(lo+hi),
+        logOH_lo=lo,
+        logOH_hi=hi,
+        logOH_cen=0.5*(lo+hi),
         N=N,
         F6717=F1,
         F6717_err=e1,
@@ -242,13 +236,14 @@ print("Saved:", out_csv)
 # -----------------------
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.errorbar(
-    res["logM_cen"],
+    res["logOH_cen"],
     res["R_med"],
     yerr=[res["R_err_lo"], res["R_err_hi"]],
     fmt="s",
     capsize=2,
     color='black'
 )
+
 
 # SDSSの個別の銀河の値
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")   # 適宜パスを変更
@@ -266,14 +261,14 @@ m_sii = (
 )
 
 
-def valid_mass(x):
+def valid_oh(x):
     x = np.asarray(x, dtype=float)
     m = np.isfinite(x)
-    m &= (x != -1.0) & (x != -99.9)
-    m &= (x > 0) & (x < 13)   # logM★は0〜13の範囲のみ採用
+    m &= (x != -99.9)
+    m &= (x > 7) & (x < 10) # ここがバイアスになるかもしれないので注意
     return m
 
-m_sm  = valid_mass(df["sm_MEDIAN"])
+m_oh  = valid_oh(df["oh_MEDIAN"])
 
 
 # ---- ratio と誤差（単純誤差伝播：まず全体像用） ----
@@ -308,17 +303,16 @@ def binned_median(x, y, bins=12, x_min=None, x_max=None):
     return np.array(xc), np.array(ym), np.array(y16), np.array(y84), np.array(n)
 
 
-# Panel 1: vs stellar mass (logM*)
-m = m_sii & m_sm & np.isfinite(df["R_SII"])
-x = df.loc[m, "sm_MEDIAN"].to_numpy()
+# Panel 3: vs metallicity (12+log(O/H) assumed)
+m = m_sii & m_oh & np.isfinite(df["R_SII"])
+x = df.loc[m, "oh_MEDIAN"].to_numpy()
 y = df.loc[m, "R_SII"].to_numpy()
 ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='gray', marker='.')
 xc, ym, y16, y84, n = binned_median(x, y, bins=14)
-
-
-ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
+# axes[2].errorbar(xc, ym, yerr=[ym-y16, y84-ym], fmt="o", ms=4, color="crimson", capsize=2)
+ax.set_xlabel(r"12+log(O/H)")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(6, 12)
+ax.set_xlim(7.75, 9.50)
 # ---- 描画用：極端値を抑える（任意） ----
 # SII比の物理的な典型範囲は ~0.4-1.45 付近（Te~1e4K）なので、見やすさのために範囲で表示
 # しかし, 最初の段階では強く制限しない。

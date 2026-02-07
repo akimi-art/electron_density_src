@@ -239,12 +239,95 @@ ax.errorbar(
     res["logSFR_cen"],
     res["R_med"],
     yerr=[res["R_err_lo"], res["R_err_hi"]],
-    fmt="o",
-    capsize=2
+    fmt="s",
+    capsize=2,
+    color='black'
 )
 
+# SDSSの個別の銀河の値
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")   # 適宜パスを変更
+
+# ---- 読み込み（Table->pandas） ----
+tab = Table.read(fits_path, hdu=1)
+df = tab.to_pandas()
+
+# ---- 欠損・無効値マスク ----
+# SII flux は 0以下や NaN を除外（ratioにするので）
+m_sii = (
+    np.isfinite(df["SII_6717_FLUX"]) & np.isfinite(df["SII_6731_FLUX"]) &
+    np.isfinite(df["SII_6717_FLUX_ERR"]) & np.isfinite(df["SII_6731_FLUX_ERR"]) 
+    # (df["SII_6717_FLUX"] > 0) & (df["SII_6731_FLUX"] > 0)
+)
+
+
+def valid_sfr(x, bad_values=(-1.0, -99.9)):
+    x = np.asarray(x, dtype=float)
+    m = np.isfinite(x)
+    for bv in bad_values:
+        m &= (x != bv)
+
+    # ロバスト外れ値除去：巨大負値（-1e5など）を弾く
+    xm = x[m]
+    med = np.nanmedian(xm)
+    mad = np.nanmedian(np.abs(xm - med))
+    sigma = 1.4826 * mad
+    m &= (np.abs(x - med) < 8 * sigma)  # ゆるい 8σ クリップ（実質欠損だけ除去）
+
+    return m
+
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
+
+
+# ---- ratio と誤差（単純誤差伝播：まず全体像用） ----
+R = df["SII_6717_FLUX"] / df["SII_6731_FLUX"]
+# error propagation for ratio:
+Rerr = R * np.sqrt(
+    (df["SII_6717_FLUX_ERR"] / df["SII_6717_FLUX"])**2 +
+    (df["SII_6731_FLUX_ERR"] / df["SII_6731_FLUX"])**2
+)
+
+df["R_SII"] = R
+df["R_SII_ERR"] = Rerr
+
+
+# ---- ビン中央値を計算する関数（ロバスト） ----
+def binned_median(x, y, bins=12, x_min=None, x_max=None):
+    x = np.asarray(x); y = np.asarray(y)
+    if x_min is None: x_min = np.nanpercentile(x, 1)
+    if x_max is None: x_max = np.nanpercentile(x, 99)
+    edges = np.linspace(x_min, x_max, bins+1)
+    xc, ym, y16, y84, n = [], [], [], [], []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        m = (x >= lo) & (x < hi) & np.isfinite(y)
+        if np.sum(m) < 30:   # 少なすぎるbinはスキップ（好みで調整）
+            continue
+        yy = y[m]
+        xc.append(0.5*(lo+hi))
+        ym.append(np.nanmedian(yy))
+        y16.append(np.nanpercentile(yy, 16))
+        y84.append(np.nanpercentile(yy, 84))
+        n.append(np.sum(m))
+    return np.array(xc), np.array(ym), np.array(y16), np.array(y84), np.array(n)
+
+
+# Panel 2: vs SFR (logSFR)
+m = m_sii & m_sfr & np.isfinite(df["R_SII"])
+x = df.loc[m, "sfr_MEDIAN"].to_numpy()
+y = df.loc[m, "R_SII"].to_numpy()
+ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='gray', marker='.')
+xc, ym, y16, y84, n = binned_median(x, y, bins=14)
+# axes[1].errorbar(xc, ym, yerr=[ym-y16, y84-ym], fmt="o", ms=4, color="crimson", capsize=2)
+ax.set_xlabel(r"log SFR [M$_\odot$ yr$^{-1}$]")
+
+
 ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
-ax.set_ylabel(r"[SII] 6717 / 6731 (stacked)")
+ax.set_ylabel(r"[SII] 6717 / 6731")
+ax.set_xlim(-4, 2)
+# ---- 描画用：極端値を抑える（任意） ----
+# SII比の物理的な典型範囲は ~0.4-1.45 付近（Te~1e4K）なので、見やすさのために範囲で表示
+# しかし, 最初の段階では強く制限しない。
+ymin, ymax = 0.5, 2.0
+ax.set_ylim(ymin, ymax)
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
 for spine in ax.spines.values():
