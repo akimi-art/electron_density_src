@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-このスクリプトはne_vs_smの図を描画します。
+このスクリプトはne_vs_SFRの図を描画します。
 
 使用方法:
-    ne_vs_sm_plot.py [オプション]
+    ne_vs_sfr_plot.py [オプション]
 
 著者: A. M.
 作成日: 2026-02-07
@@ -26,7 +26,6 @@ import pandas as pd
 import sys
 import psutil
 import numpy as np
-import seaborn as sns
 
 # 軸の設定
 plt.rcParams.update({
@@ -67,6 +66,7 @@ plt.rcParams.update({
 })
 
 
+
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
 Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v6.py")
@@ -82,13 +82,10 @@ Mainali23out   = os.path.join(current_dir, "results/Mainali23/Mainali23out.py")
 Berg18out      = os.path.join(current_dir, "results/Berg18/Berg18out.py")
 Sanders25out   = os.path.join(current_dir, "results/Sanders25/Sanders25out.py")
 
-# Curti+25のデータ (z~2)
+# # Curti+25のデータ (z~2)
 Rigby21out    = os.path.join(current_dir, "results/Rigby21/Rigby21out.py")
 Steidel16out  = os.path.join(current_dir, "results/Steidel16/Steidel16out.py")
 Bayliss14out  = os.path.join(current_dir, "results/Bayliss14/Bayliss14out.py")
-
-# 20260118 Harikane+25のcitation
-Berg25out     = os.path.join(current_dir, "results/Berg25/Berg25out.py")
 
 # === 既存のモジュール読み込み ===
 spec1   = importlib.util.spec_from_file_location("Samir16out", Samir16out)
@@ -152,23 +149,17 @@ sys.modules["Rigby21out"] = module10
 spec10.loader.exec_module(module10)
 all_data.update(module10.all_data)
 
-spec11   = importlib.util.spec_from_file_location("Steidel16out", Steidel16out)
+spec11   = importlib.util.spec_from_file_location("Steidelout", Steidel16out)
 module11 = importlib.util.module_from_spec(spec11)
 sys.modules["Steidel16out"] = module11
 spec11.loader.exec_module(module11)
 all_data.update(module11.all_data)
 
-spec12   = importlib.util.spec_from_file_location("Bayliss14out", Bayliss14out)
+spec12   = importlib.util.spec_from_file_location("Baylissout", Bayliss14out)
 module12 = importlib.util.module_from_spec(spec12)
 sys.modules["Bayliss14out"] = module12
 spec12.loader.exec_module(module12)
 all_data.update(module12.all_data)
-
-spec13   = importlib.util.spec_from_file_location("Berg25out", Berg25out)
-module13 = importlib.util.module_from_spec(spec13)
-sys.modules["Berg25out"] = module13
-spec13.loader.exec_module(module13)
-all_data.update(module13.all_data)
 
 # === inputファイルから情報を抜き出す ===
 Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v6.txt")
@@ -183,7 +174,6 @@ Sanders25in   = os.path.join(current_dir, "results/Sanders25/Sanders25in.txt")
 Rigby21in     = os.path.join(current_dir, "results/Rigby21/Rigby21in.txt")
 Steidel16in   = os.path.join(current_dir, "results/Steidel16/Steidel16in.txt")
 Bayliss14in   = os.path.join(current_dir, "results/Bayliss14/Bayliss14in.txt")
-Berg25in      = os.path.join(current_dir, "results/Berg25/Berg25in.txt")
 
 # IDの追加
 galaxy_ids_Samir16     = []
@@ -198,11 +188,10 @@ galaxy_ids_Sanders25   = []
 galaxy_ids_Rigby21     = []
 galaxy_ids_Steidel16   = []
 galaxy_ids_Bayliss14   = []
-galaxy_ids_Berg25      = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 50000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        # if i >= 10000: # 現時点でまだSDSSのmetallicityの情報は載せていない
         #     break
         parts = line.strip().split()
         if parts:
@@ -274,12 +263,6 @@ with open(Bayliss14in, "r") as f:
         if parts:
             galaxy_ids_Bayliss14.append(parts[0])
 
-with open(Berg25in, "r") as f:
-    for i, line in enumerate(f):
-        parts = line.strip().split()
-        if parts:
-            galaxy_ids_Berg25.append(parts[0])
-
 data_groups = {
     "data_Samir16"    : galaxy_ids_Samir16,
     "data_Mingozzi22" : galaxy_ids_Mingozzi22,
@@ -293,7 +276,6 @@ data_groups = {
     "data_Rigby21"    : galaxy_ids_Rigby21,
     "data_Steidel16"  : galaxy_ids_Steidel16,
     "data_Bayliss14"  : galaxy_ids_Bayliss14,
-    "data_Berg25"     : galaxy_ids_Berg25,
 }
 
 # マーカーの対応
@@ -324,7 +306,8 @@ fig, ax = plt.subplots(figsize=(10, 6))
 
 
 # x, y, yerr の値を格納するリスト
-sm_list = []
+sfr_list = []
+sfr_xerr_list = []
 ne_list = []
 ne_yerr_list = []  
 
@@ -354,7 +337,7 @@ for ref_name, galaxy_list in data_groups.items():
                 return "tab:green"
             else:
                 return "tab:red"
-            
+
         # 薄さの対応
         def get_alpha(z):
             if z < 1:
@@ -396,7 +379,14 @@ for ref_name, galaxy_list in data_groups.items():
                 return 0.25
             else:
                 return 0.25
+
+        color = get_color(g["z"])
+        fill = get_fill(g["AGN"])
+        z = g["z"]
+        edgecolor = color
+        facecolor = color if (fill or z < 1) else "white"
         
+
         # markerをlow-zかどうかで変える
         if z <= 1:
             if ref_name in sdss:
@@ -426,12 +416,12 @@ for ref_name, galaxy_list in data_groups.items():
         edgecolor = color
         facecolor = color if (fill or z < 1) else "white"
 
-        # --- x = SM (log10 M*) ---
-        x = g["SM"].get("value", np.nan)
-        xerr_minus = g["SM"].get("err_minus", np.nan)
-        xerr_plus  = g["SM"].get("err_plus", np.nan)
+        # --- x = log(SFR)  ---
+        x = g["SFR"].get("value", np.nan)
+        xerr_minus = g["SFR"].get("err_minus", np.nan)
+        xerr_plus  = g["SFR"].get("err_plus", np.nan)
 
-        if x is None or np.isnan(x) or x == 0:
+        if x is None or np.isnan(x) or x == 0 or x < -90: # 極端な値の除去
             x = np.nan
             xerr = np.nan
         else:
@@ -450,7 +440,7 @@ for ref_name, galaxy_list in data_groups.items():
             yerr_minus = ne_info.get("err_minus", np.nan)
             yerr_plus  = ne_info.get("err_plus", np.nan)
 
-            if y is None or np.isnan(y) or y == 0:
+            if y is None or np.isnan(y) or y == 0 : # 極端な値の除去
                 y = np.nan
                 yerr = np.nan
             else:
@@ -466,7 +456,6 @@ for ref_name, galaxy_list in data_groups.items():
                     ms = 4
             else: 
                 ms = 4
-            # ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='gray', marker='.')
             mew = 0.8  # マーカーの枠線の太さ
 
             # プロット
@@ -487,72 +476,35 @@ for ref_name, galaxy_list in data_groups.items():
                 alpha=get_alpha(z),
             )
 
-
-
         # ---- 相関計算用にリストに追加 ----
         if not np.isnan(x) and not np.isnan(y):
-            sm_list.append(x)
+            sfr_list.append(x)
+            sfr_xerr_list.append(x)
             ne_list.append(y)
             ne_yerr_list.append(yerr)
 
 
-# # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
-# # Mingozzi+22
-# plt.axvline(x=np.log10(44668359),  color='gray', linestyle=':', alpha=0.3)
-# plt.axvline(x=np.log10(575439937), color='gray', linestyle=':', alpha=0.3)
-# plt.axvline(x=np.log10(204173790), color='gray', linestyle=':', alpha=0.3)
-# plt.axvline(x=np.log10(630957344), color='gray', linestyle=':', alpha=0.3)
-# plt.axvline(x=np.log10(33113112),  color='gray', linestyle=':', alpha=0.3)
-# # Bunker+23
-# plt.axvline(x=np.log10(537031796), color='gray', linestyle=':', alpha=0.3)
-# # Topping+24
-# plt.axvline(x=np.log10(112201845), color='gray', linestyle=':', alpha=0.3)
-# # Mainali+23
-# plt.axvline(x=np.log10(98107171),  color='gray', linestyle=':', alpha=0.3)
-
-# SIIのcritical densityを表示する (6716, 6731)
-# 値の定義
-nc_6716 = np.log10(1917.5607046610592)
-nc_6731 = np.log10(5067.434274587508)  # 使わないなら消してOK
-
-x = np.linspace(6, 7, 400)
-y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
-T = 6  # 閾値（しきい値）
-# 曲線（水平線）
-ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
-# しきい値の水平線
-ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
-plt.text(x=6+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=16,)
-
- 
-# # CLASSYのデータのみで線形回帰した時の直線を表示する
-# slope_classy = 0.013
-# intercept_classy = 2.187
-# x_range = np.linspace(6, 12, 1000)
-# y_range = slope_classy * x_range + intercept_classy
-# plt.plot(x_range, y_range, color='black', linestyle='-.')
-
-# === 推定結果（あなたの値に置き換え） ===
+ # === 推定結果（あなたの値に置き換え） ===
 # slope（固定）
-m_hat_z0   = 0.230
+m_hat_z0   = 0.206
 
 # intercept
-b_hat_z0   = 0.006
-b_hat_z3   = 0.367
-b_hat_z6   = 0.803
-b_hat_z9   = 1.043
+b_hat_z0   = 2.271
+b_hat_z3   = 2.262
+b_hat_z6   = 2.555
+b_hat_z9   = 2.793
 
 # slope の標準誤差
-sigma_m_z0 = 0.004
+sigma_m_z0 = 0.006
 sigma_m_z3 = 0.000  
 sigma_m_z6 = 0.000  
 sigma_m_z9 = 0.000 
 
 # intercept の標準誤差 
-sigma_b_z0 = 0.044 
-sigma_b_z3 = 0.019 
-sigma_b_z6 = 0.050 
-sigma_b_z9 = 0.128 
+sigma_b_z0 = 0.003
+sigma_b_z3 = 0.020
+sigma_b_z6 = 0.050
+sigma_b_z9 = 0.127
 
 # slope と intercept の相関（例：不明なら 0）
 rho_mb_z0  = 0    
@@ -561,7 +513,7 @@ rho_mb_z6  = 0
 rho_mb_z9  = 0    
 
 # x 範囲
-x = np.linspace(6, 12, 1000)
+x = np.linspace(-3, 3, 1000)
 # 推定直線
 y_hat_z0 = m_hat_z0 * x + b_hat_z0
 y_hat_z3 = m_hat_z0 * x + b_hat_z3
@@ -596,7 +548,7 @@ ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
 ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
 # 変わりに回帰分析をした時に得るを使う
-band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sm_regression_band_.csv"))
+band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sfr_regression_band_.csv"))
 
 plt.plot(
     band["x"],
@@ -614,17 +566,18 @@ plt.fill_between(
     alpha=0.15,
 )
 
+
 # =============================================
 # SDSSのstackデータ（Massビンごと）をプロットする 
 # =============================================
 # ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_mass_from_ratio.csv")
+in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
 
 # ===== 読み込み =====
 res = pd.read_csv(in_csv)
 
 # ===== 必要列を取り出し =====
-x = res["logM_cen"].to_numpy(float)
+x = res["logSFR_cen"].to_numpy(float)
 
 y = res["log_ne_med"].to_numpy(float)
 yerr_lo = res["log_ne_err_lo"].to_numpy(float)
@@ -665,7 +618,7 @@ if np.any(m_out):
     )
 
 # stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band.csv"))
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
 
 plt.plot(
     band_stacked["x"],
@@ -682,13 +635,49 @@ plt.fill_between(
     alpha=0.15,
 )
 
+# # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
+# # Topping, Sanders+25
+# plt.axvline(x=1.97, color='gray', linestyle=':', alpha=0.3)
+# # Mingozzi+22
+# plt.axvline(x=-1.86, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=-2.09, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=-2.31, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=1.29, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=0.32, color='gray', linestyle=':', alpha=0.3)
+# # Steidel+16
+# plt.axvline(x=1.52, color='gray', linestyle=':', alpha=0.3)
 
-# =============================================
-# 全体のプロットの設定
-# =============================================
-plt.xlim(6, 12)
+# SIIのcritical densityを表示する (6716, 6731)
+# 値の定義
+nc_6716 = np.log10(1917.5607046610592)
+x = np.linspace(-3, -1, 400)
+y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
+T = 6  # 閾値（しきい値）
+ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
+# y >= T の部分を塗る
+# ax.fill_between(x, y, T, color="gray", alpha=0.3, interpolate=True)
+# しきい値の水平線
+ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
+plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=12,)
+
+# SDSSのデータのみで線形回帰した時の直線を表示する
+# slope_sdss = 0.011
+# intercept_sdss = 2.806
+# x_range = np.linspace(-3, 3, 1000)
+# y_range = slope_sdss * x_range + intercept_sdss
+# plt.plot(x_range, y_range, color='black', linestyle='--')
+    
+# # CLASSYのデータのみで線形回帰した時の直線を表示する
+# slope_classy = 0.159   
+# intercept_classy = 2.196 
+# x_range = np.linspace(-3, 3, 1000)
+# y_range = slope_classy * x_range + intercept_classy
+# plt.plot(x_range, y_range, color='black', linestyle='-.')
+    
+
+plt.xlim(-3, 3)
 plt.ylim(1.5, 4)
-ax.set_xlabel(r"$\log(M_\ast/M_\odot)$")
+ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
@@ -696,7 +685,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sm_plot_v6.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6.png"))
 plt.show()
 
 # Monitor memory usage

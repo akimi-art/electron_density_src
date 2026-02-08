@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-このスクリプトはne_vs_smのスタックデータの
+このスクリプトはne_vs_metallicityのスタックデータの
 統計検定を行います。
 
 使用方法:
-    stacked_sii_ne_vs_mass_kendall.py [オプション]
+    stacked_sii_ne_vs_metallicity_kendall.py [オプション]
 
 著者: A. M.
-作成日: 2026-02-02
+作成日: 2026-02-07
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -61,9 +61,9 @@ plt.rcParams.update({
 # ============================================================
 # 設定
 # ============================================================
-in_csv  = "results/table/stacked_sii_ne_vs_mass_from_ratio.csv"
-band_csv = "results/csv/stacked_ne_vs_sm_regression_band.csv"
-out_png = "results/figure/stacked_ne_vs_sm.png"
+in_csv  = "results/table/stacked_sii_ne_vs_metallicity_from_ratio.csv"
+band_csv = "results/csv/stacked_ne_vs_metallicity_regression_band.csv"
+out_png = "results/figure/stacked_ne_vs_metallicity.png"
 
 # ============================================================
 # 読み込み
@@ -71,11 +71,11 @@ out_png = "results/figure/stacked_ne_vs_sm.png"
 df = pd.read_csv(in_csv)
 
 # x,y（log空間）
-x_data = df["logM_cen"].to_numpy(float)
+x_data = df["logOH_cen"].to_numpy(float)
 y_data = df["log_ne_med"].to_numpy(float)
 
 # xerr：ビン幅/2（なければ固定値でもOK）
-xerr_data = 0.5 * (df["logM_hi"].to_numpy(float) - df["logM_lo"].to_numpy(float))
+xerr_data = 0.5 * (df["logOH_hi"].to_numpy(float) - df["logOH_lo"].to_numpy(float))
 
 # yerr：非対称（すでに log 空間）
 yerr_lo = df["log_ne_err_lo"].to_numpy(float)
@@ -196,7 +196,7 @@ else:
     # ========================================================
     # 回帰帯（posteriorから y(x) の分布）
     # ========================================================
-    x_band = np.linspace(6, 12, 500)
+    x_band = np.linspace(np.nanmin(x_m), np.nanmax(x_m), 500)
     y_band_samples = np.array([a * x_band + b for a, b, ls in flat])
 
     y_med  = np.percentile(y_band_samples, 50, axis=0)
@@ -220,7 +220,7 @@ else:
     ax.plot(x_band, y_med, color="k", label="median")
     ax.fill_between(x_band, y_low, y_high, color="k", alpha=0.2, label="16-84%")
 
-    ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
+    ax.set_xlabel(r"12+log(O/H)", fontsize=16) 
     ax.set_ylabel(r"log $n_e$ [cm$^{-3}$]")
     ax.grid(alpha=0.3)
     ax.legend(frameon=False)
