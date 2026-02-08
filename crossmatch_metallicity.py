@@ -10,7 +10,7 @@ fitsファイルとtxtファイルの
     crossmatch_metallicity.py [オプション]
 
 著者: A. M.
-作成日: 2026-01-08
+作成日: 2026-02-08
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -47,6 +47,9 @@ n_fits = len(median)
 # =========================
 out_lines = []
 bad_index = 0
+good_rows = 0  # ★追加：m,l,u が全部欠損(-99.9)ではない行数
+
+MISSING = -99.9000  # ★欠損値
 
 with open(txt_in, "r") as fin:
     for line in fin:
@@ -60,6 +63,12 @@ with open(txt_in, "r") as fin:
             m  = median[row]
             l  = p16[row]
             u  = p84[row]
+
+            # ★追加：欠損(-99.9)かどうか判定（3つとも欠損でなければカウント）
+            is_missing = np.isclose([m, l, u], MISSING).any()
+            if not is_missing:
+                good_rows += 1
+
             new_line = f"{line} {m:.4f} {l:.4f} {u:.4f}"
         else:
             # 念のため
@@ -76,3 +85,4 @@ with open(txt_out, "w") as fout:
 
 print("Saved:", txt_out)
 print("Out-of-range rows:", bad_index)
+print("Rows with valid metallicity (not -99.9 in m/l/u):", good_rows)

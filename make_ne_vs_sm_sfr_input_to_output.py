@@ -57,10 +57,10 @@ def load_galaxy_data(filepath):
             name  = parts[0]
             AGN   = int(parts[1]) 
             z     = float(parts[2])
-            main_sequence = int(parts[15]) # 追加（main sequenceかどうかを判定するフラグ）
+            # main_sequence = int(parts[15]) # 追加（main sequenceかどうかを判定するフラグ）
             SM    = parse_value_with_error(parts[7]) 
             SFR   = parse_value_with_error(parts[9]) 
-            # metal = parse_value_with_error(parts[9]) 
+            metal = parse_value_with_error(parts[15]) 
             ne_values = {
                 "low":          parse_value_with_error(parts[3]),
                 "intermediate": parse_value_with_error(parts[4]),
@@ -70,7 +70,7 @@ def load_galaxy_data(filepath):
             galaxy_dict[name] = {
                 "AGN": AGN,
                 "z": z,
-                "main_sequence": main_sequence,
+                # "main_sequence": main_sequence,
                 "SM": { # 追加
                     "value":     SM["value"],
                     "err_plus":  SM["err_plus"],
@@ -81,11 +81,11 @@ def load_galaxy_data(filepath):
                     "err_plus":  SFR["err_plus"],
                     "err_minus": SFR["err_minus"]
                 },
-                # "metal": { # 追加
-                #     "value":     metal["value"],
-                #     "err_plus":  metal["err_plus"],
-                #     "err_minus": metal["err_minus"]
-                # },
+                "metal": { # 追加
+                    "value":     metal["value"],
+                    "err_plus":  metal["err_plus"],
+                    "err_minus": metal["err_minus"]
+                },
                 "ne_values": ne_values
             }
     return galaxy_dict
@@ -95,10 +95,10 @@ def write_galaxy_dict_as_python(galaxy_dict, output_path):
         f.write("all_data = {\n")
         for name, info in galaxy_dict.items():
             f.write(f'    "{name}": {{\n')
-            f.write(f'        "AGN":   {info["AGN"]}, "z": {info["z"]}, "main_sequence": {info["main_sequence"]},\n') # 追加
+            f.write(f'        "AGN":   {info["AGN"]}, "z": {info["z"]}, \n') # 追加
             f.write(f'        "SM":    {{"value": {info["SM"]["value"]}, "err_plus": {info["SM"]["err_plus"]}, "err_minus": {info["SM"]["err_minus"]}}},\n')
             f.write(f'        "SFR":   {{"value": {info["SFR"]["value"]}, "err_plus": {info["SFR"]["err_plus"]}, "err_minus": {info["SFR"]["err_minus"]}}},\n')
-            # f.write(f'        "metal": {{"value": {info["metal"]["value"]}, "err_plus": {info["metal"]["err_plus"]}, "err_minus": {info["metal"]["err_minus"]}}},\n')
+            f.write(f'        "metal": {{"value": {info["metal"]["value"]}, "err_plus": {info["metal"]["err_plus"]}, "err_minus": {info["metal"]["err_minus"]}}},\n')
             f.write(f'        "ne_values": {{\n')
             for ne_type, ne_info in info["ne_values"].items():
                 val = ne_info["value"]
@@ -111,8 +111,8 @@ def write_galaxy_dict_as_python(galaxy_dict, output_path):
 
 # 実行例
 current_dir = os.getcwd()
-input_file  = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v6.txt")   # 適宜変更
-output_file = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v6.py") # 適宜変更
+input_file  = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v7.txt")   # 適宜変更
+output_file = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v7.py") # 適宜変更
  
 galaxies = load_galaxy_data(input_file)
 write_galaxy_dict_as_python(galaxies, output_file)

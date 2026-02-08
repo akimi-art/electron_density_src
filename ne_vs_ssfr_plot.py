@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-このスクリプトはne_vs_12+log(O/H)の図を描画します。
+このスクリプトはne_vs_sSFRの図を描画します。
+SDSSの銀河はmain sequenceのもののみを使用しています。
 
 使用方法:
-    ne_vs_metallicity_plot.py [オプション]
+    ne_vs_ssfr_plot_sdss_ms.oy [オプション]
 
 著者: A. M.
 作成日: 2026-02-08
@@ -19,10 +20,10 @@
 
 # === 必要なパッケージのインストール === #
 import re
-import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import importlib.util
+import pandas as pd
 import sys
 import psutil
 import numpy as np
@@ -31,9 +32,9 @@ import numpy as np
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 16,                 # 全体フォントサイズ
-    "axes.labelsize": 18,            # 軸ラベルのサイズ
-    "axes.titlesize": 18,            # タイトルのサイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 24,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -43,8 +44,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 16,          # 長さ
-    "ytick.major.size": 16,
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -57,15 +58,19 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 18,           # x軸ラベルサイズ
-    "ytick.labelsize": 18,           # y軸ラベルサイズ
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
+
+    # --- フォント ---
+    "font.family": "STIXGeneral",
+    "mathtext.fontset": "stix",
 })
 
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
-Samir16out    = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v7.py")
-Mingozzi22out = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
+Samir16out     = os.path.join(current_dir, "results/Samir16/Samir16out_standard_v6.py")
+Mingozzi22out  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22out.py")
 Harikane25out  = os.path.join(current_dir, "results/Harikane25/Harikane25out.py")
 Isobe23out     = os.path.join(current_dir, "results/Isobe23/Isobe23out.py")
 # SED fittingの結果よりMetallicisyを算出↓
@@ -83,14 +88,14 @@ Steidel16out  = os.path.join(current_dir, "results/Steidel16/Steidel16out.py")
 Bayliss14out  = os.path.join(current_dir, "results/Bayliss14/Bayliss14out.py")
 
 # === 既存のモジュール読み込み ===
-spec1 = importlib.util.spec_from_file_location("Samir16out", Samir16out)
+spec1   = importlib.util.spec_from_file_location("Samir16out", Samir16out)
 module1 = importlib.util.module_from_spec(spec1)
 sys.modules["Samir16out"] = module1
 spec1.loader.exec_module(module1)
 all_data = module1.all_data 
 
 # --- 追加のモジュール読み込み ---
-spec2 = importlib.util.spec_from_file_location("Mingozzi22out", Mingozzi22out)
+spec2   = importlib.util.spec_from_file_location("Mingozzi22out", Mingozzi22out)
 module2 = importlib.util.module_from_spec(spec2)
 sys.modules["Mingozzi22out"] = module2
 spec2.loader.exec_module(module2)
@@ -157,7 +162,7 @@ spec12.loader.exec_module(module12)
 all_data.update(module12.all_data)
 
 # === inputファイルから情報を抜き出す ===
-Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v7.txt")
+Samir16in     = os.path.join(current_dir, "results/Samir16/Samir16in_standard_v6.txt")
 Mingozzi22in  = os.path.join(current_dir, "results/Mingozzi22/Mingozzi22in.txt")
 Harikane25in  = os.path.join(current_dir, "results/Harikane25/Harikane25in.txt")
 Isobe23in     = os.path.join(current_dir, "results/Isobe23/Isobe23in.txt")
@@ -300,13 +305,15 @@ fig, ax = plt.subplots(figsize=(10, 6))
 
 
 # x, y, yerr の値を格納するリスト
-metal_list = []
+ssfr_list = []
+ssfr_xerr_list = []
 ne_list = []
 ne_yerr_list = []  
 
 
 sdss = {"data_Samir16"}
 for ref_name, galaxy_list in data_groups.items():
+
     for g_name in galaxy_list:
         g = all_data[g_name]
         z = g["z"]
@@ -378,6 +385,7 @@ for ref_name, galaxy_list in data_groups.items():
         z = g["z"]
         edgecolor = color
         facecolor = color if (fill or z < 1) else "white"
+        
 
         # markerをlow-zかどうかで変える
         if z <= 1:
@@ -408,19 +416,40 @@ for ref_name, galaxy_list in data_groups.items():
         edgecolor = color
         facecolor = color if (fill or z < 1) else "white"
 
-        # --- x = 12+log(O/H)  ---
-        x = g["metal"].get("value", np.nan)
-        xerr_minus = g["metal"].get("err_minus", np.nan)
-        xerr_plus  = g["metal"].get("err_plus", np.nan)
-
-        if x is None or np.isnan(x) or x == 0 or x < -90: # 極端な値の除去
+        # --- x = log(sSFR) = log(SFR) - log(M*) ---
+        sfr = g["SFR"]
+        sm  = g["SM"]   # ← 星質量（log）
+        
+        S = sfr.get("value", np.nan)
+        Sp = sfr.get("err_plus", np.nan)
+        Sm = sfr.get("err_minus", np.nan)
+        
+        M = sm.get("value", np.nan)
+        Mp = sm.get("err_plus", np.nan)
+        Mm = sm.get("err_minus", np.nan)
+        
+        # 値チェック
+        if (
+            S is None or M is None or
+            np.isnan(S) or np.isnan(M) or
+            S == 0 or M == 0 or
+            S < -90 or M < -90
+        ):
             x = np.nan
             xerr = np.nan
         else:
-            if np.isnan(xerr_minus) or np.isnan(xerr_plus):
+            # 中央値
+            x = S - M
+        
+            # 誤差（独立・対数空間）
+            if np.isnan(Sp) or np.isnan(Sm) or np.isnan(Mp) or np.isnan(Mm):
                 xerr = np.nan
             else:
-                xerr = 0.5 * (xerr_minus + xerr_plus)  # 対称誤差
+                xerr_plus  = np.sqrt(Sp**2 + Mm**2)
+                xerr_minus = np.sqrt(Sm**2 + Mp**2)
+        
+                # 描画では対称誤差にする
+                xerr = 0.5 * (xerr_plus + xerr_minus)  
 
         # --- y = ne (log10 n_e) ---
         for ne_type, ne_info in g["ne_values"].items():
@@ -428,7 +457,6 @@ for ref_name, galaxy_list in data_groups.items():
             # OII, SII以外のデータを入れないための一時的な対策
             if ne_type != "low":
                 continue   # low 以外は無視
-
             y = ne_info.get("value", np.nan)
             yerr_minus = ne_info.get("err_minus", np.nan)
             yerr_plus  = ne_info.get("err_plus", np.nan)
@@ -440,7 +468,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if np.isnan(yerr_minus) or np.isnan(yerr_plus):
                     yerr = np.nan
                 else:
-                    yerr = 0.5 * (yerr_minus + yerr_plus)        
+                    yerr = 0.5 * (yerr_minus + yerr_plus)  
 
             if z <= 1:
                 if ref_name in sdss:
@@ -469,65 +497,37 @@ for ref_name, galaxy_list in data_groups.items():
                 alpha=get_alpha(z),
             )
 
-
         # ---- 相関計算用にリストに追加 ----
         if not np.isnan(x) and not np.isnan(y):
-            metal_list.append(x)
+            ssfr_list.append(x)
+            ssfr_xerr_list.append(xerr)
             ne_list.append(y)
             ne_yerr_list.append(yerr)
 
 
-# SIIのcritical densityを表示する (6716, 6731)
-# 値の定義
-nc_6716 = np.log10(1917.5607046610592)
-x = np.linspace(7.5, 8.0, 400)
-y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
-T = 6  # 閾値（しきい値）
-ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
-# y >= T の部分を塗る
-# ax.fill_between(x, y, T, color="gray", alpha=0.3, interpolate=True)
-# しきい値の水平線
-ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
-plt.text(x=7.5+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=12,)
-
-# # SDSSのデータのみで線形回帰した時の直線を表示する
-# slope_sdss     = 0.679
-# intercept_sdss = -3.139
-# x_range = np.linspace(6.5, 9.5, 1000)
-# y_range = slope_sdss * x_range + intercept_sdss
-# plt.plot(x_range, y_range, color='black', linestyle='--')
-# # plt.text(x=9, y=intercept_sdss - 0.1,  s="best fit (SDSS)", fontsize=12)
-
-# # CLASSYのデータのみで線形回帰した時の直線を表示する
-# slope_classy = -0.508
-# intercept_classy = 6.375
-# x_range = np.linspace(6.5, 9.5, 1000)
-# y_range = slope_classy * x_range + intercept_classy
-# plt.plot(x_range, y_range, color='black', linestyle='-.')
-# # plt.text(x=9, y=intercept_classy - 0.1,  s="best fit (CLASSY)", fontsize=12)
-
-
-# # === 推定結果（あなたの値に置き換え） ===
+# === 推定結果（あなたの値に置き換え） ===
+xmin = -13
+xmax = -6
 # slope（固定）
-m_hat_z0   = -0.162
+m_hat_z0   = -0.297
 
 # intercept
-b_hat_z0   = 3.407
-b_hat_z3   = 3.985
-b_hat_z6   = 4.226
-b_hat_z9   = 4.402
+b_hat_z0   = -0.537
+b_hat_z3   =  0.142
+b_hat_z6   =  0.670
+b_hat_z9   =  0.848
 
 # slope の標準誤差
-sigma_m_z0 = 0.152  
+sigma_m_z0 = 0.002
 sigma_m_z3 = 0.000  
 sigma_m_z6 = 0.000  
 sigma_m_z9 = 0.000 
 
 # intercept の標準誤差 
-sigma_b_z0 = 1.238 
-sigma_b_z3 = 0.018 
-sigma_b_z6 = 0.050
-sigma_b_z9 = 0.128 
+sigma_b_z0 = 0.024
+sigma_b_z3 = 0.023
+sigma_b_z6 = 0.051
+sigma_b_z9 = 0.127
 
 # slope と intercept の相関（例：不明なら 0）
 rho_mb_z0  = 0    
@@ -536,7 +536,7 @@ rho_mb_z6  = 0
 rho_mb_z9  = 0    
 
 # x 範囲
-x = np.linspace(6.5, 9.5, 1000)
+x = np.linspace(xmin, xmax, 1000)
 # 推定直線
 y_hat_z0 = m_hat_z0 * x + b_hat_z0
 y_hat_z3 = m_hat_z0 * x + b_hat_z3
@@ -565,13 +565,14 @@ upper_z9 = y_hat_z9 + k * sigma_y_z9
 ax.plot(x, y_hat_z3, color='tab:blue')
 ax.plot(x, y_hat_z6, color='tab:green')
 ax.plot(x, y_hat_z9, color='tab:red')
-# ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.05)
+# ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
 ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
 ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
 ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
+
 # 変わりに回帰分析をした時に得るを使う
-band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_metallicity_regression_band_direct.csv"))
+band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_ssfr_regression_band.csv"))
 
 plt.plot(
     band["x"],
@@ -593,13 +594,13 @@ plt.fill_between(
 # SDSSのstackデータ（Massビンごと）をプロットする 
 # =============================================
 # ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_metallicity_from_ratio.csv")
+in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_ssfr_from_ratio.csv")
 
 # ===== 読み込み =====
 res = pd.read_csv(in_csv)
 
 # ===== 必要列を取り出し =====
-x = res["logOH_cen"].to_numpy(float)
+x = res["logsSFR_cen"].to_numpy(float)
 
 y = res["log_ne_med"].to_numpy(float)
 yerr_lo = res["log_ne_err_lo"].to_numpy(float)
@@ -640,7 +641,7 @@ if np.any(m_out):
     )
 
 # stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_metallicity_regression_band.csv"))
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_ssfr_regression_band.csv"))
 
 plt.plot(
     band_stacked["x"],
@@ -657,9 +658,43 @@ plt.fill_between(
     alpha=0.05,
 )
 
-plt.xlim(7.5, 9.5)
+# # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
+# # Topping, Sanders+25
+# plt.axvline(x=1.97, color='gray', linestyle=':', alpha=0.3)
+# # Mingozzi+22
+# plt.axvline(x=-1.86, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=-2.09, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=-2.31, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=1.29, color='gray', linestyle=':', alpha=0.3)
+# plt.axvline(x=0.32, color='gray', linestyle=':', alpha=0.3)
+# # Steidel+16
+# plt.axvline(x=1.52, color='gray', linestyle=':', alpha=0.3)
+
+# SIIのcritical densityを表示する (6716, 6731)
+# 値の定義
+nc_6716 = np.log10(1917.5607046610592)
+
+x = np.linspace(xmin, xmin+2, 400)
+y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
+T = 6  # 閾値（しきい値）
+# 曲線（水平線）
+ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
+# しきい値の水平線
+ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
+plt.text(x=xmin+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=16,)
+
+
+# # CLASSYのデータのみで線形回帰した時の直線を表示する
+# slope_classy = -0.203
+# intercept_classy = 0.565 
+# x_range = np.linspace(-11, -5, 1000)
+# y_range = slope_classy * x_range + intercept_classy
+# plt.plot(x_range, y_range, color='black', linestyle='-.')
+    
+
+plt.xlim(xmin, xmax)
 plt.ylim(1.5, 4)
-ax.set_xlabel(r"12+log(O/H)")
+ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$", fontsize=16) 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
@@ -667,10 +702,32 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_metallicity_plot_v7.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v6.png"))
 plt.show()
 
 # Monitor memory usage
 process = psutil.Process()
 mem_info_before = process.memory_info().rss / 1024**3 # in GB
-print(f"Memory usage before processing: {mem_info_before:.2f} GB") 
+print(f"Memory usage before processing: {mem_info_before:.2f} GB")
+
+
+
+# 確認用（好きに変えてOKのコード）
+# === 必要なパッケージのインストール === #
+import os
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from astropy.io import fits
+import matplotlib.pyplot as plt
+
+# ヒストグラム
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.histplot(ssfr_list, bins=3000)
+plt.xlim(xmin, xmax)
+# plt.ylim(0, 20000)
+ax.set_xlabel("log(sSFR)")
+ax.set_ylabel("Count")
+plt.tight_layout()
+plt.savefig(os.path.join(current_dir, "results/figure/sSFR_histogram.png"))
+plt.show()
