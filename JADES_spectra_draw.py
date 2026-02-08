@@ -104,8 +104,8 @@ wavelength_ha, wavelength_hb, wavelength_hc, wavelength_hd = [
 # 1. CSV を読む
 # =========================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates.csv")
-df = pd.read_csv(csv_path)
+csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_GOODS_S_v1.1.csv")
+df = pd.read_csv(csv_path) 
 
 # df.iloc[0]: 「1行目（最初の1天体）」を取り出す
 nir_id = df.iloc[1]["NIRSpec_ID"] 
@@ -139,7 +139,7 @@ print("Hβ:", wavelength_hb_obs)
 # =========================
 # 2. スペクトルを探す
 # =========================
-base = os.path.join(current_dir, "results/JADES/individual/JADES_00003892/HLSP")
+base = os.path.join(current_dir, "results/JADES/individual/JADES_3892")
 
 x1d = glob.glob(f"{base}/**/*{nir_id_str}*_x1d.fits", recursive=True)[1]
 s2d = glob.glob(f"{base}/**/*{nir_id_str}*_s2d.fits", recursive=True)[1]

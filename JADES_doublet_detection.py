@@ -36,7 +36,7 @@ import astropy.units as u
 # 1. FITS カタログを読む
 # ==============================
 current_dir = os.getcwd()
-fits_file = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
+fits_file = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_v1.1/hlsp_jades_jwst_nirspec_goods-s_gratings-line-fluxes_v1.1_catalog.fits")
 
 with fits.open(fits_file) as hdul:
     cat = hdul[1].data
@@ -100,16 +100,31 @@ df_ne["Dec_dms"] = coord.dec.to_string(unit=u.deg,  sep=":", precision=2, always
 cols = [
     "NIRSpec_ID",
     "z_Spec",
-    'RA_NIRCam',
-    'Dec_NIRCam',
-    "RA_hms",      # ← 追加
-    "Dec_dms",     # ← 追加
+
+    # 座標
+    "RA_NIRCam",
+    "Dec_NIRCam",
+    "RA_hms",
+    "Dec_dms",
+
+    # 観測情報（超重要）
+    "assigned_G140M",
+    "assigned_G235M",
+    "assigned_G395M",
+    "assigned_G395H",
+    "tExp_G140M",
+    "tExp_G235M",
+
+    # line flux
     "O2_3727_flux",
     "S2_6718_flux",
     "S2_6733_flux",
+
+    # ratio
     "SII_ratio",
     "SII_ratio_err",
 ]
+
 
 df_ne = df_ne[cols]
 
@@ -117,4 +132,4 @@ df_ne = df_ne[cols]
 # ==============================
 # 6. 保存（後でスペクトルと照合）
 # ==============================
-df_ne.to_csv("results/csv/JADES_ne_candidates.csv", index=False)
+df_ne.to_csv("results/csv/JADES_ne_candidates_GOODS_S_v1.1.csv", index=False)
