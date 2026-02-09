@@ -143,6 +143,7 @@ base = os.path.join(current_dir, "results/JADES/individual/JADES_3892")
 
 x1d = glob.glob(f"{base}/**/*{nir_id_str}*_x1d.fits", recursive=True)[1]
 s2d = glob.glob(f"{base}/**/*{nir_id_str}*_s2d.fits", recursive=True)[1]
+base_dir = os.path.join(current_dir, "results/JADES/individual")
 
 print("1D:", x1d)
 print("2D:", s2d)

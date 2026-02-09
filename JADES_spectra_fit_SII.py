@@ -71,25 +71,28 @@ plt.rcParams.update({
 
 
 # =========================
-# CSV を読む
+# 1. CSV を読む
 # =========================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates.csv")
+csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_GOODS_S_v1.1.csv")
 df = pd.read_csv(csv_path)
 
 # df.iloc[0]: 「1行目（最初の1天体）」を取り出す
-nir_id = df.iloc[1]["NIRSpec_ID"] 
+nir_id = df.iloc[16]["NIRSpec_ID"] 
+z_spec = df.iloc[16]["z_Spec"]
 nir_id_str = f"{int(nir_id):08d}"
-z_spec = df.iloc[1]["z_Spec"]
 z_spec_str = f"{float(z_spec):.3f}"
-
+z_fix = z_spec
+print(z_spec)
+print(nir_id)
+print(nir_id_str)
 
 # =========================
 # 基本設定
 # =========================
-######################################################
-wave_center_s2 = 25600 # これも変更していく, Å, 目視で確認
-######################################################
+wave_length_6716 = 6716.440  # Å
+wave_length_6730 = 6730.820  # Å
+wave_center_s2 = ((wave_length_6716 + wave_length_6730) / 2) * (1 + z_spec) # Å
 def nirspec_sigma(wavelength_A, R=1000.0):
     """
     Compute Gaussian sigma [Å] for JWST/NIRSpec given wavelength [Å] and resolving power R.
@@ -101,11 +104,38 @@ def nirspec_sigma(wavelength_A, R=1000.0):
 
 sigma, fwhm = nirspec_sigma(wave_center_s2, R=1000.0)
 print(f"λ = {wave_center_s2:.1f} Å, R = 1000 -> FWHM = {fwhm:.3f} Å, σ = {sigma:.3f} Å")
-wave_length_6716 = 6716.440  # Å
-wave_length_6730 = 6730.820  # Å
-delta_lambda = 100.0           # fit 幅（Å）
+delta_lambda = 300.0           # fit 幅（Å）
 sigma_instr = sigma            # 固定（後で grating 依存にしてOK）
-filter_grating = "f170lp-g235m" # ここにフィルターグレーティング情報を追加
+if 7000.0 < wave_center_s2 < 18893.643160000556:
+    filter_grating = "f070lp-g140m" # ここにフィルターグレーティング情報を追加
+elif 16600.0 < wave_center_s2 < 31693.3834:
+    filter_grating = "f170lp-g235m" # ここにフィルターグレーティング情報を追加
+elif 28700.0 < wave_center_s2 < 52687.212:
+    filter_grating = "f290lp-g395m" # ここにフィルターグレーティング情報を追加
+print(filter_grating)
+
+# =========================
+# 2. スペクトル取得
+# =========================
+base = f"results/JADES/individual/JADES_{nir_id_str}"
+# x1d = glob.glob(f"{base}/**/*_x1d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
+# s2d = glob.glob(f"{base}/**/*_s2d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
+
+x1d_files = glob.glob(
+    os.path.join(base, "**", f"*{filter_grating}*_x1d.fits"),
+    recursive=True
+)
+
+s2d_files = glob.glob(
+    os.path.join(base, "**", f"*{filter_grating}*_s2d.fits"),
+    recursive=True
+)
+
+x1d_files.sort()
+s2d_files.sort()
+x1d = x1d_files[0]
+s2d = s2d_files[0]
+print(f"{filter_grating}: {len(x1d)} spectra found")
 
 # =========================
 # Gaussian
@@ -142,25 +172,6 @@ def s2_doublet_model_6730(x, amp_6716, amp_6730, z, sigma_int, bg):
     f6730 = gaussian(x, amp_6730, mu_6730, sigma_total)
 
     return f6730 + bg
-
-# =========================
-# 1. CSV 読み込み
-# =========================
-df = pd.read_csv("results/csv/JADES_ne_candidates.csv")
-
-row = df.iloc[1]
-nir_id = int(row["NIRSpec_ID"])
-z_fix = row["z_Spec"]
-
-nir_id_str = f"{nir_id:08d}"
-
-# =========================
-# 2. スペクトル取得
-# =========================
-base = f"results/JADES/individual/JADES_{nir_id_str}/HLSP"
-
-x1d = glob.glob(f"{base}/**/*_x1d.fits", recursive=True)[2] # ここでフィルターグレーディングを調整する
-s2d = glob.glob(f"{base}/**/*_s2d.fits", recursive=True)[2] # ここでフィルターグレーディングを調整する
 
 # =========================
 # 3. 1D スペクトル
@@ -202,7 +213,7 @@ yerr_fit = err_1d[mask_1d]
 
 amplitude_6716_init = 20
 amplitude_6730_init = 20
-z_init = (wave_center_s2 / ((wave_length_6716 + wave_length_6730)/2)) - 1 # 変更
+z_init = z_spec # 変更
 sigma_int_init = 10 # 適当, 目安がわからないのでLSFに合わせた
 bgd_s2_mask_init = 0
 p0 = [amplitude_6716_init, amplitude_6730_init, z_init, sigma_int_init, bgd_s2_mask_init]
@@ -458,7 +469,7 @@ ne_upper_s2 = S2.getTemDen(int_ratio=median-err_minus, tem=Te, wave1=6716, wave2
 ne_lower_s2 = S2.getTemDen(int_ratio=median+err_plus, tem=Te, wave1=6716, wave2=6731)
 
 # === 結果表示 ===
-print(f"[S II] 6716/6731 = {median:.3f} (+{err_plus:.3f} -{err_minus:.3f})")
+print(f"[S II] 6716/6731 = {median:.3f}+{err_plus:.3f}-{err_minus:.3f}")
 print(f"Estimated ne_s2 = {ne_median_s2:.3f}+{ne_upper_s2-ne_median_s2:.3f}-{ne_median_s2-ne_lower_s2:.3f}")
 
 kv = pd.DataFrame({
