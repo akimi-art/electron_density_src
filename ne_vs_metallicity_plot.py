@@ -319,11 +319,11 @@ for ref_name, galaxy_list in data_groups.items():
         # 色の対応
         def get_color(z):
             if z < 1:
-                # if main_sequence == 1:
-                #     return "gray"
-                # else:
-                #     return "black"
-                return "gray" # ひとまずは色を変えない
+                if main_sequence == 1:
+                    return "black"
+                else:
+                    return "gray"
+                # return "gray" # ひとまずは色を変えない
             elif 1 <= z < 4:
                 return "tab:blue"
             elif 4 <= z <= 7:
