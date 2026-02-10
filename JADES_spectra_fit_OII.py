@@ -23,10 +23,14 @@ import os, glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import emcee
+import corner
+import pyneb as pn
 from astropy.io import fits
 from astropy.visualization import ZScaleInterval
 from scipy.optimize import curve_fit
 from matplotlib.gridspec import GridSpec
+
 
 # 軸の設定
 plt.rcParams.update({
@@ -68,27 +72,71 @@ plt.rcParams.update({
 
 
 # =========================
-# CSV を読む
+# 1. CSV を読む
 # =========================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates.csv")
+csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_dr4_oii.csv")
 df = pd.read_csv(csv_path)
 
 # df.iloc[0]: 「1行目（最初の1天体）」を取り出す
-nir_id = df.iloc[1]["NIRSpec_ID"] 
+nir_id = df.iloc[19]["NIRSpec_ID"] 
+z_spec = df.iloc[19]["z_Spec"]
 nir_id_str = f"{int(nir_id):08d}"
-z_spec = df.iloc[1]["z_Spec"]
 z_spec_str = f"{float(z_spec):.3f}"
-
+z_fix = z_spec
+print(z_spec)
+print(nir_id)
+print(nir_id_str)
 
 # =========================
 # 基本設定
 # =========================
-wave_length_3726 = 3727.092  # Å
-wave_length_3729 = 3729.875  # Å
-delta_lambda = 50.0          # fit 幅（Å）
-sigma_instr = 2.0            # 固定（後で grating 依存にしてOK）
-filter_grating = "f070lp-g140m" # ここにフィルターグレーティング情報を追加
+wave_length_6716 = 3727.092  # Å（本当は名前変えないといけない）
+wave_length_6730 = 3729.875  # Å
+wave_center_s2 = ((wave_length_6716 + wave_length_6730) / 2) * (1 + z_spec) # Å
+def nirspec_sigma(wavelength_A, R=1000.0):
+    """
+    Compute Gaussian sigma [Å] for JWST/NIRSpec given wavelength [Å] and resolving power R.
+    Assumes FWHM = λ/R and sigma = FWHM/2.355.
+    """
+    fwhm_A = wavelength_A / R
+    sigma_A = fwhm_A / 2.355
+    return sigma_A, fwhm_A
+
+sigma, fwhm = nirspec_sigma(wave_center_s2, R=2700.0)
+print(f"λ = {wave_center_s2:.1f} Å, R = 1000 -> FWHM = {fwhm:.3f} Å, σ = {sigma:.3f} Å")
+delta_lambda = 300.0           # fit 幅（Å）
+sigma_instr = sigma            # 固定（後で grating 依存にしてOK）
+if 7000.0 < wave_center_s2 < 18893.643160000556:
+    filter_grating = "f070lp-g140m" # ここにフィルターグレーティング情報を追加
+elif 16600.0 < wave_center_s2 < 28700:
+    filter_grating = "f170lp-g235m" # ここにフィルターグレーティング情報を追加
+elif 28700.0 < wave_center_s2 < 52687.212:
+    filter_grating = "f290lp-g395h" # ここにフィルターグレーティング情報を追加
+print(filter_grating)
+
+# =========================
+# 2. スペクトル取得
+# =========================
+base = "results/JADES/JADES_DR4/JADES_DR4_GOODS-N_G395H_OII"
+# x1d = glob.glob(f"{base}/**/*_x1d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
+# s2d = glob.glob(f"{base}/**/*_s2d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
+
+x1d_files = glob.glob(
+    os.path.join(base, "**", f"*{filter_grating}*_x1d.fits"),
+    recursive=True
+)
+
+s2d_files = glob.glob(
+    os.path.join(base, "**", f"*{filter_grating}*_s2d.fits"),
+    recursive=True
+)
+
+x1d_files.sort()
+s2d_files.sort()
+x1d = x1d_files[0]
+s2d = s2d_files[0]
+print(f"{filter_grating}: {len(x1d)} spectra found")
 
 # =========================
 # Gaussian
@@ -97,59 +145,40 @@ def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-(x-mu)**2/(2*sigma**2)) / (np.sqrt(2*np.pi)*sigma)
 
 # =========================
-# OII model（z 固定）
+# SII model（z 固定）
 # =========================
-def o2_doublet_model(x, amp_3726, amp_3729, bg):
-    mu_3726 = wave_length_3726 * (1 + z_fix)
-    mu_3729 = wave_length_3729 * (1 + z_fix)
+def s2_doublet_model(x, amp_6716, amp_6730,  z, sigma_int, bg):
+    mu_6716 = wave_length_6716 * (1 + z)
+    mu_6730 = wave_length_6730 * (1 + z)
+    sigma_total = np.sqrt(sigma_int**2 + sigma_instr**2)
+    f6716 = gaussian(x, amp_6716, mu_6716, sigma_total)
+    f6730 = gaussian(x, amp_6730, mu_6730, sigma_total)
 
-    f3726 = gaussian(x, amp_3726, mu_3726, sigma_instr)
-    f3729 = gaussian(x, amp_3729, mu_3729, sigma_instr)
+    return f6716 + f6730 + bg
 
-    return f3726 + f3729 + bg
+def s2_doublet_model_6716(x, amp_6716, amp_6730, z, sigma_int, bg):
+    mu_6716 = wave_length_6716 * (1 + z)
+    mu_6730 = wave_length_6730 * (1 + z)
+    sigma_total = np.sqrt(sigma_int**2 + sigma_instr**2)
+    f6716 = gaussian(x, amp_6716, mu_6716, sigma_total)
+    f6730 = gaussian(x, amp_6730, mu_6730, sigma_total)
 
-def o2_doublet_model_3726(x, amp_3726, amp_3729, bg):
-    mu_3726 = wave_length_3726 * (1 + z_fix)
-    mu_3729 = wave_length_3729 * (1 + z_fix)
+    return f6716 + bg
 
-    f3726 = gaussian(x, amp_3726, mu_3726, sigma_instr)
-    f3729 = gaussian(x, amp_3729, mu_3729, sigma_instr)
+def s2_doublet_model_6730(x, amp_6716, amp_6730, z, sigma_int, bg):
+    mu_6716 = wave_length_6716 * (1 + z)
+    mu_6730 = wave_length_6730 * (1 + z)
+    sigma_total = np.sqrt(sigma_int**2 + sigma_instr**2)
+    f6716 = gaussian(x, amp_6716, mu_6716, sigma_total)
+    f6730 = gaussian(x, amp_6730, mu_6730, sigma_total)
 
-    return f3726 + bg
-
-def o2_doublet_model_3729(x, amp_3726, amp_3729, bg):
-    mu_3726 = wave_length_3726 * (1 + z_fix)
-    mu_3729 = wave_length_3729 * (1 + z_fix)
-
-    f3726 = gaussian(x, amp_3726, mu_3726, sigma_instr)
-    f3729 = gaussian(x, amp_3729, mu_3729, sigma_instr)
-
-    return f3729 + bg
-
-# =========================
-# 1. CSV 読み込み
-# =========================
-df = pd.read_csv("results/csv/JADES_ne_candidates.csv")
-
-row = df.iloc[1]
-nir_id = int(row["NIRSpec_ID"])
-z_fix = row["z_Spec"]
-
-nir_id_str = f"{nir_id:08d}"
-
-# =========================
-# 2. スペクトル取得
-# =========================
-base = f"results/JADES/individual/JADES_{nir_id_str}/HLSP"
-
-x1d = glob.glob(f"{base}/**/*_x1d.fits", recursive=True)[3]
-s2d = glob.glob(f"{base}/**/*_s2d.fits", recursive=True)[3]
+    return f6730 + bg
 
 # =========================
 # 3. 1D スペクトル
 # =========================
 with fits.open(x1d) as hdul:
-    tab = hdul["EXTRACT1D"].data
+    tab = hdul["EXTRACT5PIX1D"].data
     wave_1d = tab["WAVELENGTH"] * 1e4
     flux_1d = tab["FLUX"] * 1e19
     err_1d  = tab["FLUX_ERR"] * 1e19
@@ -164,14 +193,14 @@ with fits.open(s2d) as hdul:
 # =========================
 # 5. mask 定義（z 使用）
 # =========================
-wave_center_o2 = 0.5 * (wave_length_3726 + wave_length_3729) * (1 + z_fix)
+wave_center_s2 = 0.5 * (wave_length_6716 + wave_length_6730) * (1 + z_fix)
 
 mask_1d = (
-    (wave_1d > wave_center_o2 - delta_lambda) &
-    (wave_1d < wave_center_o2 + delta_lambda)
+    (wave_1d > wave_center_s2 - delta_lambda) &
+    (wave_1d < wave_center_s2 + delta_lambda)
 )
 
-print("OII center =", wave_center_o2)
+print("SII center =", wave_center_s2)
 print("wave_2d range =", wave_2d.min(), wave_2d.max())
 
 x_fit = wave_1d[mask_1d]
@@ -181,35 +210,28 @@ yerr_fit = err_1d[mask_1d]
 # =========================
 # 6. フィッティング
 # =========================
-p0 = [
-    np.max(y_fit),
-    np.max(y_fit)*0.7,
-    np.median(y_fit)
-]
+# === 最適化パラメータの初期値を設定する ===
 
-bounds = (
-    [0, 0, -np.inf],
-    [np.inf, np.inf, np.inf]
-)
+amplitude_6716_init = 20
+amplitude_6730_init = 20
+z_init = z_spec # 変更
+sigma_int_init = 10 # 適当, 目安がわからないのでLSFに合わせた
+bgd_s2_mask_init = 0
+p0 = [amplitude_6716_init, amplitude_6730_init, z_init, sigma_int_init, bgd_s2_mask_init]
 
 popt, pcov = curve_fit(
-    o2_doublet_model,
+    s2_doublet_model,
     x_fit, y_fit,
     p0=p0,
     sigma=yerr_fit,
-    bounds=bounds,
     absolute_sigma=True
 )
 
-amp_3726, amp_3729, bg = popt
-err = np.sqrt(np.diag(pcov))
+amp_6716, amp_6730, z, sigma_int, bg = popt
 
-ratio = amp_3726 / amp_3729
-ratio_err = ratio * np.sqrt(
-    (err[0]/amp_3726)**2 + (err[1]/amp_3729)**2
-)
-
-print(f"[O II] 3726/3729 = {ratio:.3f} ± {ratio_err:.3f}")
+ratio = amp_6716 / amp_6730
+print(f"[S II] 6716/6730 = {ratio:.3f}")
+print(popt)
 
 # =========================
 # 7. プロット
@@ -247,13 +269,14 @@ ax1d.fill_between(
 )
 
 x_model = np.linspace(x_fit.min(), x_fit.max(), 1000)
-ax1d.plot(x_model, o2_doublet_model(x_model, *popt), color="red", lw=2)
-ax1d.plot(x_model, o2_doublet_model_3726(x_model, *popt), color="red", lw=2, ls="--")
-ax1d.plot(x_model, o2_doublet_model_3729(x_model, *popt), color="red", lw=2, ls="-.")
-mu_3726 = wave_length_3726 * (1 + z_fix)
-mu_3729 = wave_length_3729 * (1 + z_fix)
-ax1d.axvline(mu_3726, color="red", ls="--")
-ax1d.axvline(mu_3729, color="red", ls="-.")
+ax1d.plot(x_model, s2_doublet_model(x_model, *popt), color="red", lw=2)
+ax1d.plot(x_model, s2_doublet_model_6716(x_model, *popt), color="red", lw=2, ls="--", label="SII 6716")
+ax1d.plot(x_model, s2_doublet_model_6730(x_model, *popt), color="red", lw=2, ls="-.", label="SII 6730")
+ax1d.legend(fontsize=16)
+mu_6716 = wave_length_6716 * (1 + z)
+mu_6730 = wave_length_6730 * (1 + z)
+ax1d.axvline(mu_6716, color="red", ls="--")
+ax1d.axvline(mu_6730, color="red", ls="-.")
 ax1d.set_xlabel(r'$\lambda (Å)$')
 ax1d.set_ylabel(r'F$_{\lambda}$ ($10^{-19}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)')
 # === 枠線 (spines) の設定 ===
@@ -277,3 +300,185 @@ save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_{filt
 plt.savefig(save_path)
 print(f"Saved as {save_path}")
 plt.show()
+
+
+# =========================
+# 8. MCMC
+# =========================
+
+# --- log prior ---
+def log_prior(theta):
+    amp_6716, amp_6730, z, sigma_int, bg = theta
+
+    # 物理的制限
+    if amp_6716 <= 0: return -np.inf
+    if amp_6730 <= 0: return -np.inf
+    if sigma_int <= 0: return -np.inf
+    if not (z_fix-0.01 < z < z_fix+0.01): return -np.inf
+
+    # 弱い一様事前
+    return 0.0
+
+
+# --- log likelihood ---
+def log_likelihood(theta, x, y, yerr):
+    model = s2_doublet_model(x, *theta)
+    return -0.5 * np.sum(((y - model)/yerr)**2)
+
+
+# --- posterior ---
+def log_probability(theta, x, y, yerr):
+    lp = log_prior(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood(theta, x, y, yerr)
+
+
+# =========================
+# 初期値（curve_fit 結果の近傍）
+# =========================
+ndim = 5
+nwalkers = 32
+
+pos = popt + 1e-3 * np.random.randn(nwalkers, ndim)
+
+sampler = emcee.EnsembleSampler(
+    nwalkers,
+    ndim,
+    log_probability,
+    args=(x_fit, y_fit, yerr_fit)
+)
+
+print("Running MCMC...")
+sampler.run_mcmc(pos, 4000, progress=True)
+
+# =========================
+# バーンイン除去
+# =========================
+burnin = 1000
+flat_samples = sampler.get_chain(discard=burnin, thin=10, flat=True)
+
+print("MCMC done.")
+
+
+amp_6716_samples = flat_samples[:,0]
+amp_6730_samples = flat_samples[:,1]
+
+ratio_samples = amp_6716_samples / amp_6730_samples
+
+ratio_median = np.percentile(ratio_samples, 50)
+ratio_low = ratio_median - np.percentile(ratio_samples, 16)
+ratio_high = np.percentile(ratio_samples, 84) - ratio_median
+
+print(f"[S II] 6716/6730 = {ratio_median:.3f} +{ratio_high:.3f} -{ratio_low:.3f}")
+
+fig = corner.corner(
+    flat_samples,
+    labels=["amp6716","amp6730","z","sigma_int","bg"],
+    truths=popt
+)
+plt.show()
+
+save_dir = os.path.join(current_dir, f"results/JADES/parameters/{nir_id_str}")
+os.makedirs(save_dir, exist_ok=True)
+
+# =========================
+# パラメータの保存
+# =========================
+# 推定パラメータ（中央値＋誤差）を保存
+labels = ["amp_6716", "amp_6730", "z", "sigma_int", "bg"]
+
+results = {}
+
+for i, label in enumerate(labels):
+    q16, q50, q84 = np.percentile(flat_samples[:, i], [16, 50, 84])
+    results[label] = {
+        "median": q50,
+        "err_minus": q50 - q16,
+        "err_plus": q84 - q50
+    }
+
+# ratio も追加
+ratio_samples = flat_samples[:,0] / flat_samples[:,1]
+q16, q50, q84 = np.percentile(ratio_samples, [16, 50, 84])
+results["SII_ratio"] = {
+    "median": q50,
+    "err_minus": q50 - q16,
+    "err_plus": q84 - q50
+}
+
+df_results = pd.DataFrame(results).T
+df_results.to_csv(
+    os.path.join(save_dir, f"SII_MCMC_results_ID{nir_id_str}.csv")
+)
+
+# コーナープロットの保存
+fig = corner.corner(
+    flat_samples,
+    labels=["amp6716","amp6730","z","sigma_int","bg"],
+    truths=popt,
+    show_titles=True
+)
+
+corner_path = os.path.join(
+    save_dir,
+    f"SII_corner_ID{nir_id_str}.png"
+)
+
+plt.savefig(corner_path, dpi=300, bbox_inches="tight")
+plt.close(fig)
+
+print("Saved:", corner_path)
+
+fig_ratio = corner.corner(
+    np.column_stack([ratio_samples]),
+    labels=["SII 6716/6730"]
+)
+
+# ratio だけの corner
+ratio_corner_path = os.path.join(
+    save_dir,
+    f"SII_ratio_corner_ID{nir_id_str}.png"
+)
+
+plt.savefig(ratio_corner_path, dpi=300, bbox_inches="tight")
+plt.close(fig_ratio)
+
+print("Saved:", ratio_corner_path)
+
+
+# =========================
+# 9. neの計算
+# =========================
+S2 = pn.Atom("S", 2)  # S II
+Te = 15000.0          # 仮定電子温度（あとで拡張可能）
+
+# === [S II] の比データ（適宜変更） ===
+median = results["SII_ratio"]["median"]
+err_minus = results["SII_ratio"]["err_minus"]
+err_plus  = results["SII_ratio"]["err_plus"]
+
+# === PyNeb オブジェクト作成 ===
+S2 = pn.Atom('S', 2)
+
+# === Te設定 ===
+Te = 15000 # K （適宜変更）
+
+# === 比を使って電子密度を推定 ===
+ne_median_s2 = S2.getTemDen(int_ratio=median, tem=Te, wave1=6716, wave2=6731)
+ne_upper_s2 = S2.getTemDen(int_ratio=median-err_minus, tem=Te, wave1=6716, wave2=6731)
+ne_lower_s2 = S2.getTemDen(int_ratio=median+err_plus, tem=Te, wave1=6716, wave2=6731)
+
+# === 結果表示 ===
+print(f"[S II] 6716/6731 = {median:.3f}+{err_plus:.3f}-{err_minus:.3f}")
+print(f"Estimated ne_s2 = {ne_median_s2:.3f}+{ne_upper_s2-ne_median_s2:.3f}-{ne_median_s2-ne_lower_s2:.3f}")
+
+kv = pd.DataFrame({
+    "name": ["ne(SII) median", "ne(SII) upper", "ne (SII) lower"],
+    "value": [ne_median_s2, ne_upper_s2-ne_median_s2, ne_median_s2-ne_lower_s2]   # 配列は list にして格納
+})
+
+kv.to_csv(os.path.join(
+    save_dir,
+    f"ne_SII_ID{nir_id_str}.csv"
+), index=False)

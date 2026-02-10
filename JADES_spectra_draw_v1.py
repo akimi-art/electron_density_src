@@ -89,22 +89,22 @@ wavelength_o3_rest  = np.array([4960.295, 5008.240])
 # 1. カタログ読み込み
 # =====================================================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_GOODS_S_v1.1.csv")
+csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_dr4_oii.csv")
 df = pd.read_csv(csv_path) 
 
 # =====================================================
 # 2. clear-prism ファイル取得
 # =====================================================
-base_dir = os.path.join(current_dir, "results/JADES/individual")
+base_dir = os.path.join(current_dir, "results/JADES/JADES_DR4/JADES_DR4_GOODS-N_G395H_OII")
 
 x1d_files = glob.glob(
-    os.path.join(base_dir, "JADES_*", "**", "*clear-prism*_x1d.fits"),
+    os.path.join(base_dir, "**", "*f290lp-g395h*_x1d.fits"),
     recursive=True
 )
 
 x1d_files.sort()
 
-print(f"Found {len(x1d_files)} prism spectra")
+print(f"Found {len(x1d_files)} f290lp-g395h spectra")
 
 # =====================================================
 # 3. レイアウト設定
@@ -150,7 +150,7 @@ for idx, x1d in enumerate(x1d_files):
 
     # ---- スペクトル読み込み ----
     with fits.open(x1d) as hdul:
-        tab = hdul["EXTRACT1D"].data
+        tab = hdul["EXTRACT5PIX1D"].data
         wave_1d = tab["WAVELENGTH"] * 10000
         flux_1d = tab["FLUX"] * 1e19
         err_1d  = tab["FLUX_ERR"] * 1e19
@@ -231,7 +231,7 @@ for idx, x1d in enumerate(x1d_files):
 # =====================================================
 # 5. 表示
 # =====================================================
-save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_spectra.png")
+save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_spectra_dr4_oii.png")
 plt.savefig(save_path)
 print(f"Saved as {save_path}")
 plt.show()

@@ -25,7 +25,7 @@ from astropy.io import fits
 
 # === ファイルパスを取得する === #
 current_dir = os.getcwd()
-file_galex = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_v1.1/hlsp_jades_jwst_nirspec_goods-s_gratings-line-fluxes_v1.1_catalog.fits")
+file_galex = os.path.join(current_dir, "results/JADES/JADES_DR4/JADES_DR4_GOODS-N_G395H_OII/hlsp_jades_jwst_nirspec_goods-n-mediumjwst-00005591_f290lp-g395h_v1.0_x1d.fits")
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
