@@ -20,80 +20,25 @@ csvファイルに存在する全てのIDのスペクトルに対して
     - Python公式ドキュメント: https://docs.python.org/ja/3/
 """
 
-# == 必要なパッケージのインストール == #
-import os, glob
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import emcee
-import corner
-import pyneb as pn
-from astropy.io import fits
-from astropy.visualization import ZScaleInterval
-from scipy.optimize import curve_fit
-from matplotlib.gridspec import GridSpec
 
-# 軸の設定
-plt.rcParams.update({
-    # --- 図全体 ---
-    "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
-    "axes.grid": False,              # グリッドOFF
-
-    # --- 目盛り設定 (ticks) ---
-    "xtick.direction": "in",         # x軸目盛りの向き
-    "ytick.direction": "in",         # y軸目盛りの向き
-    "xtick.top": True,               # 上にも目盛り
-    "ytick.right": True,             # 右にも目盛り
-
-    # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
-    "xtick.major.width": 2,          # 太さ
-    "ytick.major.width": 2,
-
-    # 補助目盛り（minor ticks）
-    "xtick.minor.visible": True,     # 補助目盛りON
-    "ytick.minor.visible": True,
-    "xtick.minor.size": 8,           # 長さ
-    "ytick.minor.size": 8,
-    "xtick.minor.width": 1.5,        # 太さ
-    "ytick.minor.width": 1.5,
-
-    # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
-
-    # --- フォント ---
-    "font.family": "STIXGeneral",
-    "mathtext.fontset": "stix",
-})
-
-
+# == 必要なパッケージ == #
 import os
 import glob
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from astropy.io import fits
-from astropy.visualization import ZScaleInterval
 from scipy.optimize import curve_fit
 import emcee
-import corner
-import pyneb as pn
 
 # =====================================================
-# 基本設定
+# 基本物理定数
 # =====================================================
 wave_6716 = 6716.440
 wave_6730 = 6730.820
-delta_lambda = 100.0
-Te = 15000.0
+delta_lambda = 120.0
 nwalkers = 32
-nsteps = 4000
-burnin = 1000
+nsteps = 3000
+burnin = 800
 
 # =====================================================
 # Gaussian
@@ -101,9 +46,8 @@ burnin = 1000
 def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-(x-mu)**2/(2*sigma**2)) / (np.sqrt(2*np.pi)*sigma)
 
-def nirspec_sigma(wavelength_A, R=1000.0):
-    fwhm_A = wavelength_A / R
-    return fwhm_A / 2.355
+def nirspec_sigma(wavelength_A, R):
+    return (wavelength_A / R) / 2.355
 
 # =====================================================
 # SII model
@@ -124,16 +68,16 @@ def s2_model(x, amp1, amp2, z, sigma_int, bg, sigma_instr):
 def run_mcmc(popt, x, y, yerr, sigma_instr, z_fix):
 
     def log_prior(theta):
-        amp1, amp2, z, sigma_int, bg = theta
-        if amp1 <= 0 or amp2 <= 0 or sigma_int <= 0:
+        a1,a2,z,sig,bg = theta
+        if a1<=0 or a2<=0 or sig<=0:
             return -np.inf
         if not (z_fix-0.01 < z < z_fix+0.01):
             return -np.inf
         return 0.0
 
     def log_likelihood(theta):
-        model = s2_model(x, *theta, sigma_instr)
-        return -0.5 * np.sum(((y-model)/yerr)**2)
+        model = s2_model(x,*theta,sigma_instr)
+        return -0.5*np.sum(((y-model)/yerr)**2)
 
     def log_prob(theta):
         lp = log_prior(theta)
@@ -142,119 +86,169 @@ def run_mcmc(popt, x, y, yerr, sigma_instr, z_fix):
         return lp + log_likelihood(theta)
 
     ndim = 5
-    pos = popt + 1e-3*np.random.randn(nwalkers, ndim)
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
-    sampler.run_mcmc(pos, nsteps, progress=False)
+    pos = popt + 1e-3*np.random.randn(nwalkers,ndim)
+    sampler = emcee.EnsembleSampler(nwalkers,ndim,log_prob)
+    sampler.run_mcmc(pos,nsteps,progress=False)
 
-    samples = sampler.get_chain(discard=burnin, thin=10, flat=True)
+    samples = sampler.get_chain(discard=burnin,thin=10,flat=True)
     return samples
 
 # =====================================================
-# メイン処理
+# ディレクトリ設定
 # =====================================================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates_GOODS_S_v1.1.csv")
-df = pd.read_csv(csv_path)
 
-base_dir = os.path.join(current_dir, "results/JADES/individual")
+catalog_path = os.path.join(
+    current_dir,
+    "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits"
+)
 
-for _, row in df.iterrows():
+base_root = os.path.join(
+    current_dir,
+    "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
+)
 
-    nir_id = int(row["NIRSpec_ID"])
-    z_spec = float(row["z_Spec"])
+grating_dirs = {
+    "f070lp-g140m": "JADES_DR3_G140M",
+    "f170lp-g235m": "JADES_DR3_G235M",
+    "f290lp-g395m": "JADES_DR3_G395M",
+}
+
+# =====================================================
+# カタログ読み込み
+# =====================================================
+with fits.open(catalog_path) as hdul:
+    cat = hdul[1].data
+
+df_cat = pd.DataFrame({
+    "NIRSpec_ID": cat["NIRSpec_ID"],
+    "z_Spec": cat["z_Spec"],
+})
+
+total_objects = len(df_cat)
+print(f"\nTotal objects in catalog: {total_objects}")
+
+results_all = []
+n_success = 0
+n_skip = 0
+
+# =====================================================
+# メインループ
+# =====================================================
+for i, row in enumerate(df_cat.itertuples(index=False), 1):
+
+    nir_id = int(row.NIRSpec_ID)
+    z_spec = float(row.z_Spec)
     nir_id_str = f"{nir_id:08d}"
 
-    print(f"\nProcessing ID {nir_id_str}")
+    print(f"\n[{i}/{total_objects}] Processing {nir_id_str} (z={z_spec:.3f})")
 
-    # =============================
-    # フィルター自動判定
-    # =============================
+    if not np.isfinite(z_spec):
+        print("  -> skipped: z_spec not finite")
+        n_skip += 1
+        continue
+
     wave_center = 0.5*(wave_6716+wave_6730)*(1+z_spec)
 
     if 7000 < wave_center < 18800:
         filter_grating = "f070lp-g140m"
         R = 1000
-    else:
+    elif 18800 < wave_center < 31000:
         filter_grating = "f170lp-g235m"
         R = 1000
-
-    # =============================
-    # スペクトル取得
-    # =============================
-    base = os.path.join(base_dir, f"JADES_{nir_id_str}")
-
-    x1d_files = glob.glob(os.path.join(base, "**", f"*{filter_grating}*_x1d.fits"), recursive=True)
-    s2d_files = glob.glob(os.path.join(base, "**", f"*{filter_grating}*_s2d.fits"), recursive=True)
-
-    if len(x1d_files)==0 or len(s2d_files)==0:
-        print("  Spectrum not found")
+    elif 31000 < wave_center < 52000:
+        filter_grating = "f290lp-g395m"
+        R = 1000
+    else:
+        print("  -> skipped: SII out of wavelength range")
+        n_skip += 1
         continue
 
-    x1d = x1d_files[0]
-    s2d = s2d_files[0]
+    subdir = grating_dirs.get(filter_grating)
+    base = os.path.join(base_root, subdir)
+    pattern = f"*{nir_id_str}_{filter_grating}*_x1d.fits"
+    files = glob.glob(os.path.join(base, pattern))
 
-    # =============================
-    # 読み込み
-    # =============================
-    with fits.open(x1d) as hdul:
-        tab = hdul["EXTRACT1D"].data
-        wave = tab["WAVELENGTH"]*1e4
-        flux = tab["FLUX"]*1e19
-        err  = tab["FLUX_ERR"]*1e19
+    if len(files)==0:
+        print("  -> skipped: spectrum file not found")
+        n_skip += 1
+        continue
 
-    with fits.open(s2d) as hdul:
-        flux2d = hdul["FLUX"].data
-        wave2d = hdul["WAVELENGTH"].data*1e4
+    x1d = files[0]
 
-    sigma_instr = nirspec_sigma(wave_center, R=R)
+    try:
+        with fits.open(x1d) as hdul:
+            tab = hdul["EXTRACT1D"].data
+            wave = tab["WAVELENGTH"]*1e4
+            flux = tab["FLUX"]*1e19
+            err  = tab["FLUX_ERR"]*1e19
+    except Exception as e:
+        print(f"  -> skipped: fits read error {e}")
+        n_skip += 1
+        continue
+
+    sigma_instr = nirspec_sigma(wave_center,R)
 
     mask = (wave > wave_center-delta_lambda) & (wave < wave_center+delta_lambda)
-    x_fit, y_fit, yerr_fit = wave[mask], flux[mask], err[mask]
-
-    if len(x_fit)==0:
-        print("  No valid region")
+    if np.sum(mask)==0:
+        print("  -> skipped: no wavelength coverage")
+        n_skip += 1
         continue
 
-    # =============================
-    # curve_fit
-    # =============================
+    x_fit = wave[mask]
+    y_fit = flux[mask]
+    yerr_fit = err[mask]
+
     p0 = [20,20,z_spec,10,0]
-    popt,_ = curve_fit(
-        lambda x,a1,a2,z,s,b: s2_model(x,a1,a2,z,s,b,sigma_instr),
-        x_fit,y_fit,p0=p0,sigma=yerr_fit,absolute_sigma=True
-    )
 
-    ratio = popt[0]/popt[1]
-    print(f"  Ratio initial = {ratio:.3f}")
+    try:
+        popt,_ = curve_fit(
+            lambda x,a1,a2,z,s,b: s2_model(x,a1,a2,z,s,b,sigma_instr),
+            x_fit,y_fit,p0=p0,sigma=yerr_fit,absolute_sigma=True
+        )
+    except Exception as e:
+        print(f"  -> skipped: fit failed {e}")
+        n_skip += 1
+        continue
 
-    # =============================
-    # MCMC
-    # =============================
-    samples = run_mcmc(popt,x_fit,y_fit,yerr_fit,sigma_instr,z_spec)
+    try:
+        samples = run_mcmc(popt,x_fit,y_fit,yerr_fit,sigma_instr,z_spec)
+    except Exception as e:
+        print(f"  -> skipped: MCMC failed {e}")
+        n_skip += 1
+        continue
 
     amp1 = samples[:,0]
     amp2 = samples[:,1]
+
     ratio_samples = amp1/amp2
+    r16,r50,r84 = np.percentile(ratio_samples,[16,50,84])
 
-    q16,q50,q84 = np.percentile(ratio_samples,[16,50,84])
+    results_all.append({
+        "NIRSpec_ID": nir_id,
+        "z_Spec": z_spec,
+        "S2_6716_flux": np.median(amp1),
+        "S2_6730_flux": np.median(amp2),
+        "ratio_median": r50,
+        "ratio_minus": r50-r16,
+        "ratio_plus": r84-r50,
+    })
 
-    # =============================
-    # ne 計算
-    # =============================
-    S2 = pn.Atom("S",2)
-    ne_median = S2.getTemDen(q50,tem=Te,wave1=6716,wave2=6731)
+    n_success += 1
+    print(f"  ✓ success: ratio = {r50:.3f}")
 
-    # =============================
-    # 保存
-    # =============================
-    save_dir = os.path.join(current_dir,f"results/JADES/parameters/{nir_id_str}")
-    os.makedirs(save_dir,exist_ok=True)
+# =====================================================
+# 保存
+# =====================================================
+df_final = pd.DataFrame(results_all)
 
-    pd.DataFrame({
-        "ratio_median":[q50],
-        "ratio_minus":[q50-q16],
-        "ratio_plus":[q84-q50],
-        "ne":[ne_median]
-    }).to_csv(os.path.join(save_dir,f"SII_results_{nir_id_str}.csv"),index=False)
+output_path = os.path.join(current_dir,"results/csv/JADES_DR3_GOODS-S_SII_ratio_only.csv")
+df_final.to_csv(output_path,index=False)
 
-    print(f"  Saved results for {nir_id_str}")
+print("\n========== SUMMARY ==========")
+print(f"Total: {total_objects}")
+print(f"Success: {n_success}")
+print(f"Skipped: {n_skip}")
+print("Saved to:",output_path)
+
+

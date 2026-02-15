@@ -32,18 +32,24 @@ import pandas as pd
 current_dir = os.getcwd()
 
 # ファイルの読み込み
-file_path = os.path.join(current_dir, "data/data_SDSS/DR7/fits_files/gal_fibsfr_dr7_v5_2.fits")
-output_path = os.path.join(current_dir, 'results/txt/gal_fibsfr_dr7_v5_2.txt')
+file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
+output_path = os.path.join(current_dir, 'results/txt/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.txt')
 
 # FITSファイルを開く
 with fits.open(file_path) as hdul:
     data = hdul[1].data  # BinTableHDUを取得
-    col1 = 'MEDIAN'
-    col2 = 'P16'
-    col3 = 'P84'
+    col1 = 'NIRSpec_ID'
+    col2 = 'z_Spec'
+    col3 = 'S2_6718_flux'
+    col4 = 'S2_6718_err'
+    col5 = 'S2_6733_flux'
+    col6 = 'S2_6733_err'
     with open(output_path, 'w', encoding='utf-8') as f:
         for row in data:
             val1 = row[col1]
-            val2 = row[col1] - row[col2]
-            val3 = row[col3] - row[col1]
-            f.write(f"{val1}\t{val2}\t{val3}\n")
+            val2 = row[col2]
+            val3 = row[col3]
+            val4 = row[col4]
+            val5 = row[col5]
+            val6 = row[col6]
+            f.write(f"{val1}\t{val2}\t{val3}\t{val4}\t{val6}\t{val6}\n")
