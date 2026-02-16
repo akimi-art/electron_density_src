@@ -178,7 +178,7 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         mask &
-        (df["sm_MEDIAN"] >= lo) &
+        (df["sm_MEDIAN"] >= lo) & 
         (df["sm_MEDIAN"] <  hi)
     )
 

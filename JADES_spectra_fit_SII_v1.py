@@ -67,17 +67,59 @@ def s2_model(x, amp1, amp2, z, sigma_int, bg, sigma_instr):
 # =====================================================
 def run_mcmc(popt, x, y, yerr, sigma_instr, z_fix):
 
+    # ---- 初期値をlog空間へ ----
+    logA1_0 = np.log(popt[0])
+    logA2_0 = np.log(popt[1])
+    logSig_0 = np.log(popt[3])
+    bg_0 = popt[4]
+
+    # ---------------------------
+    # Prior
+    # ---------------------------
     def log_prior(theta):
-        a1,a2,z,sig,bg = theta
-        if a1<=0 or a2<=0 or sig<=0:
+
+        logA1, logA2, logSig, bg = theta
+
+        # 振幅（広いが有限）
+        if not (-50 < logA1 < 20):
             return -np.inf
-        if not (z_fix-0.01 < z < z_fix+0.01):
+        if not (-50 < logA2 < 20):
             return -np.inf
+
+        # intrinsic sigma (Å)
+        if not (-5 < logSig < 5):
+            return -np.inf
+
+        # 背景
+        if not (-1e6 < bg < 1e6):
+            return -np.inf
+
         return 0.0
 
+
+    # ---------------------------
+    # Likelihood
+    # ---------------------------
     def log_likelihood(theta):
-        model = s2_model(x,*theta,sigma_instr)
+
+        logA1, logA2, logSig, bg = theta
+
+        amp1 = np.exp(logA1)
+        amp2 = np.exp(logA2)
+        sigma_int = np.exp(logSig)
+
+        model = s2_model(
+            x,
+            amp1,
+            amp2,
+            z_fix,        # z固定
+            sigma_int,
+            bg,
+            sigma_instr
+        )
+
         return -0.5*np.sum(((y-model)/yerr)**2)
+
 
     def log_prob(theta):
         lp = log_prior(theta)
@@ -85,13 +127,28 @@ def run_mcmc(popt, x, y, yerr, sigma_instr, z_fix):
             return -np.inf
         return lp + log_likelihood(theta)
 
-    ndim = 5
-    pos = popt + 1e-3*np.random.randn(nwalkers,ndim)
-    sampler = emcee.EnsembleSampler(nwalkers,ndim,log_prob)
-    sampler.run_mcmc(pos,nsteps,progress=False)
 
-    samples = sampler.get_chain(discard=burnin,thin=10,flat=True)
-    return samples
+    # ---------------------------
+    # Sampler
+    # ---------------------------
+    ndim = 4
+    pos0 = np.array([logA1_0, logA2_0, logSig_0, bg_0])
+    pos = pos0 + 1e-3*np.random.randn(nwalkers, ndim)
+
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
+    sampler.run_mcmc(pos, nsteps, progress=False)
+
+    flat = sampler.get_chain(discard=burnin, thin=10, flat=True)
+
+    # 物理量に戻す
+    amp1 = np.exp(flat[:,0])
+    amp2 = np.exp(flat[:,1])
+    sigma_int = np.exp(flat[:,2])
+    bg = flat[:,3]
+
+    return amp1, amp2, sigma_int, bg
+
+
 
 # =====================================================
 # ディレクトリ設定
@@ -100,18 +157,27 @@ current_dir = os.getcwd()
 
 catalog_path = os.path.join(
     current_dir,
-    "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits"
+    "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits" # DR3
+    # "results/JADES/JADES_DR4/catalog/Combined_DR4_external_v1.2.1.fits" # DR4
 )
 
 base_root = os.path.join(
     current_dir,
-    "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
+    "results/JADES/JADES_DR3/JADES_DR3_full_spectra" # DR3
+    # "results/JADES/JADES_DR4/JADES_DR4_full_spectra/GOODS-N" # DR4
+    #  results/JADES/JADES_DR4/JADES_DR4_full_spectra/GOODS-N
+
 )
 
 grating_dirs = {
+    # DR3
     "f070lp-g140m": "JADES_DR3_G140M",
     "f170lp-g235m": "JADES_DR3_G235M",
     "f290lp-g395m": "JADES_DR3_G395M",
+    # # DR4
+    # "f070lp-g140m": "JADES_DR4_G140M",
+    # "f170lp-g235m": "JADES_DR4_G235M",
+    # "f290lp-g395m": "JADES_DR4_G395M",
 }
 
 # =====================================================
@@ -178,7 +244,8 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
 
     try:
         with fits.open(x1d) as hdul:
-            tab = hdul["EXTRACT1D"].data
+            tab = hdul["EXTRACT1D"].data # DR3
+            # tab = hdul["EXTRACT5PIX1D"].data # DR4
             wave = tab["WAVELENGTH"]*1e4
             flux = tab["FLUX"]*1e19
             err  = tab["FLUX_ERR"]*1e19
@@ -212,23 +279,38 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
         continue
 
     try:
-        samples = run_mcmc(popt,x_fit,y_fit,yerr_fit,sigma_instr,z_spec)
+        amp1, amp2, sigma_int, bg_samples = run_mcmc(
+            popt,
+            x_fit,
+            y_fit,
+            yerr_fit,
+            sigma_instr,
+            z_spec
+        )
     except Exception as e:
         print(f"  -> skipped: MCMC failed {e}")
         n_skip += 1
         continue
 
-    amp1 = samples[:,0]
-    amp2 = samples[:,1]
+    # ==========================
+    # 統計処理
+    # ==========================
 
-    ratio_samples = amp1/amp2
+    f1_16,f1_50,f1_84 = np.percentile(amp1,[16,50,84])
+    f2_16,f2_50,f2_84 = np.percentile(amp2,[16,50,84])
+
+    ratio_samples = amp1 / amp2
     r16,r50,r84 = np.percentile(ratio_samples,[16,50,84])
 
     results_all.append({
         "NIRSpec_ID": nir_id,
         "z_Spec": z_spec,
-        "S2_6716_flux": np.median(amp1),
-        "S2_6730_flux": np.median(amp2),
+        "S2_6716_flux": f1_50,
+        "S2_6716_err_minus": f1_50 - f1_16,
+        "S2_6716_err_plus":  f1_84 - f1_50,
+        "S2_6730_flux": f2_50,
+        "S2_6730_err_minus": f2_50 - f2_16,
+        "S2_6730_err_plus":  f2_84 - f2_50,
         "ratio_median": r50,
         "ratio_minus": r50-r16,
         "ratio_plus": r84-r50,
@@ -250,5 +332,3 @@ print(f"Total: {total_objects}")
 print(f"Success: {n_success}")
 print(f"Skipped: {n_skip}")
 print("Saved to:",output_path)
-
-

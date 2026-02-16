@@ -78,8 +78,8 @@ csv_path = os.path.join(current_dir, "results/csv/JADES_DR4_kiyota_2026_selected
 df = pd.read_csv(csv_path)
 
 # df.iloc[0]: 「1行目（最初の1天体）」を取り出す
-nir_id = df.iloc[8]["NIRSpec_ID"] 
-z_spec = df.iloc[8]["z_Spec"]
+nir_id = df.iloc[0]["NIRSpec_ID"] 
+z_spec = df.iloc[0]["z_Spec"]
 nir_id_str = f"{int(nir_id):08d}"
 z_spec_str = f"{float(z_spec):.3f}"
 z_fix = z_spec

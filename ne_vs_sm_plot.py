@@ -618,7 +618,7 @@ plt.fill_between(
 # SDSSのstackデータ（Massビンごと）をプロットする 
 # =============================================
 # ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_mass_from_ratio.csv")
+in_csv  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_COMPLETE.csv")
 
 # ===== 読み込み =====
 res = pd.read_csv(in_csv)
@@ -665,7 +665,7 @@ if np.any(m_out):
     )
 
 # stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band.csv"))
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
 
 plt.plot(
     band_stacked["x"],
