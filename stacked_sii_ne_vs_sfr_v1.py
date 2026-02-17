@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+logSFR ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -11,7 +11,7 @@ logM* ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_mass_v1.py [オプション]
+    stacked_sii_ne_vs_sfr_v1.py [オプション]
 
 著者: A. M.
 作成日: 2026-02-16
@@ -96,8 +96,8 @@ import astropy.units as u
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
 
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE.png")
+out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr_COMPLETE.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -141,10 +141,11 @@ df["R_SII"] = F6716 / F6731
 # ==========================================
 # マスク定義
 # ==========================================
-def valid_mass(x):
+def valid_sfr(x):
     x = np.asarray(x, float)
     m = np.isfinite(x)
-    m &= (x > 0) & (x < 13)
+    # 極端な outlier だけ落とす（-5<log(SFR)<5ならまず間違いない→-1が異常値になっていないか？）
+    m &= (x > -5) & (x < 5)
     return m
 
 m_sii = (
@@ -153,10 +154,11 @@ m_sii = (
     (err6716 > 0) & (err6731 > 0)
 )
 
-m_sm = valid_mass(df["sm_MEDIAN"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
 m_ratio = np.isfinite(df["R_SII"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
 
-mask_all = m_sii & m_sm & m_ratio
+mask_all = m_sii & m_sfr & m_ratio
 
 # 完全サンプル
 m_complete = mask_all & (L6716 >= Lcut) & (L6731 >= Lcut)
@@ -165,11 +167,11 @@ m_incomplete = mask_all & (~m_complete)
 # ==========================================
 # ビン作成
 # ==========================================
-logM = df.loc[m_complete, "sm_MEDIAN"].values
+logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
 
 edges = np.arange(
-    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(logSFR.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logSFR.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
@@ -193,8 +195,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -221,9 +223,9 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     R84 = np.nanpercentile(R_mc, 84)
 
     rows.append(dict(
-        logM_lo=lo,
-        logM_hi=hi,
-        logM_cen = 0.5*(lo+hi),
+        logSFR_lo=lo,
+        logSFR_hi=hi,
+        logSFR_cen = 0.5*(lo+hi),
         N = N,
         # F6717=F1, # 構文が違う
         # F6717_err=e1,
@@ -246,7 +248,7 @@ fig, ax = plt.subplots(figsize=(12,6))
 
 # 不完全（薄グレー）
 ax.scatter(
-    df.loc[m_incomplete, "sm_MEDIAN"],
+    df.loc[m_incomplete, "sfr_MEDIAN"],
     df.loc[m_incomplete, "R_SII"],
     s=0.01,
     marker='.',
@@ -257,7 +259,7 @@ ax.scatter(
 
 # 完全（青）
 ax.scatter(
-    df.loc[m_complete, "sm_MEDIAN"],
+    df.loc[m_complete, "sfr_MEDIAN"],
     df.loc[m_complete, "R_SII"],
     s=0.01,
     marker='.',
@@ -267,7 +269,7 @@ ax.scatter(
 
 # stack結果
 ax.errorbar(
-    res["logM_cen"],
+    res["logSFR_cen"],
     res["R_med"],
     yerr=[res["R_err_lo"], res["R_err_hi"]],
     fmt="s",
@@ -276,9 +278,9 @@ ax.errorbar(
     label="Stack (Complete only)"
 )
 
-ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
+ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(6,12)
+ax.set_xlim(-4, 2)
 ax.set_ylim(1.1,1.6)
 
 for spine in ax.spines.values():

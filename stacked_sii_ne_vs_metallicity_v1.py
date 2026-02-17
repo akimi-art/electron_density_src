@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+12+log(O/H) ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -11,7 +11,7 @@ logM* ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_mass_v1.py [オプション]
+    stacked_sii_ne_vs_metallicity_v1.py [オプション]
 
 著者: A. M.
 作成日: 2026-02-16
@@ -279,7 +279,7 @@ ax.errorbar(
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
 ax.set_xlim(6,12)
-ax.set_ylim(1.1,1.6)
+ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)
