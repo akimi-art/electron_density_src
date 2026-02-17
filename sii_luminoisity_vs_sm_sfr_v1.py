@@ -5,7 +5,7 @@
 SIIのLuminosityとStellar Mass, SFRの
 関係性をプロットします。
 Completeなサンプルだと思われるもののみを使用しています。
-また、この
+SM, SFRのビンごとに分けてプロットします。
 
 使用方法:
     sii_luminoisity_vs_sm_sfr_v1.py [オプション]
