@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-BPT-Diagramを描画します。
+SIIのLuminosityとStellar Mass, SFRの
+関係性をプロットします。
+
 
 
 使用方法:
@@ -221,10 +223,16 @@ for ax in (ax2, ax4):
     ax.yaxis.set_ticks_position('none')  # 目盛線も消す（必要なら）
 
 # x ラベルは下段のみ（共有のため上段は不要）
-ax3.set_xlabel(r"log($M_{\ast}$)")
-ax4.set_xlabel(r"log($SFR$)")
 ax1.set_xlabel(r"log($M_{\ast}$)")
 ax2.set_xlabel(r"log($SFR$)")
+ax3.set_xlabel(r"log($M_{\ast}$)")
+ax4.set_xlabel(r"log($SFR$)")
+
+# x 範囲
+ax1.set_xlim(6, 12)
+ax2.set_xlim(-3, 3)
+ax3.set_xlim(6, 12)
+ax4.set_xlim(-3, 3)
 
 # y 範囲
 ax1.set_ylim(1e35, 1e39)
