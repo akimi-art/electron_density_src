@@ -94,7 +94,7 @@ import astropy.units as u
 # 入出力
 # ==========================================
 current_dir = os.getcwd()
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
 
 out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE.csv")
 out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE.png")
@@ -108,7 +108,7 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 BIN_WIDTH = 0.1
 NMIN = 100
 N_MC = 5000
-Lcut = 1e39              # 完全サンプル条件
+# Lcut = 1e39              # 完全サンプル条件
 
 UNIT_FLUX = 1e-17        # MPA-JHU flux単位
 
@@ -159,8 +159,9 @@ m_ratio = np.isfinite(df["R_SII"])
 mask_all = m_sii & m_sm & m_ratio
 
 # 完全サンプル
-m_complete = mask_all & (L6716 >= Lcut) & (L6731 >= Lcut)
-m_incomplete = mask_all & (~m_complete)
+# m_complete = mask_all & (L6716 >= Lcut) & (L6731 >= Lcut)
+m_complete = mask_all
+# m_incomplete = mask_all & (~m_complete)
 
 # ==========================================
 # ビン作成
@@ -244,15 +245,15 @@ print("Saved:", out_csv)
 # ==========================================
 fig, ax = plt.subplots(figsize=(12,6))
 
-# 不完全（薄グレー）
-ax.scatter(
-    df.loc[m_incomplete, "sm_MEDIAN"],
-    df.loc[m_incomplete, "R_SII"],
-    s=0.01,
-    marker='.',
-    alpha=0.8,
-    color="gray",
-)
+# # 不完全（薄グレー）
+# ax.scatter(
+#     df.loc[m_incomplete, "sm_MEDIAN"],
+#     df.loc[m_incomplete, "R_SII"],
+#     s=0.01,
+#     marker='.',
+#     alpha=0.8,
+#     color="gray",
+# )
 
 
 # 完全（青）
@@ -265,26 +266,42 @@ ax.scatter(
     color="C0",
 )
 
-# stack結果
+# stack結果（完全なものとそうでないものの色を分ける）
+thr = 10.0
+
+x = res["logM_cen"].values
+y = res["R_med"].values
+yerr = np.vstack([res["R_err_lo"].values, res["R_err_hi"].values])
+
+mask_lt = x < thr
+mask_ge = ~mask_lt
+
+# x < 10（白四角・黒縁）
 ax.errorbar(
-    res["logM_cen"],
-    res["R_med"],
-    yerr=[res["R_err_lo"], res["R_err_hi"]],
-    fmt="s",
-    color="black",
-    capsize=3,
-    label="Stack (Complete only)"
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
 )
+
+# x >= 10（黒四角）
+ax.errorbar(
+    x[mask_ge], y[mask_ge],
+    yerr=yerr[:, mask_ge],
+    fmt="s", mec="black", mfc="black",
+    ecolor="k", color="k",
+    capsize=3, label=f"x ≥ {thr}"
+)
+
 
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
 ax.set_xlim(6,12)
-ax.set_ylim(1.1,1.6)
+ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)
-
-ax.legend(frameon=False)
 
 plt.tight_layout()
 plt.savefig(out_png, dpi=200)

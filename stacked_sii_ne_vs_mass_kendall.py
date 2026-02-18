@@ -96,7 +96,8 @@ mask = (
     np.isfinite(x_data) & np.isfinite(y_data) &
     np.isfinite(xerr_data) & (xerr_data >= 0) &
     np.isfinite(yerr_lo) & (yerr_lo > 0) &
-    np.isfinite(yerr_hi) & (yerr_hi > 0)
+    np.isfinite(yerr_hi) & (yerr_hi > 0) &
+    (x_data > 10) # 追加: completeなサンプルのみをフィットする
 )
 
 x_m = x_data[mask]
@@ -210,7 +211,7 @@ else:
     # ========================================================
     # 可視化
     # ========================================================
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.errorbar(
         x_m, y_m,
         yerr=[yerr_lo_m, yerr_hi_m],

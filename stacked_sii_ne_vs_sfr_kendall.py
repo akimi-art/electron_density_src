@@ -61,7 +61,8 @@ plt.rcParams.update({
 # ============================================================
 # 設定
 # ============================================================
-in_csv  = "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv"
+# in_csv  = "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv"
+in_csv  = "results/csv/stacked_sii_ne_vs_sfr_from_ratio_COMPLETE.csv"
 band_csv = "results/csv/stacked_ne_vs_sfr_regression_band.csv"
 out_png = "results/figure/stacked_ne_vs_sfr.png"
 
@@ -95,7 +96,8 @@ mask = (
     np.isfinite(x_data) & np.isfinite(y_data) &
     np.isfinite(xerr_data) & (xerr_data >= 0) &
     np.isfinite(yerr_lo) & (yerr_lo > 0) &
-    np.isfinite(yerr_hi) & (yerr_hi > 0)
+    np.isfinite(yerr_hi) & (yerr_hi > 0) &
+    (x_data > 0) # 追加: completeなサンプルのみをフィット
 )
 
 x_m = x_data[mask]
@@ -196,7 +198,7 @@ else:
     # ========================================================
     # 回帰帯（posteriorから y(x) の分布）
     # ========================================================
-    x_band = np.linspace(np.nanmin(x_m), np.nanmax(x_m), 500)
+    x_band = np.linspace(-3, 3, 500)
     y_band_samples = np.array([a * x_band + b for a, b, ls in flat])
 
     y_med  = np.percentile(y_band_samples, 50, axis=0)
@@ -209,7 +211,7 @@ else:
     # ========================================================
     # 可視化
     # ========================================================
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.errorbar(
         x_m, y_m,
         yerr=[yerr_lo_m, yerr_hi_m],

@@ -302,7 +302,7 @@ def get_fill(AGN):
 
 
 # プロット
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(12, 6))
 
 
 # x, y, yerr の値を格納するリスト
@@ -599,23 +599,49 @@ m_ok = (
     (yerr_hi >= 0)
 )
 
-# 理論範囲内（inside）
-m_in = m_ok & (~outside)
+# stack結果（完全なものとそうでないものの色を分ける）
+thr = 0.0
+
+yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
+
+mask_lt = x < thr
+mask_ge = ~mask_lt
+
+# x < 10（白四角・黒縁）
 ax.errorbar(
-    x[m_in], y[m_in],
-    yerr=[yerr_lo[m_in], yerr_hi[m_in]],
-    fmt="s", ms=5, capsize=2, lw=1,
-    color='black', 
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
 )
 
-# 理論範囲外（outside）—表示したい場合のみ
-m_out = m_ok & outside
-if np.any(m_out):
-    ax.errorbar(
-        x[m_out], y[m_out],
-        yerr=[yerr_lo[m_out], yerr_hi[m_out]],
-        fmt="x", ms=6, capsize=2, lw=1,
-    )
+# x >= 10（黒四角）
+ax.errorbar(
+    x[mask_ge], y[mask_ge],
+    yerr=yerr[:, mask_ge],
+    fmt="s", mec="black", mfc="black",
+    ecolor="k", color="k",
+    capsize=3, label=f"x ≥ {thr}"
+)
+
+# # 理論範囲内（inside）
+# m_in = m_ok & (~outside)
+# ax.errorbar(
+#     x[m_in], y[m_in],
+#     yerr=[yerr_lo[m_in], yerr_hi[m_in]],
+#     fmt="s", ms=5, capsize=2, lw=1,
+#     color='black', 
+# )
+
+# # 理論範囲外（outside）—表示したい場合のみ
+# m_out = m_ok & outside
+# if np.any(m_out):
+#     ax.errorbar(
+#         x[m_out], y[m_out],
+#         yerr=[yerr_lo[m_out], yerr_hi[m_out]],
+#         fmt="x", ms=6, capsize=2, lw=1,
+#     )
 
 # stackの回帰分析結果もプロットする
 band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
