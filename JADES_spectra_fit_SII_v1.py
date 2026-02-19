@@ -35,7 +35,8 @@ import emcee
 # =====================================================
 wave_6716 = 6716.440
 wave_6730 = 6730.820
-delta_lambda = 120.0
+# delta_lambda = 120.0
+delta_lambda = 50 
 nwalkers = 32
 nsteps = 3000
 burnin = 800
@@ -133,7 +134,9 @@ def run_mcmc(popt, x, y, yerr, sigma_instr, z_fix):
     # ---------------------------
     ndim = 4
     pos0 = np.array([logA1_0, logA2_0, logSig_0, bg_0])
-    pos = pos0 + 1e-3*np.random.randn(nwalkers, ndim)
+    # pos = pos0 + 1e-3*np.random.randn(nwalkers, ndim)
+    pos = pos0 * (1 + 1e-4*np.random.randn(nwalkers, ndim))
+    pos += 1e-4*np.random.randn(nwalkers, ndim)
 
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
     sampler.run_mcmc(pos, nsteps, progress=False)
@@ -157,7 +160,7 @@ current_dir = os.getcwd()
 
 catalog_path = os.path.join(
     current_dir,
-    "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits" # DR3
+    "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gn_v1.1.fits" # DR3
     # "results/JADES/JADES_DR4/catalog/Combined_DR4_external_v1.2.1.fits" # DR4
 )
 
@@ -256,7 +259,14 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
 
     sigma_instr = nirspec_sigma(wave_center,R)
 
-    mask = (wave > wave_center-delta_lambda) & (wave < wave_center+delta_lambda)
+    # mask = (wave > wave_center-delta_lambda) & (wave < wave_center+delta_lambda)
+    mask = (
+        (wave > wave_center-delta_lambda) &
+        (wave < wave_center+delta_lambda) &
+        np.isfinite(flux) &
+        np.isfinite(err) &
+        (err > 0)
+    )
     if np.sum(mask)==0:
         print("  -> skipped: no wavelength coverage")
         n_skip += 1
@@ -265,13 +275,27 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
     x_fit = wave[mask]
     y_fit = flux[mask]
     yerr_fit = err[mask]
+    yerr_fit = np.clip(yerr_fit, 1e-30, None) # 追加
+
 
     p0 = [20,20,z_spec,10,0]
 
     try:
+        # popt,_ = curve_fit(
+        #     lambda x,a1,a2,z,s,b: s2_model(x,a1,a2,z,s,b,sigma_instr),
+        #     x_fit,y_fit,p0=p0,sigma=yerr_fit,absolute_sigma=True
+        # )
         popt,_ = curve_fit(
             lambda x,a1,a2,z,s,b: s2_model(x,a1,a2,z,s,b,sigma_instr),
-            x_fit,y_fit,p0=p0,sigma=yerr_fit,absolute_sigma=True
+            x_fit,
+            y_fit,
+            p0=p0,
+            sigma=yerr_fit,
+            absolute_sigma=True,
+            bounds=(
+                [0, 0, z_spec-1e-4, 0.1, -np.inf],
+                [np.inf, np.inf, z_spec+1e-4, 50, np.inf]
+            )
         )
     except Exception as e:
         print(f"  -> skipped: fit failed {e}")
@@ -324,7 +348,7 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
 # =====================================================
 df_final = pd.DataFrame(results_all)
 
-output_path = os.path.join(current_dir,"results/csv/JADES_DR3_GOODS-S_SII_ratio_only.csv")
+output_path = os.path.join(current_dir,"results/csv/JADES_DR3_GOODS-N_SII_ratio_only.csv")
 df_final.to_csv(output_path,index=False)
 
 print("\n========== SUMMARY ==========")
@@ -332,3 +356,73 @@ print(f"Total: {total_objects}")
 print(f"Success: {n_success}")
 print(f"Skipped: {n_skip}")
 print("Saved to:",output_path)
+
+# ============================
+#  基準線より上側の SII6717 を抽出し、新しい FITS を保存
+# ============================
+# ============================
+#  Lベースの完全サンプル抽出（構造そのまま・行のみ削除）— 両線同時版
+# ============================
+# --- パラメータ ---
+# 一定フラックス [erg s^-1 cm^-2]（図の基準線に対応）
+F_CONST_6717_CGS = 1e-17
+F_CONST_6731_CGS = 1e-17     # 6717と同じにしてよければ同値のままでOK（別々に設定可能）
+Z_RANGE = (0.0, 0.40)        # 図と揃える場合。全 z を許容するなら None
+REQUIRE_FINITE = True        # 数値の健全性チェック（NaN/inf除外）
+
+# --- L_lim(z) を計算（一定フラックス線） ---
+# すでに z が配列としてあり、cosmo は Planck18 想定
+dL_each = cosmo.luminosity_distance(z).to(u.cm).value
+Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
+Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
+
+# --- マスク作成（両線の L >= L_lim(z) を同時に満たす） ---
+mask_L_6717 = (L6716 >= Llim6717_each)
+mask_L_6731 = (L6731 >= Llim6731_each)
+mask_L_both = mask_L_6717 & mask_L_6731
+
+# z 範囲の適用（必要に応じて）
+if Z_RANGE is not None:
+    zmin, zmax = Z_RANGE
+    mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
+else:
+    mask_z = np.ones_like(z, dtype=bool)
+
+# 数値の健全性（NaN/inf の排除）
+if REQUIRE_FINITE:
+    mask_finite = (
+        np.isfinite(z) &
+        np.isfinite(L6716) & np.isfinite(L6731) &
+        np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
+    )
+else:
+    mask_finite = np.ones_like(z, dtype=bool)
+
+# --- 最終マスク（列構造は触らない） ---
+select_mask = mask_L_both & mask_z & mask_finite
+
+print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(select_mask)}")
+if select_mask.sum() == 0:
+    print("[WARN] 0 件です。F_CONST_* や Z_RANGE を見直してください。")
+
+# --- Table を行スライスのみで抽出（列・メタデータ保持） ---
+t_sel = t[select_mask]  # ← 列構造は一切変更しない
+
+# --- 書き出し（ファイル名に条件を明記） ---
+def _sci_notation(x):
+    return f"{x:.0e}".replace("+","")
+
+suffix_parts = [
+    f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
+    f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
+]
+if Z_RANGE is not None:
+    suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
+suffix = "_".join(suffix_parts)
+
+out_dir = os.path.join(current_dir, "results", "fits")
+os.makedirs(out_dir, exist_ok=True)
+out_path = os.path.join(out_dir, f"mpajhu_dr7_v5_2_merged_{suffix}.fits")
+
+t_sel.write(out_path, format="fits", overwrite=True)
+print(f"[DONE] 書き出し完了: {out_path}")

@@ -308,3 +308,253 @@ plt.savefig(out_png, dpi=200)
 plt.show()
 
 print("Saved:", out_png)
+
+# ==========================================
+# パラメータ
+# ==========================================
+BIN_WIDTH = 0.1
+NMIN = 1 # 変更
+N_MC = 5000
+# Lcut = 1e39              # 完全サンプル条件
+
+# UNIT_FLUX = 1e-17        # MPA-JHU flux単位
+UNIT_FLUX = 1e-19        # MPA-JHU flux単位
+
+# ==========================================
+# 読み込み
+# ==========================================
+# tab = Table.read(fits_path, hdu=1)
+# df = tab.to_pandas()
+df = pd.read_csv(csv_path)
+
+# ==========================================
+# 基本量の計算
+# ==========================================
+z = df["z_spec"].values
+
+# F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
+# F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
+# err6716 = df["SII_6717_FLUX_ERR"].values * UNIT_FLUX
+# err6731 = df["SII_6731_FLUX_ERR"].values * UNIT_FLUX
+F6716 = df["S2_6718_flux"].values * UNIT_FLUX
+F6731 = df["S2_6733_flux"].values * UNIT_FLUX
+err6716 = df["S2_6718_err"].values * UNIT_FLUX
+err6731 = df["S2_6733_err"].values * UNIT_FLUX
+
+sn6716 = F6716 / err6716
+sn6731 = F6731 / err6731
+
+# luminosity
+d_L = cosmo.luminosity_distance(z).to(u.cm).value
+L6716 = 4 * np.pi * d_L**2 * F6716
+L6731 = 4 * np.pi * d_L**2 * F6731
+
+# df["R_SII"] = F6716 / F6731
+df["S2_ratio"] = F6716 / F6731
+
+# ==========================================
+# マスク定義
+# ==========================================
+def valid_mass(x):
+    x = np.asarray(x, float)
+    m = np.isfinite(x)
+    m &= (x > 0) & (x < 13)
+    return m
+
+m_sii = (
+    np.isfinite(F6716) & np.isfinite(F6731) &
+    np.isfinite(err6716) & np.isfinite(err6731) &
+    (err6716 > 0) & (err6731 > 0)
+)
+
+# m_sm = valid_mass(df["sm_MEDIAN"])
+# m_ratio = np.isfinite(df["R_SII"])
+m_sm = valid_mass(df["logM"])
+m_ratio = np.isfinite(df["S2_ratio"])
+
+mask_all = m_sii & m_sm & m_ratio
+
+# 完全サンプル
+# m_complete = mask_all & (L6716 >= Lcut) & (L6731 >= Lcut)
+m_complete = mask_all
+# m_incomplete = mask_all & (~m_complete)
+
+# ==========================================
+# ビン作成
+# ==========================================
+# logM = df.loc[m_complete, "sm_MEDIAN"].values
+logM = df.loc[m_complete, "logM"].values
+
+edges = np.arange(
+    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    BIN_WIDTH
+)
+
+# ==========================================
+# スタック用関数
+# ==========================================
+def weighted_mean(flux, err):
+    w = 1.0 / err**2
+    mu = np.sum(w * flux) / np.sum(w)
+    sigma = np.sqrt(1.0 / np.sum(w))
+    return mu, sigma
+
+rng = np.random.default_rng()
+
+rows = []
+
+# ==========================================
+# メインstack（完全サンプルのみ）
+# ==========================================
+for lo, hi in zip(edges[:-1], edges[1:]):
+
+    m_bin = (
+        m_complete &
+        # (df["sm_MEDIAN"] >= lo) &
+        # (df["sm_MEDIAN"] < hi)
+        (df["logM"] >= lo) &
+        (df["logM"] < hi)
+    )
+
+    N = np.sum(m_bin)
+    if N < NMIN:
+        continue
+
+    f1 = F6716[m_bin]
+    e1 = err6716[m_bin]
+    f2 = F6731[m_bin]
+    e2 = err6731[m_bin]
+
+    F1, e1_stack = weighted_mean(f1, e1)
+    F2, e2_stack = weighted_mean(f2, e2)
+
+    # Monte Carlo for ratio
+    f1_mc = rng.normal(F1, e1_stack, N_MC)
+    f2_mc = rng.normal(F2, e2_stack, N_MC)
+
+    valid = (f2_mc > 0)
+    R_mc = f1_mc[valid] / f2_mc[valid]
+
+    R50 = np.nanmedian(R_mc)
+    R16 = np.nanpercentile(R_mc, 16)
+    R84 = np.nanpercentile(R_mc, 84)
+
+    rows.append(dict(
+        logM_lo=lo,
+        logM_hi=hi,
+        logM_cen = 0.5*(lo+hi),
+        N = N,
+        # F6717=F1, # 構文が違う
+        # F6717_err=e1,
+        # F6731=F2,
+        # F6731_err=e2,
+        R_med = R50,
+        R_err_lo = R50 - R16,
+        R_err_hi = R84 - R50,
+        N_MC_valid=int(valid.sum())
+    ))
+
+res = pd.DataFrame(rows)
+res.to_csv(out_csv, index=False)
+print("Saved:", out_csv)
+
+# ==========================================
+# 描画
+# ==========================================
+fig, ax = plt.subplots(figsize=(12,6))
+
+# # 不完全（薄グレー）
+# ax.scatter(
+#     df.loc[m_incomplete, "sm_MEDIAN"],
+#     df.loc[m_incomplete, "R_SII"],
+#     s=0.01,
+#     marker='.',
+#     alpha=0.8,
+#     color="gray",
+# )
+
+
+# 完全（青）
+ax.scatter(
+    # df.loc[m_complete, "sm_MEDIAN"],
+    # df.loc[m_complete, "R_SII"],
+    df.loc[m_complete, "logM"],
+    df.loc[m_complete, "S2_ratio"],
+    s=0.01,
+    marker='.',
+    alpha=0.8,
+    color="C0",
+)
+
+# stack結果（完全なものとそうでないものの色を分ける）
+# thr = 10.0
+thr = 0.0
+
+x = res["logM_cen"].values
+y = res["R_med"].values
+yerr = np.vstack([res["R_err_lo"].values, res["R_err_hi"].values])
+
+mask_lt = x < thr
+mask_ge = ~mask_lt
+
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x[mask_lt], y[mask_lt],
+#     yerr=yerr[:, mask_lt],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+#     capsize=3, label=f"x < {thr}"
+# )
+
+# # x >= 10（黒四角）
+# ax.errorbar(
+#     x[mask_ge], y[mask_ge],
+#     yerr=yerr[:, mask_ge],
+#     fmt="s", mec="black", mfc="black",
+#     ecolor="k", color="k",
+#     capsize=3, label=f"x ≥ {thr}"
+# )
+
+# zごとに色をかえる
+mask_lowz = (z > 1) & (z < 4)
+mask_middlez = (z > 4) & (z < 7)
+mask_highz = (z > 7)
+
+ax.errorbar(
+    x[mask_lowz], y[mask_lowz],
+    yerr=yerr[:, mask_lowz],
+    fmt="s", mec="blue", mfc="blue",
+    ecolor="blue", color="blue",
+    capsize=3, 
+)
+
+ax.errorbar(
+    x[mask_middlez], y[mask_middlez],
+    yerr=yerr[:, mask_middlez],
+    fmt="s", mec="green", mfc="green",
+    ecolor="green", color="green",
+    capsize=3, 
+)
+
+ax.errorbar(
+    x[mask_highz], y[mask_highz],
+    yerr=yerr[:, mask_highz],
+    fmt="s", mec="red", mfc="red",
+    ecolor="red", color="red",
+    capsize=3, 
+)
+
+ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
+ax.set_ylabel(r"[SII] 6717 / 6731")
+ax.set_xlim(6,12)
+ax.set_ylim(0.5,2.0)
+
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+
+plt.tight_layout()
+plt.savefig(out_png, dpi=200)
+plt.show()
+
+print("Saved:", out_png)
