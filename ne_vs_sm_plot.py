@@ -343,11 +343,11 @@ for ref_name, galaxy_list in data_groups.items():
         # 色の対応
         def get_color(z):
             if z < 1:
-                if main_sequence == 1:
-                    return "black"
-                else:
-                    return "gray"
-                # return "gray" # ひとまずは色を変えない
+                # if main_sequence == 1:
+                #     return "black"
+                # else:
+                #     return "gray"
+                return "gray" # ひとまずは色を変えない
             elif 1 <= z < 4:
                 return "tab:blue"
             elif 4 <= z <= 7:
@@ -532,87 +532,87 @@ plt.text(x=6+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([S
 # y_range = slope_classy * x_range + intercept_classy
 # plt.plot(x_range, y_range, color='black', linestyle='-.')
 
-# === 推定結果（あなたの値に置き換え） ===
-# slope（固定）
-m_hat_z0   = 0.230
+# # === 推定結果（あなたの値に置き換え） ===
+# # slope（固定）
+# m_hat_z0   = 0.230
 
-# intercept
-b_hat_z0   = 0.006
-b_hat_z3   = 0.367
-b_hat_z6   = 0.803
-b_hat_z9   = 1.043
+# # intercept
+# b_hat_z0   = 0.006
+# b_hat_z3   = 0.367
+# b_hat_z6   = 0.803
+# b_hat_z9   = 1.043
 
-# slope の標準誤差
-sigma_m_z0 = 0.004
-sigma_m_z3 = 0.000  
-sigma_m_z6 = 0.000  
-sigma_m_z9 = 0.000 
+# # slope の標準誤差
+# sigma_m_z0 = 0.004
+# sigma_m_z3 = 0.000  
+# sigma_m_z6 = 0.000  
+# sigma_m_z9 = 0.000 
 
-# intercept の標準誤差 
-sigma_b_z0 = 0.044 
-sigma_b_z3 = 0.019 
-sigma_b_z6 = 0.050 
-sigma_b_z9 = 0.128 
+# # intercept の標準誤差 
+# sigma_b_z0 = 0.044 
+# sigma_b_z3 = 0.019 
+# sigma_b_z6 = 0.050 
+# sigma_b_z9 = 0.128 
 
-# slope と intercept の相関（例：不明なら 0）
-rho_mb_z0  = 0    
-rho_mb_z3  = 0    
-rho_mb_z6  = 0    
-rho_mb_z9  = 0    
+# # slope と intercept の相関（例：不明なら 0）
+# rho_mb_z0  = 0    
+# rho_mb_z3  = 0    
+# rho_mb_z6  = 0    
+# rho_mb_z9  = 0    
 
-# x 範囲
-x = np.linspace(6, 12, 1000)
-# 推定直線
-y_hat_z0 = m_hat_z0 * x + b_hat_z0
-y_hat_z3 = m_hat_z0 * x + b_hat_z3
-y_hat_z6 = m_hat_z0 * x + b_hat_z6
-y_hat_z9 = m_hat_z0 * x + b_hat_z9
-# パラメータ不確かさ由来の y の標準偏差
-cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
-cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
-cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
-cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
-sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
-sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
-sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
-sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
-# 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
-k = 1
-lower_z0 = y_hat_z0 - k * sigma_y_z0
-lower_z3 = y_hat_z3 - k * sigma_y_z3
-lower_z6 = y_hat_z6 - k * sigma_y_z6
-lower_z9 = y_hat_z9 - k * sigma_y_z9
-upper_z0 = y_hat_z0 + k * sigma_y_z0
-upper_z3 = y_hat_z3 + k * sigma_y_z3
-upper_z6 = y_hat_z6 + k * sigma_y_z6
-upper_z9 = y_hat_z9 + k * sigma_y_z9
-# ax.plot(x, y_hat_z0, color='black')
-ax.plot(x, y_hat_z3, color='tab:blue')
-ax.plot(x, y_hat_z6, color='tab:green')
-ax.plot(x, y_hat_z9, color='tab:red')
-# ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
-ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
-ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
-ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
+# # x 範囲
+# x = np.linspace(6, 12, 1000)
+# # 推定直線
+# y_hat_z0 = m_hat_z0 * x + b_hat_z0
+# y_hat_z3 = m_hat_z0 * x + b_hat_z3
+# y_hat_z6 = m_hat_z0 * x + b_hat_z6
+# y_hat_z9 = m_hat_z0 * x + b_hat_z9
+# # パラメータ不確かさ由来の y の標準偏差
+# cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
+# cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
+# cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
+# cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
+# sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
+# sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
+# sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
+# sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
+# # 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
+# k = 1
+# lower_z0 = y_hat_z0 - k * sigma_y_z0
+# lower_z3 = y_hat_z3 - k * sigma_y_z3
+# lower_z6 = y_hat_z6 - k * sigma_y_z6
+# lower_z9 = y_hat_z9 - k * sigma_y_z9
+# upper_z0 = y_hat_z0 + k * sigma_y_z0
+# upper_z3 = y_hat_z3 + k * sigma_y_z3
+# upper_z6 = y_hat_z6 + k * sigma_y_z6
+# upper_z9 = y_hat_z9 + k * sigma_y_z9
+# # ax.plot(x, y_hat_z0, color='black')
+# ax.plot(x, y_hat_z3, color='tab:blue')
+# ax.plot(x, y_hat_z6, color='tab:green')
+# ax.plot(x, y_hat_z9, color='tab:red')
+# # ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
+# ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
+# ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
+# ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
-# 変わりに回帰分析をした時に得るを使う
-band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sm_regression_band_.csv"))
+# # 変わりに回帰分析をした時に得るを使う
+# band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sm_regression_band_.csv"))
 
-plt.plot(
-    band["x"],
-    band["y_med"],
-    color="black",
-    lw=2,
-    label="MCMC best-fit"
-)
+# plt.plot(
+#     band["x"],
+#     band["y_med"],
+#     color="black",
+#     lw=2,
+#     label="MCMC best-fit"
+# )
 
-plt.fill_between(
-    band["x"],
-    band["y_low"],
-    band["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band["x"],
+#     band["y_low"],
+#     band["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 # =============================================
 # SDSSのstackデータ（Massビンごと）をプロットする 
@@ -658,8 +658,8 @@ mask_ge = ~mask_lt
 ax.errorbar(
     x[mask_lt], y[mask_lt],
     yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+    fmt="s", mec="gray", mfc="gray",
+    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
     capsize=3, label=f"x < {thr}"
 )
 
@@ -667,28 +667,10 @@ ax.errorbar(
 ax.errorbar(
     x[mask_ge], y[mask_ge],
     yerr=yerr[:, mask_ge],
-    fmt="s", mec="black", mfc="black",
-    ecolor="k", color="k",
+    fmt="s", mec="gray", mfc="white",
+    ecolor="gray", color="gray",
     capsize=3, label=f"x ≥ {thr}"
 )
-
-# # 理論範囲内（inside）
-# m_in = m_ok & (~outside)
-# ax.errorbar(
-#     x[m_in], y[m_in],
-#     yerr=[yerr_lo[m_in], yerr_hi[m_in]],
-#     fmt="s", ms=5, capsize=2, lw=1,
-#     color='black', 
-# )
-
-# # 理論範囲外（outside）—表示したい場合のみ
-# m_out = m_ok & outside
-# if np.any(m_out):
-#     ax.errorbar(
-#         x[m_out], y[m_out],
-#         yerr=[yerr_lo[m_out], yerr_hi[m_out]],
-#         fmt="x", ms=6, capsize=2, lw=1,
-#     )
 
 # stackの回帰分析結果もプロットする
 band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
@@ -708,6 +690,82 @@ plt.fill_between(
     alpha=0.15,
 )
 
+
+# =============================================
+# SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# =============================================
+# ===== 入出力 =====
+in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_data.csv")
+
+# ===== 読み込み =====
+res_data = pd.read_csv(in_csv_data)
+
+# ===== 必要列を取り出し =====
+x_data = res_data["logM_cen"].to_numpy(float)
+
+y_data = res_data["log_ne_med"].to_numpy(float)
+yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# outsideフラグ（なければ全部False）
+if "R_outside" in res_data.columns:
+    outside_data = res_data["R_outside"].to_numpy(bool)
+else:
+    outside_data = np.zeros_like(x_data, dtype=bool)
+
+# ===== 有効値マスク（NaN/inf除外）=====
+m_ok_data = (
+    np.isfinite(x_data) &
+    np.isfinite(y_data) &
+    np.isfinite(yerr_lo_data) &
+    np.isfinite(yerr_hi_data) &
+    (yerr_lo_data >= 0) &
+    (yerr_hi_data >= 0)
+)
+
+# stack結果（完全なものとそうでないものの色を分ける）
+thr_data = 10.0
+
+yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
+
+mask_lt_data = x_data < thr_data
+mask_ge_data = ~mask_lt_data
+
+# x < 10（白四角・黒縁）
+ax.errorbar(
+    x_data[mask_lt_data], y_data[mask_lt_data],
+    yerr=yerr_data[:, mask_lt_data],
+    fmt="s", mec="black", mfc="black",
+    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
+)
+
+# x >= 10（黒四角）
+ax.errorbar(
+    x_data[mask_ge_data], y_data[mask_ge_data],
+    yerr=yerr_data[:, mask_ge_data],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",
+    capsize=3, label=f"x ≥ {thr}"
+)
+
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
+
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
+
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 # =============================================
 # 全体のプロットの設定

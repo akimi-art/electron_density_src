@@ -23,6 +23,7 @@ SM, SFRのビンごとに分けてプロットします。
 
 # === 必要なモジュール ===
 import os
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.table import Table
@@ -86,21 +87,29 @@ plt.rcParams.update({
 
 # === 入力ファイル（サブセット FITS） ===
 current_dir = os.getcwd()
-fits_path = os.path.join(
-    current_dir,
-    "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits"
-)
+# fits_path = os.path.join(
+#     current_dir,
+#     "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits"
+# )
+csv_path = "./results/Samir16/Samir16in_standard_re_v1.csv"
 
-# === 読み込み（列構造はそのまま） ===
-t = Table.read(fits_path, format="fits")
+# # === 読み込み（列構造はそのまま） ===
+# t = Table.read(fits_path, format="fits")
+
+df = pd.read_csv(csv_path)
 
 # === 必要列を取り出し ===
 # MPA-JHU: sm_MEDIAN, sfr_MEDIAN は log(M*/Msun), log(SFR/Msun/yr)
-z = np.array(t["Z"], dtype=float)
-F6717_raw = np.array(t["SII_6717_FLUX"], dtype=float)
-F6731_raw = np.array(t["SII_6731_FLUX"], dtype=float)
-logM = np.array(t["sm_MEDIAN"], dtype=float)
-logSFR = np.array(t["sfr_MEDIAN"], dtype=float)
+# z = np.array(t["Z"], dtype=float)
+# F6717_raw = np.array(t["SII_6717_FLUX"], dtype=float)
+# F6731_raw = np.array(t["SII_6731_FLUX"], dtype=float)
+# logM = np.array(t["sm_MEDIAN"], dtype=float)
+# logSFR = np.array(t["sfr_MEDIAN"], dtype=float)
+z = np.array(df["z"], dtype=float)
+F6717_raw = np.array(df["SII_6717_FLUX"], dtype=float)
+F6731_raw = np.array(df["SII_6731_FLUX"], dtype=float)
+logM = np.array(df["logSM_median"], dtype=float)
+logSFR = np.array(df["logSFR_SED_median"], dtype=float)
 
 # ←← ここで logSFR の欠損処理を入れる
 # 欠損値（-1.0）を NaN に置換
@@ -182,7 +191,7 @@ for ax in (ax11, ax12, ax21, ax22):
 plt.subplots_adjust(left=0.07, right=0.98, bottom=0.08, top=0.98, wspace=0.00, hspace=0.00)
 
 # --- 保存 ---
-savepath = os.path.join(current_dir, "results/figure/sii_luminosity_vs_sm_sfr_v1.png")
+savepath = os.path.join(current_dir, "results/figure/sii_luminosity_vs_sm_sfr_data.png")
 plt.savefig(savepath, dpi=200)
 print(f"Saved: {savepath}")
 plt.show()

@@ -82,17 +82,19 @@ plt.rcParams.update({
 # 例: "mpajhu_dr7_v5_2_merged.fits"
 # CSV読み込み
 current_dir = os.getcwd()
-fits_path = os.path.join(current_dir,"results/fits/mpajhu_dr7_v5_2_merged.fits")
-t = Table.read(fits_path, format="fits")
+# fits_path = os.path.join(current_dir,"results/fits/mpajhu_dr7_v5_2_merged.fits")
+# t = Table.read(fits_path, format="fits")
+csv_path = "./results/Samir16/Samir16in_standard_re_v1.csv"
 
 # pandasに変換（後続のコードをそのまま使うため）
-df = t.to_pandas()
+# df = t.to_pandas()
+df = pd.read_csv(csv_path)
 
 # 以降は元コードと同じ
 # --- 単位スケールの補正（MPA-JHU: 1e-17 erg s^-1 cm^-2 想定）---
 UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認
 
-z = df["Z"].values
+z = df["z"].values
 F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
 F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
 
@@ -197,218 +199,218 @@ ax2.set_xlabel("z")
 # 参考: https://jp.matplotlib.net/stable/tutorials/colors/colormaps.html#google_vignette
 cbar = fig.colorbar(sc1, ax=axes, label="S/N")
 
-save_path = os.path.join(current_dir, "results/figure/mpajhu_dr7_v5_2_merged.png")
+save_path = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_SDSS_data.png")
 plt.savefig(save_path)
 print(f"Saved as {save_path}.")
 plt.show()
 
 
-# =============================================================
-# 密度マップを作成する
-# =============================================================
-# =============================================================
-# ヘルパー：一定フラックス線の光度
-# =============================================================
-def L_from_F_const(z, F_const_cgs):
-    dL = cosmo.luminosity_distance(z).to(u.cm).value
-    return 4*np.pi * dL**2 * F_const_cgs
+# # =============================================================
+# # 密度マップを作成する
+# # =============================================================
+# # =============================================================
+# # ヘルパー：一定フラックス線の光度
+# # =============================================================
+# def L_from_F_const(z, F_const_cgs):
+#     dL = cosmo.luminosity_distance(z).to(u.cm).value
+#     return 4*np.pi * dL**2 * F_const_cgs
 
-# =============================================================
-# 2段レイアウト：6716 と 6731 の密度マップを上下に隙間なく
-# =============================================================
-def plot_density_maps_stacked(
-    z, L6716, L6731, *,
-    zlim=(0.0, 0.40),
-    Llim=(1e30, 1e42),
-    gridsize=140,
-    flux_lines=(1e-19, 1e-18, 1e-17),
-    cmap='magma',
-    figscale=(12, 8),
-    linewidth_spine=2,
-    spine_color="black",
-    add_legend=False
-):
-    """
-    [S II] 6716 と 6731 の L–z 密度マップを上下に隙間なく配置して描画する。
+# # =============================================================
+# # 2段レイアウト：6716 と 6731 の密度マップを上下に隙間なく
+# # =============================================================
+# def plot_density_maps_stacked(
+#     z, L6716, L6731, *,
+#     zlim=(0.0, 0.40),
+#     Llim=(1e30, 1e42),
+#     gridsize=140,
+#     flux_lines=(1e-19, 1e-18, 1e-17),
+#     cmap='magma',
+#     figscale=(12, 8),
+#     linewidth_spine=2,
+#     spine_color="black",
+#     add_legend=False
+# ):
+#     """
+#     [S II] 6716 と 6731 の L–z 密度マップを上下に隙間なく配置して描画する。
 
-    Parameters
-    ----------
-    z : array
-    L6716, L6731 : array
-        光度 [erg/s]。log軸にするため L>0 のみ採用。
-    zlim, Llim : tuple
-        軸範囲。
-    gridsize : int
-        hexbin の解像度。
-    flux_lines : tuple of float
-        一定フラックス [erg s^-1 cm^-2] を重ね描き。
-    cmap : str
-        密度カラーマップ。
-    figscale : (w, h)
-        図サイズ（インチ）。
-    linewidth_spine : float
-        枠線の太さ。
-    spine_color : str
-        枠線の色。
-    add_legend : bool
-        一定フラックス線の凡例を表示するか。
-    """
-    # ===== マスク（有限＆正） =====
-    m1 = np.isfinite(z) & np.isfinite(L6716) & (L6716 > 0)
-    m2 = np.isfinite(z) & np.isfinite(L6731) & (L6731 > 0)
-    z1, L1 = z[m1], L6716[m1]
-    z2, L2 = z[m2], L6731[m2]
+#     Parameters
+#     ----------
+#     z : array
+#     L6716, L6731 : array
+#         光度 [erg/s]。log軸にするため L>0 のみ採用。
+#     zlim, Llim : tuple
+#         軸範囲。
+#     gridsize : int
+#         hexbin の解像度。
+#     flux_lines : tuple of float
+#         一定フラックス [erg s^-1 cm^-2] を重ね描き。
+#     cmap : str
+#         密度カラーマップ。
+#     figscale : (w, h)
+#         図サイズ（インチ）。
+#     linewidth_spine : float
+#         枠線の太さ。
+#     spine_color : str
+#         枠線の色。
+#     add_legend : bool
+#         一定フラックス線の凡例を表示するか。
+#     """
+#     # ===== マスク（有限＆正） =====
+#     m1 = np.isfinite(z) & np.isfinite(L6716) & (L6716 > 0)
+#     m2 = np.isfinite(z) & np.isfinite(L6731) & (L6731 > 0)
+#     z1, L1 = z[m1], L6716[m1]
+#     z2, L2 = z[m2], L6731[m2]
 
-    # ===== Figure / GridSpec =====
-    fig = plt.figure(figsize=figscale)
-    gs = gridspec.GridSpec(nrows=2, ncols=1, figure=fig, hspace=0.0)  # ← 隙間ゼロ
-    ax_top = fig.add_subplot(gs[0, 0])
-    ax_bot = fig.add_subplot(gs[1, 0], sharex=ax_top)  # x共有
+#     # ===== Figure / GridSpec =====
+#     fig = plt.figure(figsize=figscale)
+#     gs = gridspec.GridSpec(nrows=2, ncols=1, figure=fig, hspace=0.0)  # ← 隙間ゼロ
+#     ax_top = fig.add_subplot(gs[0, 0])
+#     ax_bot = fig.add_subplot(gs[1, 0], sharex=ax_top)  # x共有
 
-    # ====== 上段：6716 ======
-    hb1 = ax_top.hexbin(
-        z1, L1, gridsize=gridsize,
-        xscale='linear', yscale='log',
-        bins='log', cmap=cmap, mincnt=1
-    )
-    cbar1 = fig.colorbar(hb1, ax=ax_top)
-    cbar1.set_label('Count')
+#     # ====== 上段：6716 ======
+#     hb1 = ax_top.hexbin(
+#         z1, L1, gridsize=gridsize,
+#         xscale='linear', yscale='log',
+#         bins='log', cmap=cmap, mincnt=1
+#     )
+#     cbar1 = fig.colorbar(hb1, ax=ax_top)
+#     cbar1.set_label('Count')
 
-    zgrid = np.linspace(zlim[0], zlim[1], 400)
-    for i, F0 in enumerate(flux_lines):
-        ax_top.plot(
-            zgrid, L_from_F_const(zgrid, F0),
-            color='k', lw=1.6, ls=['--','-.',':'][i % 3], alpha=0.9,
-            label=f'F={F0:.0e} cgs'
-        )
+#     zgrid = np.linspace(zlim[0], zlim[1], 400)
+#     for i, F0 in enumerate(flux_lines):
+#         ax_top.plot(
+#             zgrid, L_from_F_const(zgrid, F0),
+#             color='k', lw=1.6, ls=['--','-.',':'][i % 3], alpha=0.9,
+#             label=f'F={F0:.0e} cgs'
+#         )
 
-    ax_top.set_xlim(*zlim)
-    ax_top.set_ylim(*Llim)
-    ax_top.set_yscale('log')
-    ax_top.set_ylabel(r'L([S II] 6716) [erg s$^{-1}$]')
-    ax_top.tick_params(axis='x', labelbottom=False)  # 上段のx目盛ラベルを隠す
+#     ax_top.set_xlim(*zlim)
+#     ax_top.set_ylim(*Llim)
+#     ax_top.set_yscale('log')
+#     ax_top.set_ylabel(r'L([S II] 6716) [erg s$^{-1}$]')
+#     ax_top.tick_params(axis='x', labelbottom=False)  # 上段のx目盛ラベルを隠す
 
-    # ====== 下段：6731 ======
-    hb2 = ax_bot.hexbin(
-        z2, L2, gridsize=gridsize,
-        xscale='linear', yscale='log',
-        bins='log', cmap=cmap, mincnt=1
-    )
-    cbar2 = fig.colorbar(hb2, ax=ax_bot)
-    cbar2.set_label('Count')
+#     # ====== 下段：6731 ======
+#     hb2 = ax_bot.hexbin(
+#         z2, L2, gridsize=gridsize,
+#         xscale='linear', yscale='log',
+#         bins='log', cmap=cmap, mincnt=1
+#     )
+#     cbar2 = fig.colorbar(hb2, ax=ax_bot)
+#     cbar2.set_label('Count')
 
-    for i, F0 in enumerate(flux_lines):
-        ax_bot.plot(
-            zgrid, L_from_F_const(zgrid, F0),
-            color='k', lw=1.6, ls=['--','-.',':'][i % 3], alpha=0.9
-        )
+#     for i, F0 in enumerate(flux_lines):
+#         ax_bot.plot(
+#             zgrid, L_from_F_const(zgrid, F0),
+#             color='k', lw=1.6, ls=['--','-.',':'][i % 3], alpha=0.9
+#         )
 
-    ax_bot.set_xlim(*zlim)
-    ax_bot.set_ylim(*Llim)
-    ax_bot.set_yscale('log')
-    ax_bot.set_xlabel('z')
-    ax_bot.set_ylabel(r'L([S II] 6731) [erg s$^{-1}$]')
+#     ax_bot.set_xlim(*zlim)
+#     ax_bot.set_ylim(*Llim)
+#     ax_bot.set_yscale('log')
+#     ax_bot.set_xlabel('z')
+#     ax_bot.set_ylabel(r'L([S II] 6731) [erg s$^{-1}$]')
 
-    # ===== 枠線（spines） =====
-    for ax in (ax_top, ax_bot):
-        for spine in ax.spines.values():
-            spine.set_linewidth(linewidth_spine)
-            spine.set_color(spine_color)
+#     # ===== 枠線（spines） =====
+#     for ax in (ax_top, ax_bot):
+#         for spine in ax.spines.values():
+#             spine.set_linewidth(linewidth_spine)
+#             spine.set_color(spine_color)
 
-    # 凡例（必要なら）
-    if add_legend:
-        ax_top.legend(loc='lower right', fontsize=10, frameon=True)
+#     # 凡例（必要なら）
+#     if add_legend:
+#         ax_top.legend(loc='lower right', fontsize=10, frameon=True)
 
-    plt.tight_layout()
-    return fig, (ax_top, ax_bot)
+#     plt.tight_layout()
+#     return fig, (ax_top, ax_bot)
 
-fig, (ax3, ax4) = plot_density_maps_stacked(
-    z=z,
-    L6716=L6716,
-    L6731=L6731,
-    zlim=(0.0, 0.40),
-    Llim=(1e30, 1e42),
-    gridsize=140,
-    flux_lines=(1e-19, 1e-18, 1e-17),
-    cmap='magma',
-    figscale=(12, 8),        # 縦を少し大きめに
-    linewidth_spine=2,
-    spine_color="black",
-    add_legend=False
-)
+# fig, (ax3, ax4) = plot_density_maps_stacked(
+#     z=z,
+#     L6716=L6716,
+#     L6731=L6731,
+#     zlim=(0.0, 0.40),
+#     Llim=(1e30, 1e42),
+#     gridsize=140,
+#     flux_lines=(1e-19, 1e-18, 1e-17),
+#     cmap='magma',
+#     figscale=(12, 8),        # 縦を少し大きめに
+#     linewidth_spine=2,
+#     spine_color="black",
+#     add_legend=False
+# )
 
-# 保存
-save_path = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_SDSS_v1_density_stacked.png")
-plt.savefig(save_path, dpi=200, bbox_inches='tight')
-print(f"Saved as {save_path}.")
-plt.show()
+# # 保存
+# save_path = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_SDSS_v1_density_stacked.png")
+# plt.savefig(save_path, dpi=200, bbox_inches='tight')
+# print(f"Saved as {save_path}.")
+# plt.show()
 
-# ============================
-#  基準線より上側の SII6717 を抽出し、新しい FITS を保存
-# ============================
-# ============================
-#  Lベースの完全サンプル抽出（構造そのまま・行のみ削除）— 両線同時版
-# ============================
-# --- パラメータ ---
-# 一定フラックス [erg s^-1 cm^-2]（図の基準線に対応）
-F_CONST_6717_CGS = 1e-17
-F_CONST_6731_CGS = 1e-17     # 6717と同じにしてよければ同値のままでOK（別々に設定可能）
-Z_RANGE = (0.0, 0.40)        # 図と揃える場合。全 z を許容するなら None
-REQUIRE_FINITE = True        # 数値の健全性チェック（NaN/inf除外）
+# # ============================
+# #  基準線より上側の SII6717 を抽出し、新しい FITS を保存
+# # ============================
+# # ============================
+# #  Lベースの完全サンプル抽出（構造そのまま・行のみ削除）— 両線同時版
+# # ============================
+# # --- パラメータ ---
+# # 一定フラックス [erg s^-1 cm^-2]（図の基準線に対応）
+# F_CONST_6717_CGS = 1e-17
+# F_CONST_6731_CGS = 1e-17     # 6717と同じにしてよければ同値のままでOK（別々に設定可能）
+# Z_RANGE = (0.0, 0.40)        # 図と揃える場合。全 z を許容するなら None
+# REQUIRE_FINITE = True        # 数値の健全性チェック（NaN/inf除外）
 
-# --- L_lim(z) を計算（一定フラックス線） ---
-# すでに z が配列としてあり、cosmo は Planck18 想定
-dL_each = cosmo.luminosity_distance(z).to(u.cm).value
-Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
-Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
+# # --- L_lim(z) を計算（一定フラックス線） ---
+# # すでに z が配列としてあり、cosmo は Planck18 想定
+# dL_each = cosmo.luminosity_distance(z).to(u.cm).value
+# Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
+# Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
 
-# --- マスク作成（両線の L >= L_lim(z) を同時に満たす） ---
-mask_L_6717 = (L6716 >= Llim6717_each)
-mask_L_6731 = (L6731 >= Llim6731_each)
-mask_L_both = mask_L_6717 & mask_L_6731
+# # --- マスク作成（両線の L >= L_lim(z) を同時に満たす） ---
+# mask_L_6717 = (L6716 >= Llim6717_each)
+# mask_L_6731 = (L6731 >= Llim6731_each)
+# mask_L_both = mask_L_6717 & mask_L_6731
 
-# z 範囲の適用（必要に応じて）
-if Z_RANGE is not None:
-    zmin, zmax = Z_RANGE
-    mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
-else:
-    mask_z = np.ones_like(z, dtype=bool)
+# # z 範囲の適用（必要に応じて）
+# if Z_RANGE is not None:
+#     zmin, zmax = Z_RANGE
+#     mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
+# else:
+#     mask_z = np.ones_like(z, dtype=bool)
 
-# 数値の健全性（NaN/inf の排除）
-if REQUIRE_FINITE:
-    mask_finite = (
-        np.isfinite(z) &
-        np.isfinite(L6716) & np.isfinite(L6731) &
-        np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
-    )
-else:
-    mask_finite = np.ones_like(z, dtype=bool)
+# # 数値の健全性（NaN/inf の排除）
+# if REQUIRE_FINITE:
+#     mask_finite = (
+#         np.isfinite(z) &
+#         np.isfinite(L6716) & np.isfinite(L6731) &
+#         np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
+#     )
+# else:
+#     mask_finite = np.ones_like(z, dtype=bool)
 
-# --- 最終マスク（列構造は触らない） ---
-select_mask = mask_L_both & mask_z & mask_finite
+# # --- 最終マスク（列構造は触らない） ---
+# select_mask = mask_L_both & mask_z & mask_finite
 
-print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(select_mask)}")
-if select_mask.sum() == 0:
-    print("[WARN] 0 件です。F_CONST_* や Z_RANGE を見直してください。")
+# print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(select_mask)}")
+# if select_mask.sum() == 0:
+#     print("[WARN] 0 件です。F_CONST_* や Z_RANGE を見直してください。")
 
-# --- Table を行スライスのみで抽出（列・メタデータ保持） ---
-t_sel = t[select_mask]  # ← 列構造は一切変更しない
+# # --- Table を行スライスのみで抽出（列・メタデータ保持） ---
+# t_sel = t[select_mask]  # ← 列構造は一切変更しない
 
-# --- 書き出し（ファイル名に条件を明記） ---
-def _sci_notation(x):
-    return f"{x:.0e}".replace("+","")
+# # --- 書き出し（ファイル名に条件を明記） ---
+# def _sci_notation(x):
+#     return f"{x:.0e}".replace("+","")
 
-suffix_parts = [
-    f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
-    f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
-]
-if Z_RANGE is not None:
-    suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
-suffix = "_".join(suffix_parts)
+# suffix_parts = [
+#     f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
+#     f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
+# ]
+# if Z_RANGE is not None:
+#     suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
+# suffix = "_".join(suffix_parts)
 
-out_dir = os.path.join(current_dir, "results", "fits")
-os.makedirs(out_dir, exist_ok=True)
-out_path = os.path.join(out_dir, f"mpajhu_dr7_v5_2_merged_{suffix}.fits")
+# out_dir = os.path.join(current_dir, "results", "fits")
+# os.makedirs(out_dir, exist_ok=True)
+# out_path = os.path.join(out_dir, f"mpajhu_dr7_v5_2_merged_{suffix}.fits")
 
-t_sel.write(out_path, format="fits", overwrite=True)
-print(f"[DONE] 書き出し完了: {out_path}")
+# t_sel.write(out_path, format="fits", overwrite=True)
+# print(f"[DONE] 書き出し完了: {out_path}")
