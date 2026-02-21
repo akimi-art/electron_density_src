@@ -95,10 +95,10 @@ import astropy.units as u
 # ==========================================
 current_dir = os.getcwd()
 # fits_path = os.path.join(current_dir, "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch.csv")
-csv_path = "./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch_fit_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17.csv"
+csv_path = "./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch.csv"
 
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE_JADES_fit_COMPLETE.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_JADES_fit_COMPLETE.png")
+out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_JADES_DR3.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_JADES_DR3.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -106,14 +106,14 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.1 # 変更
+BIN_WIDTH = 0.3 # 変更
 NMIN = 3          # スタックに含める最小データ数
 N_MC = 5000
 # Lcut = 1e39     # 完全サンプル条件（使うなら下で有効化）
 
 # 単位スケール（カタログの単位に合わせて調整）
 # UNIT_FLUX = 1e-17  # 例: MPA-JHU などの慣例
-UNIT_FLUX = 1e-19    # いまの設定を踏襲
+UNIT_FLUX = 1e-20    # いまの設定を踏襲
 
 # z-bin の定義（左開右閉ではなく、ここでは「(lo, hi]」を採用しないよう注意）
 # 今回は (1,4), (4,7), (>7) を色分け
@@ -150,10 +150,10 @@ z = df["z_spec"].values
 # F6731 = df["S2_6733_flux"].values * UNIT_FLUX
 # err6716 = df["S2_6718_err"].values * UNIT_FLUX
 # err6731 = df["S2_6733_err"].values * UNIT_FLUX
-F6716 = df["S2_6716_flux"].values * UNIT_FLUX
-F6731 = df["S2_6730_flux"].values * UNIT_FLUX
-err6716 = 0.5 * (df["S2_6716_err_plus"].values + df["S2_6716_err_minus"].values) * UNIT_FLUX
-err6731 = 0.5 * (df["S2_6730_err_plus"].values + df["S2_6730_err_minus"].values) * UNIT_FLUX
+F6716 = df["S2_6718_flux"].values * UNIT_FLUX
+F6731 = df["S2_6733_flux"].values * UNIT_FLUX
+err6716 = df["S2_6718_err"].values * UNIT_FLUX
+err6731 = df["S2_6733_err"].values * UNIT_FLUX
 sn6716 = F6716 / err6716
 sn6731 = F6731 / err6731
 
@@ -349,7 +349,7 @@ for name, pack in res_by_z.items():
         x, y, yerr=yerr,
         fmt="s", mec=color, mfc=color,
         ecolor=color, color=color,
-        capsize=3, ms=5, lw=1.2, 
+        capsize=3, ms=8, lw=1.2, 
     )
 
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")

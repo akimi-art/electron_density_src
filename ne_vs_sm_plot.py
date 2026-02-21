@@ -340,6 +340,10 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
+        # low-zのデータのみをプロット
+        if z > 1:
+            continue
+
         # 色の対応
         def get_color(z):
             if z < 1:
@@ -672,23 +676,23 @@ ax.errorbar(
     capsize=3, label=f"x ≥ {thr}"
 )
 
-# stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
 
-plt.plot(
-    band_stacked["x"],
-    band_stacked["y_med"],
-    color="black",
-    lw=2,
-)
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
 
-plt.fill_between(
-    band_stacked["x"],
-    band_stacked["y_low"],
-    band_stacked["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 
 # =============================================
@@ -780,7 +784,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sm_plot_v6.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sm_plot_v6_z0.png"))
 plt.show()
 
 # Monitor memory usage
