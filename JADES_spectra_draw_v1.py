@@ -69,14 +69,6 @@ plt.rcParams.update({
     "mathtext.fontset": "stix",
 })
 
-import os
-import glob
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from astropy.io import fits
-from matplotlib.gridspec import GridSpec
-from astropy.visualization import ZScaleInterval
 
 # =====================================================
 # 0. 参照波長

@@ -250,8 +250,13 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
             tab = hdul["EXTRACT1D"].data # DR3
             # tab = hdul["EXTRACT5PIX1D"].data # DR4
             wave = tab["WAVELENGTH"]*1e4
-            flux = tab["FLUX"]*1e19
-            err  = tab["FLUX_ERR"]*1e19
+            # フラックス密度はすでに erg s^-1 cm^-2 Å^-1
+            # 「単位換え」は不要。数値の見やすさのためにスケーリングしたいだけなら、
+            # ラベルも合わせて「×10^-20（per Å）」スケールに“表示目的”で揃える
+            # README↓
+            # 「Measured emission line flux from the Prism/Clear spectrum in units of x10^-20 erg s-1 cm-2」
+            flux = tab["FLUX"]*1e20
+            err  = tab["FLUX_ERR"]*1e20
     except Exception as e:
         print(f"  -> skipped: fits read error {e}")
         n_skip += 1
@@ -316,6 +321,29 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
         n_skip += 1
         continue
 
+    # # ==========================
+    # # 統計処理
+    # # ==========================
+
+    # f1_16,f1_50,f1_84 = np.percentile(amp1,[16,50,84])
+    # f2_16,f2_50,f2_84 = np.percentile(amp2,[16,50,84])
+
+    # # --- flux uncertainty（対称近似）
+    # err1 = 0.5 * (f1_84 - f1_16)
+    # err2 = 0.5 * (f2_84 - f2_16)
+
+    # sn1 = f1_50 / err1 if err1 > 0 else 0
+    # sn2 = f2_50 / err2 if err2 > 0 else 0
+
+    # SN_MIN = 1.0   # ← ここがあなたの自由度
+
+    # if (sn1 < SN_MIN) or (sn2 < SN_MIN):
+    #     print(f"  -> skipped: low S/N (6716={sn1:.2f}, 6730={sn2:.2f})")
+    #     n_skip += 1
+    #     continue
+
+    # ratio_samples = amp1 / amp2
+    # r16,r50,r84 = np.percentile(ratio_samples,[16,50,84])
     # ==========================
     # 統計処理
     # ==========================
@@ -323,8 +351,25 @@ for i, row in enumerate(df_cat.itertuples(index=False), 1):
     f1_16,f1_50,f1_84 = np.percentile(amp1,[16,50,84])
     f2_16,f2_50,f2_84 = np.percentile(amp2,[16,50,84])
 
+    # --- ratio posterior
     ratio_samples = amp1 / amp2
-    r16,r50,r84 = np.percentile(ratio_samples,[16,50,84])
+    ratio_samples = ratio_samples[np.isfinite(ratio_samples)]
+
+    r16, r50, r84 = np.percentile(ratio_samples,[16,50,84])
+
+    # ==========================
+    # ratio カット（ゆるい物理制限）
+    # ==========================
+
+    R_MIN = 0.0
+    R_MAX = 10.0
+
+    # 中央値ではなく「posteriorの95%(84%?)が範囲外」
+    # if (r84 < R_MIN) or (r16 > R_MAX):
+    if (r50 <= R_MIN) or (r50 >= R_MAX):
+        print(f"  -> skipped: extreme ratio = {r50:.2f}")
+        n_skip += 1
+        continue
 
     results_all.append({
         "NIRSpec_ID": nir_id,
@@ -356,73 +401,3 @@ print(f"Total: {total_objects}")
 print(f"Success: {n_success}")
 print(f"Skipped: {n_skip}")
 print("Saved to:",output_path)
-
-# ============================
-#  基準線より上側の SII6717 を抽出し、新しい FITS を保存
-# ============================
-# ============================
-#  Lベースの完全サンプル抽出（構造そのまま・行のみ削除）— 両線同時版
-# ============================
-# --- パラメータ ---
-# 一定フラックス [erg s^-1 cm^-2]（図の基準線に対応）
-F_CONST_6717_CGS = 1e-17
-F_CONST_6731_CGS = 1e-17     # 6717と同じにしてよければ同値のままでOK（別々に設定可能）
-Z_RANGE = (0.0, 0.40)        # 図と揃える場合。全 z を許容するなら None
-REQUIRE_FINITE = True        # 数値の健全性チェック（NaN/inf除外）
-
-# --- L_lim(z) を計算（一定フラックス線） ---
-# すでに z が配列としてあり、cosmo は Planck18 想定
-dL_each = cosmo.luminosity_distance(z).to(u.cm).value
-Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
-Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
-
-# --- マスク作成（両線の L >= L_lim(z) を同時に満たす） ---
-mask_L_6717 = (L6716 >= Llim6717_each)
-mask_L_6731 = (L6731 >= Llim6731_each)
-mask_L_both = mask_L_6717 & mask_L_6731
-
-# z 範囲の適用（必要に応じて）
-if Z_RANGE is not None:
-    zmin, zmax = Z_RANGE
-    mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
-else:
-    mask_z = np.ones_like(z, dtype=bool)
-
-# 数値の健全性（NaN/inf の排除）
-if REQUIRE_FINITE:
-    mask_finite = (
-        np.isfinite(z) &
-        np.isfinite(L6716) & np.isfinite(L6731) &
-        np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
-    )
-else:
-    mask_finite = np.ones_like(z, dtype=bool)
-
-# --- 最終マスク（列構造は触らない） ---
-select_mask = mask_L_both & mask_z & mask_finite
-
-print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(select_mask)}")
-if select_mask.sum() == 0:
-    print("[WARN] 0 件です。F_CONST_* や Z_RANGE を見直してください。")
-
-# --- Table を行スライスのみで抽出（列・メタデータ保持） ---
-t_sel = t[select_mask]  # ← 列構造は一切変更しない
-
-# --- 書き出し（ファイル名に条件を明記） ---
-def _sci_notation(x):
-    return f"{x:.0e}".replace("+","")
-
-suffix_parts = [
-    f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
-    f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
-]
-if Z_RANGE is not None:
-    suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
-suffix = "_".join(suffix_parts)
-
-out_dir = os.path.join(current_dir, "results", "fits")
-os.makedirs(out_dir, exist_ok=True)
-out_path = os.path.join(out_dir, f"mpajhu_dr7_v5_2_merged_{suffix}.fits")
-
-t_sel.write(out_path, format="fits", overwrite=True)
-print(f"[DONE] 書き出し完了: {out_path}")

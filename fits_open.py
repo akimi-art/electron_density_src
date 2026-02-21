@@ -25,7 +25,7 @@ from astropy.io import fits
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "./results/fits/mpajhu_dr7_v5_2_merged.fits"
+file_galex =  "./results/JADES/JADES_DR4/catalog/Combined_DR4_external_v1.2.1.fits"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
@@ -40,8 +40,8 @@ with fits.open(file_galex) as hdul:
     print("列名:", ext_hdu.columns.names)
     print("データ型:", ext_hdu.columns.formats)
 
-    # データの最初の5行を表示
-    print("最初の5行のデータ:")
+    # データの最初の1行を表示
+    print("最初の1行のデータ:")
     for row in ext_hdu.data[:1]:
         print(row)
 

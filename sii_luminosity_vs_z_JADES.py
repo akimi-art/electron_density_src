@@ -79,15 +79,21 @@ plt.rcParams.update({
 # t = Table.read("./results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits", format="fits")
 # # pandasに変換（後続のコードをそのまま使うため）
 # df = t.to_pandas()
-df = pd.read_csv("./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch_fit.csv")
+df = pd.read_csv("./results/csv/JADES_DR3_GOODS-N_SII_ratio_only.csv")
 
 
 # 以降は元コードと同じ
 # --- 単位スケールの補正（MPA-JHU: 1e-17 erg s^-1 cm^-2 想定）---
 # UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認、カタログ
-UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認
+# ＊JADEの場合
+# フラックス密度はすでに erg s^-1 cm^-2 Å^-1
+# 「単位換え」は不要。数値の見やすさのためにスケーリングしたいだけなら、
+# ラベルも合わせて「×10^-20（per Å）」スケールに“表示目的”で揃える
+# README↓
+# 「Measured emission line flux from the Prism/Clear spectrum in units of x10^-20 erg s-1 cm-2」
+UNIT_FLUX = 1e-20  # 必要に応じてヘッダで確認
 
-z = df["z_spec"].values
+z = df["z_Spec"].values
 # F6716 = df["S2_6718_flux"].values * UNIT_FLUX
 # F6731 = df["S2_6733_flux"].values * UNIT_FLUX
 
@@ -168,7 +174,7 @@ ax2.plot(z_grid, lum_6731_flux_const_3, color='black', linestyle=':' , linewidth
 for ax in axes:
     ax.set_yscale("log")
     ax.set_xlim(0, 7.0) 
-    ax.set_ylim(1e36,1e44)
+    ax.set_ylim(1e20,1e50)
 for ax in axes[:1]:
     ax.tick_params(labelbottom=False)
 
@@ -184,81 +190,81 @@ print(f"Saved as {save_path}.")
 plt.show()
 
 
-# あるフラックス一定の線より上側のみのデータを抽出
+# # あるフラックス一定の線より上側のみのデータを抽出
 
-# ============================
-# パラメータ
-# ============================
-F_CONST_6717_CGS = 1e-17
-F_CONST_6731_CGS = 1e-17
-Z_RANGE = None   # None にすれば全z
-REQUIRE_FINITE = True
+# # ============================
+# # パラメータ
+# # ============================
+# F_CONST_6717_CGS = 1e-19
+# F_CONST_6731_CGS = 1e-19
+# Z_RANGE = None   # None にすれば全z
+# REQUIRE_FINITE = True
 
-# 必要列（例）
-# df に以下がある前提：
-# z, L6716, L6731
+# # 必要列（例）
+# # df に以下がある前提：
+# # z, L6716, L6731
 
-# ============================
-# L_lim(z) 計算
-# ============================
-dL_each = cosmo.luminosity_distance(z).to(u.cm).value
-Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
-Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
+# # ============================
+# # L_lim(z) 計算
+# # ============================
+# dL_each = cosmo.luminosity_distance(z).to(u.cm).value
+# Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
+# Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
 
-# ============================
-# マスク作成
-# ============================
-mask_L_6717 = (L6716 >= Llim6717_each)
-mask_L_6731 = (L6731 >= Llim6731_each)
-mask_L_both = mask_L_6717 & mask_L_6731
+# # ============================
+# # マスク作成
+# # ============================
+# mask_L_6717 = (L6716 >= Llim6717_each)
+# mask_L_6731 = (L6731 >= Llim6731_each)
+# mask_L_both = mask_L_6717 & mask_L_6731
 
-# z 範囲
-if Z_RANGE is not None:
-    zmin, zmax = Z_RANGE
-    mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
-else:
-    mask_z = np.ones_like(z, dtype=bool)
+# # z 範囲
+# if Z_RANGE is not None:
+#     zmin, zmax = Z_RANGE
+#     mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
+# else:
+#     mask_z = np.ones_like(z, dtype=bool)
 
-# 数値健全性
-if REQUIRE_FINITE:
-    mask_finite = (
-        np.isfinite(z) &
-        np.isfinite(L6716) & np.isfinite(L6731) &
-        np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
-    )
-else:
-    mask_finite = np.ones_like(z, dtype=bool)
+# # 数値健全性
+# if REQUIRE_FINITE:
+#     mask_finite = (
+#         np.isfinite(z) &
+#         np.isfinite(L6716) & np.isfinite(L6731) &
+#         np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
+#     )
+# else:
+#     mask_finite = np.ones_like(z, dtype=bool)
 
-# ============================
-# 最終マスク
-# ============================
-select_mask = mask_L_both & mask_z & mask_finite
+# # ============================
+# # 最終マスク
+# # ============================
+# select_mask = mask_L_both & mask_z & mask_finite
 
-print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(df)}")
+# print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(df)}")
 
-# ============================
-# DataFrame 行抽出（列構造はそのまま）
-# ============================
-df_sel = df.loc[select_mask].copy()
+# # ============================
+# # DataFrame 行抽出（列構造はそのまま）
+# # ============================
+# df_sel = df.loc[select_mask].copy()
 
-# ============================
-# 保存
-# ============================
-def _sci_notation(x):
-    return f"{x:.0e}".replace("+","")
+# # ============================
+# # 保存
+# # ============================
+# def _sci_notation(x):
+#     return f"{x:.0e}".replace("+","")
 
-suffix_parts = [
-    f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
-    f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
-]
-if Z_RANGE is not None:
-    suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
-suffix = "_".join(suffix_parts)
+# suffix_parts = [
+#     f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
+#     f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
+# ]
+# if Z_RANGE is not None:
+#     suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
+# suffix = "_".join(suffix_parts)
 
-out_dir = "./results/JADES/JADES_DR3/data_from_Nishigaki"
-os.makedirs(out_dir, exist_ok=True)
+# out_dir = "./results/csv"
+# os.makedirs(out_dir, exist_ok=True)
 
-out_path = os.path.join(out_dir, f"jades_info_crossmatch_fit_{suffix}.csv")
-df_sel.to_csv(out_path, index=False)
+# out_path = os.path.join(out_dir, f"JADES_DR3_GOODS-N_SII_ratio_only_{suffix}.csv")
+# df_sel.to_csv(out_path, index=False)
 
-print(f"[DONE] 書き出し完了: {out_path}")
+# print(f"[DONE] 書き出し完了: {out_path}")
