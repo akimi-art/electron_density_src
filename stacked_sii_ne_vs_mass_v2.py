@@ -106,8 +106,8 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.3 # 変更
-NMIN = 3          # スタックに含める最小データ数
+BIN_WIDTH = 0.1 # 変更
+NMIN = 1          # スタックに含める最小データ数
 N_MC = 5000
 # Lcut = 1e39     # 完全サンプル条件（使うなら下で有効化）
 
@@ -352,9 +352,71 @@ for name, pack in res_by_z.items():
         capsize=3, ms=8, lw=1.2, 
     )
 
+
+
+# =============================================
+# SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# =============================================
+# ===== 入出力 =====
+in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_data.csv")
+
+# ===== 読み込み =====
+res_data = pd.read_csv(in_csv_data)
+
+# ===== 必要列を取り出し =====
+x_data = res_data["logM_cen"].to_numpy(float)
+
+y_data = res_data["R_med"].to_numpy(float)
+yerr_lo_data = res_data["R_err_lo"].to_numpy(float)
+yerr_hi_data = res_data["R_err_hi"].to_numpy(float)
+
+# ===== 有効値マスク（NaN/inf除外）=====
+m_ok_data = (
+    np.isfinite(x_data) &
+    np.isfinite(y_data) &
+    np.isfinite(yerr_lo_data) &
+    np.isfinite(yerr_hi_data) &
+    (yerr_lo_data >= 0) &
+    (yerr_hi_data >= 0)
+)
+
+# stack結果（完全なものとそうでないものの色を分ける）
+thr_data = 10.0
+
+yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
+
+mask_lt_data = x_data > thr_data
+mask_ge_data = ~mask_lt_data
+
+# x >= 10（黒四角）
+ax.errorbar(
+    x_data[mask_lt_data], y_data[mask_lt_data],
+    yerr=yerr_data[:, mask_lt_data],
+    fmt="s", mec="black", mfc="black",
+    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
+    capsize=3
+)
+
+# x < 10（白四角・黒縁）
+ax.errorbar(
+    x_data[mask_ge_data], y_data[mask_ge_data],
+    yerr=yerr_data[:, mask_ge_data],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",
+    capsize=3, zorder=1  # データ点を前面に表示
+)
+
+
+
+
+
+
+
+
+
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(6, 12)
+ax.set_xlim(8, 12)
 ax.set_ylim(0.0, 2.0)
 
 # 体裁

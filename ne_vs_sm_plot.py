@@ -202,7 +202,7 @@ galaxy_ids_Berg25      = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 50000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        # if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
         #     break
         parts = line.strip().split()
         if parts:
@@ -347,11 +347,15 @@ for ref_name, galaxy_list in data_groups.items():
         # 色の対応
         def get_color(z):
             if z < 1:
+                if ref_name in sdss:
+                    return "gray"
+                else:
+                    return "black"
                 # if main_sequence == 1:
                 #     return "black"
                 # else:
                 #     return "gray"
-                return "gray" # ひとまずは色を変えない
+                # return "gray" # ひとまずは色を変えない
             elif 1 <= z < 4:
                 return "tab:blue"
             elif 4 <= z <= 7:
@@ -379,7 +383,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if ref_name in sdss:
                     return "gray"
                 else:
-                    return "gray"
+                    return "black"
             elif 1 <= z < 4:
                 return 'tab:blue'
             elif 4 <= z <= 7:
@@ -393,6 +397,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if ref_name in sdss:
                     return 0.0
                 else:
+                    # return 0.25
                     return 0.25
             elif 1 <= z < 4:
                 return 0.25
@@ -655,26 +660,26 @@ thr = 10.0
 
 yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
 
-mask_lt = x < thr
+mask_lt = x > thr
 mask_ge = ~mask_lt
-
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=yerr[:, mask_lt],
-    fmt="s", mec="gray", mfc="gray",
-    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
-    capsize=3, label=f"x < {thr}"
-)
 
 # x >= 10（黒四角）
 ax.errorbar(
-    x[mask_ge], y[mask_ge],
-    yerr=yerr[:, mask_ge],
-    fmt="s", mec="gray", mfc="white",
-    ecolor="gray", color="gray",
-    capsize=3, label=f"x ≥ {thr}"
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="black", mfc="black",
+    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
+    capsize=3
 )
+
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x[mask_ge], y[mask_ge],
+#     yerr=yerr[:, mask_ge],
+#     fmt="s", mec="gray", mfc="white",
+#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+#     capsize=3
+# )
 
 # # stackの回帰分析結果もプロットする
 # band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
@@ -732,26 +737,26 @@ thr_data = 10.0
 
 yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
 
-mask_lt_data = x_data < thr_data
+mask_lt_data = x_data > thr_data
 mask_ge_data = ~mask_lt_data
-
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x_data[mask_lt_data], y_data[mask_lt_data],
-    yerr=yerr_data[:, mask_lt_data],
-    fmt="s", mec="black", mfc="black",
-    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
-    capsize=3, label=f"x < {thr}"
-)
 
 # x >= 10（黒四角）
 ax.errorbar(
-    x_data[mask_ge_data], y_data[mask_ge_data],
-    yerr=yerr_data[:, mask_ge_data],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",
-    capsize=3, label=f"x ≥ {thr}"
+    x_data[mask_lt_data], y_data[mask_lt_data],
+    yerr=yerr_data[:, mask_lt_data],
+    fmt="s", mec="gray", mfc="gray",
+    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+    capsize=3
 )
+
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x_data[mask_ge_data], y_data[mask_ge_data],
+#     yerr=yerr_data[:, mask_ge_data],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",
+#     capsize=3, label=f"x ≥ {thr}"
+# )
 
 # # stackの回帰分析結果もプロットする
 # band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))

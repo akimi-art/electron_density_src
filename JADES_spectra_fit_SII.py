@@ -74,12 +74,12 @@ plt.rcParams.update({
 # 1. CSV を読む
 # =========================
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/csv/JADES_DR4_kiyota_2026_selected_IDs.csv")
+csv_path = os.path.join(current_dir, "results/csv/JADES_ne_candidates.csv")
 df = pd.read_csv(csv_path)
 
 # df.iloc[0]: 「1行目（最初の1天体）」を取り出す
-nir_id = df.iloc[0]["NIRSpec_ID"] 
-z_spec = df.iloc[0]["z_Spec"]
+nir_id = df.iloc[1]["NIRSpec_ID"] 
+z_spec = df.iloc[1]["z_Spec"]
 nir_id_str = f"{int(nir_id):08d}"
 z_spec_str = f"{float(z_spec):.3f}"
 z_fix = z_spec
@@ -109,7 +109,7 @@ sigma_instr = sigma            # 固定（後で grating 依存にしてOK）
 if 7000.0 < wave_center_s2 < 16600.0:
     filter_grating = "f070lp-g140m" # ここにフィルターグレーティング情報を追加
 # elif 16600.0 < wave_center_s2 < 28700.0:
-elif 16600.0 < wave_center_s2:
+elif 16600.0 < wave_center_s2 < 28700.0:
     filter_grating = "f170lp-g235m" # ここにフィルターグレーティング情報を追加
 # elif 28700.0 < wave_center_s2 < 52687.212:
 #     filter_grating = "f290lp-g395m" # ここにフィルターグレーティング情報を追加
@@ -120,7 +120,7 @@ print(filter_grating)
 # =========================
 # results/JADES/JADES_DR4/JADES_DR4_kiyota_2026/JADES_DR4_goods-s-mediumhst_208134/hlsp_jades_jwst_nirspec_goods-s-mediumjwst-00208134_f170lp-g235m_v1.0_s2d.fits
 # results/JADES/JADES_DR4/JADES_DR4_kiyota_2026/JADES_DR4_goods-s-mediumhst_14279
-base = f"results/JADES/JADES_DR4/JADES_DR4_kiyota_2026/JADES_DR4_goods-s-mediumhst_{nir_id}"
+base = f"results/JADES/individual/JADES_{nir_id_str}"
 print(base)
 # x1d = glob.glob(f"{base}/**/*_x1d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
 # s2d = glob.glob(f"{base}/**/*_s2d.fits", recursive=True)[1] # ここでフィルターグレーディングを調整する
@@ -181,7 +181,8 @@ def s2_doublet_model_6730(x, amp_6716, amp_6730, z, sigma_int, bg):
 # 3. 1D スペクトル
 # =========================
 with fits.open(x1d) as hdul:
-    tab = hdul["EXTRACT5PIX1D"].data
+    # tab = hdul["EXTRACT5PIX1D"].data
+    tab = hdul["EXTRACT1D"].data
     wave_1d = tab["WAVELENGTH"] * 1e4
     flux_1d = tab["FLUX"] * 1e19
     err_1d  = tab["FLUX_ERR"] * 1e19
@@ -239,7 +240,7 @@ print(popt)
 # =========================
 # 7. プロット
 # =========================
-fig = plt.figure(figsize=(12,6))
+fig = plt.figure(figsize=(16,8))
 gs = GridSpec(2,1,height_ratios=[1,5],hspace=0)
 
 ax2d = fig.add_subplot(gs[0])
@@ -288,7 +289,7 @@ for spine in ax1d.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 
-ax2d.set_title(f"JADES NIRSpec {filter_grating} |  ID {nir_id_str} | z_spec = {z_spec_str}")
+# ax2d.set_title(f"JADES NIRSpec {filter_grating} |  ID {nir_id_str} | z_spec = {z_spec_str}")
 ax2d.tick_params(axis='both', which='both',
                bottom=False, top=False, left=False, right=False,
                labelbottom=False, labeltop=False,
@@ -299,7 +300,8 @@ for spine in ax2d.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 
-save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_{filter_grating}_ID{nir_id_str}_fit.png")
+# save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_{filter_grating}_ID{nir_id_str}_fit.png")
+save_path = os.path.join(current_dir, f"results/figure/JADES/JADES_NIRSpec_{filter_grating}_ID{nir_id_str}_fit_slide.png")
 plt.savefig(save_path)
 print(f"Saved as {save_path}")
 plt.show()

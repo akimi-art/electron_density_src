@@ -191,7 +191,7 @@ galaxy_ids_Bayliss14   = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 10000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        # if i >= 20000: # 現時点でまだSDSSのmetallicityの情報は載せていない
         #     break
         parts = line.strip().split()
         if parts:
@@ -323,13 +323,20 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
+        if z > 1:
+            continue  # z > 1 のデータはプロットしない（現時点では）
+
         # 色の対応
         def get_color(z):
             if z < 1:
-                if main_sequence == 1:
-                    return "black"
-                else:
+                if ref_name in sdss:
                     return "gray"
+                else:
+                    return "black"
+                # if main_sequence == 1:
+                #     return "black"
+                # else:
+                #     return "gray"
                 # return "gray" # ひとまずは色を変えない
             elif 1 <= z < 4:
                 return "tab:blue"
@@ -372,7 +379,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if ref_name in sdss:
                     return 0.0
                 else:
-                    return 0.25
+                    return 0.5
             elif 1 <= z < 4:
                 return 0.25
             elif 4 <= z <= 7:
@@ -484,87 +491,87 @@ for ref_name, galaxy_list in data_groups.items():
             ne_yerr_list.append(yerr)
 
 
- # === 推定結果（あなたの値に置き換え） ===
-# slope（固定）
-m_hat_z0   = 0.206
+#  # === 推定結果（あなたの値に置き換え） ===
+# # slope（固定）
+# m_hat_z0   = 0.206
 
-# intercept
-b_hat_z0   = 2.271
-b_hat_z3   = 2.262
-b_hat_z6   = 2.555
-b_hat_z9   = 2.793
+# # intercept
+# b_hat_z0   = 2.271
+# b_hat_z3   = 2.262
+# b_hat_z6   = 2.555
+# b_hat_z9   = 2.793
 
-# slope の標準誤差
-sigma_m_z0 = 0.006
-sigma_m_z3 = 0.000  
-sigma_m_z6 = 0.000  
-sigma_m_z9 = 0.000 
+# # slope の標準誤差
+# sigma_m_z0 = 0.006
+# sigma_m_z3 = 0.000  
+# sigma_m_z6 = 0.000  
+# sigma_m_z9 = 0.000 
 
-# intercept の標準誤差 
-sigma_b_z0 = 0.003
-sigma_b_z3 = 0.020
-sigma_b_z6 = 0.050
-sigma_b_z9 = 0.127
+# # intercept の標準誤差 
+# sigma_b_z0 = 0.003
+# sigma_b_z3 = 0.020
+# sigma_b_z6 = 0.050
+# sigma_b_z9 = 0.127
 
-# slope と intercept の相関（例：不明なら 0）
-rho_mb_z0  = 0    
-rho_mb_z3  = 0    
-rho_mb_z6  = 0    
-rho_mb_z9  = 0    
+# # slope と intercept の相関（例：不明なら 0）
+# rho_mb_z0  = 0    
+# rho_mb_z3  = 0    
+# rho_mb_z6  = 0    
+# rho_mb_z9  = 0    
 
-# x 範囲
-x = np.linspace(-3, 3, 1000)
-# 推定直線
-y_hat_z0 = m_hat_z0 * x + b_hat_z0
-y_hat_z3 = m_hat_z0 * x + b_hat_z3
-y_hat_z6 = m_hat_z0 * x + b_hat_z6
-y_hat_z9 = m_hat_z0 * x + b_hat_z9
-# パラメータ不確かさ由来の y の標準偏差
-cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
-cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
-cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
-cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
-sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
-sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
-sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
-sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
-# 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
-k = 1
-lower_z0 = y_hat_z0 - k * sigma_y_z0
-lower_z3 = y_hat_z3 - k * sigma_y_z3
-lower_z6 = y_hat_z6 - k * sigma_y_z6
-lower_z9 = y_hat_z9 - k * sigma_y_z9
-upper_z0 = y_hat_z0 + k * sigma_y_z0
-upper_z3 = y_hat_z3 + k * sigma_y_z3
-upper_z6 = y_hat_z6 + k * sigma_y_z6
-upper_z9 = y_hat_z9 + k * sigma_y_z9
-# ax.plot(x, y_hat_z0, color='black')
-ax.plot(x, y_hat_z3, color='tab:blue')
-ax.plot(x, y_hat_z6, color='tab:green')
-ax.plot(x, y_hat_z9, color='tab:red')
-# ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
-ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
-ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
-ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
+# # x 範囲
+# x = np.linspace(-3, 3, 1000)
+# # 推定直線
+# y_hat_z0 = m_hat_z0 * x + b_hat_z0
+# y_hat_z3 = m_hat_z0 * x + b_hat_z3
+# y_hat_z6 = m_hat_z0 * x + b_hat_z6
+# y_hat_z9 = m_hat_z0 * x + b_hat_z9
+# # パラメータ不確かさ由来の y の標準偏差
+# cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
+# cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
+# cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
+# cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
+# sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
+# sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
+# sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
+# sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
+# # 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
+# k = 1
+# lower_z0 = y_hat_z0 - k * sigma_y_z0
+# lower_z3 = y_hat_z3 - k * sigma_y_z3
+# lower_z6 = y_hat_z6 - k * sigma_y_z6
+# lower_z9 = y_hat_z9 - k * sigma_y_z9
+# upper_z0 = y_hat_z0 + k * sigma_y_z0
+# upper_z3 = y_hat_z3 + k * sigma_y_z3
+# upper_z6 = y_hat_z6 + k * sigma_y_z6
+# upper_z9 = y_hat_z9 + k * sigma_y_z9
+# # ax.plot(x, y_hat_z0, color='black')
+# ax.plot(x, y_hat_z3, color='tab:blue')
+# ax.plot(x, y_hat_z6, color='tab:green')
+# ax.plot(x, y_hat_z9, color='tab:red')
+# # ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
+# ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
+# ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
+# ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
-# 変わりに回帰分析をした時に得るを使う
-band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sfr_regression_band_.csv"))
+# # 変わりに回帰分析をした時に得るを使う
+# band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_sfr_regression_band_.csv"))
 
-plt.plot(
-    band["x"],
-    band["y_med"],
-    color="black",
-    lw=2,
-    label="MCMC best-fit"
-)
+# plt.plot(
+#     band["x"],
+#     band["y_med"],
+#     color="black",
+#     lw=2,
+#     label="MCMC best-fit"
+# )
 
-plt.fill_between(
-    band["x"],
-    band["y_low"],
-    band["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band["x"],
+#     band["y_low"],
+#     band["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 
 # =============================================
@@ -607,14 +614,14 @@ yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
 mask_lt = x < thr
 mask_ge = ~mask_lt
 
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
-    capsize=3, label=f"x < {thr}"
-)
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x[mask_lt], y[mask_lt],
+#     yerr=yerr[:, mask_lt],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+#     capsize=3, label=f"x < {thr}"
+# )
 
 # x >= 10（黒四角）
 ax.errorbar(
@@ -643,23 +650,23 @@ ax.errorbar(
 #         fmt="x", ms=6, capsize=2, lw=1,
 #     )
 
-# stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
 
-plt.plot(
-    band_stacked["x"],
-    band_stacked["y_med"],
-    color="black",
-    lw=2,
-)
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
 
-plt.fill_between(
-    band_stacked["x"],
-    band_stacked["y_low"],
-    band_stacked["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 # # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
 # # Topping, Sanders+25
@@ -711,7 +718,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0.png"))
 plt.show()
 
 # Monitor memory usage
