@@ -323,8 +323,8 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
-        if z < 1:
-            continue  # z < 1 のデータはプロットしない（現時点では）
+        if z > 1:
+            continue  # z > 1 のデータはプロットしない（現時点では）
 
         # 色の対応
         def get_color(z):
@@ -458,7 +458,7 @@ for ref_name, galaxy_list in data_groups.items():
 
             if z <= 1:
                 if ref_name in sdss:
-                    ms = 0.3
+                    ms = 1
                 else:
                     ms = 4
             else: 
@@ -574,63 +574,63 @@ for ref_name, galaxy_list in data_groups.items():
 # )
 
 
-# =============================================
-# SDSSのstackデータ（Massビンごと）をプロットする 
-# =============================================
-# ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
+# # =============================================
+# # SDSSのstackデータ（Massビンごと）をプロットする 
+# # =============================================
+# # ===== 入出力 =====
+# in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
 
-# ===== 読み込み =====
-res = pd.read_csv(in_csv)
+# # ===== 読み込み =====
+# res = pd.read_csv(in_csv)
 
-# ===== 必要列を取り出し =====
-x = res["logSFR_cen"].to_numpy(float)
+# # ===== 必要列を取り出し =====
+# x = res["logSFR_cen"].to_numpy(float)
 
-y = res["log_ne_med"].to_numpy(float)
-yerr_lo = res["log_ne_err_lo"].to_numpy(float)
-yerr_hi = res["log_ne_err_hi"].to_numpy(float)
+# y = res["log_ne_med"].to_numpy(float)
+# yerr_lo = res["log_ne_err_lo"].to_numpy(float)
+# yerr_hi = res["log_ne_err_hi"].to_numpy(float)
 
-# outsideフラグ（なければ全部False）
-if "R_outside" in res.columns:
-    outside = res["R_outside"].to_numpy(bool)
-else:
-    outside = np.zeros_like(x, dtype=bool)
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res.columns:
+#     outside = res["R_outside"].to_numpy(bool)
+# else:
+#     outside = np.zeros_like(x, dtype=bool)
 
-# ===== 有効値マスク（NaN/inf除外）=====
-m_ok = (
-    np.isfinite(x) &
-    np.isfinite(y) &
-    np.isfinite(yerr_lo) &
-    np.isfinite(yerr_hi) &
-    (yerr_lo >= 0) &
-    (yerr_hi >= 0)
-)
+# # ===== 有効値マスク（NaN/inf除外）=====
+# m_ok = (
+#     np.isfinite(x) &
+#     np.isfinite(y) &
+#     np.isfinite(yerr_lo) &
+#     np.isfinite(yerr_hi) &
+#     (yerr_lo >= 0) &
+#     (yerr_hi >= 0)
+# )
 
-# stack結果（完全なものとそうでないものの色を分ける）
-thr = 0.0
+# # stack結果（完全なものとそうでないものの色を分ける）
+# thr = 0.0
 
-yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
+# yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
 
-mask_lt = x < thr
-mask_ge = ~mask_lt
+# mask_lt = x < thr
+# mask_ge = ~mask_lt
 
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
-    capsize=3, label=f"x < {thr}"
-)
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x[mask_lt], y[mask_lt],
+#     yerr=yerr[:, mask_lt],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+#     capsize=3, label=f"x < {thr}"
+# )
 
-# x >= 10（黒四角）
-ax.errorbar(
-    x[mask_ge], y[mask_ge],
-    yerr=yerr[:, mask_ge],
-    fmt="s", mec="black", mfc="black",
-    ecolor="k", color="k",
-    capsize=3, label=f"x ≥ {thr}"
-)
+# # x >= 10（黒四角）
+# ax.errorbar(
+#     x[mask_ge], y[mask_ge],
+#     yerr=yerr[:, mask_ge],
+#     fmt="s", mec="black", mfc="black",
+#     ecolor="k", color="k",
+#     capsize=3, label=f"x ≥ {thr}"
+# )
 
 # # 理論範囲内（inside）
 # m_in = m_ok & (~outside)
@@ -730,18 +730,18 @@ ax.errorbar(
 # # Steidel+16
 # plt.axvline(x=1.52, color='gray', linestyle=':', alpha=0.3)
 
-# SIIのcritical densityを表示する (6716, 6731)
-# 値の定義
-nc_6716 = np.log10(1917.5607046610592)
-x = np.linspace(-3, -2, 400)
-y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
-T = 6  # 閾値（しきい値）
-ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
-# y >= T の部分を塗る
-# ax.fill_between(x, y, T, color="gray", alpha=0.3, interpolate=True)
-# しきい値の水平線
-ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
-plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=12,)
+# # SIIのcritical densityを表示する (6716, 6731)
+# # 値の定義
+# nc_6716 = np.log10(1917.5607046610592)
+# x = np.linspace(-3, -2, 400)
+# y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
+# T = 6  # 閾値（しきい値）
+# ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
+# # y >= T の部分を塗る
+# # ax.fill_between(x, y, T, color="gray", alpha=0.3, interpolate=True)
+# # しきい値の水平線
+# ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
+# plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=12,)
 
 # SDSSのデータのみで線形回帰した時の直線を表示する
 # slope_sdss = 0.011
@@ -759,7 +759,7 @@ plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([
     
 
 plt.xlim(0, 2)
-plt.ylim(1.5, 3.0)
+plt.ylim(1.5, 4.0)
 ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
@@ -768,7 +768,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 # plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_slide.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_slide_normal.png"))
 plt.show()
 
 # Monitor memory usage

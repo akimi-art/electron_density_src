@@ -82,12 +82,12 @@ plt.rcParams.update({
 # 入出力
 # -----------------------
 current_dir = os.getcwd()
-# fits_path = (os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits"))
-csv_path = "./results/csv/JADES_DR3_GOODS-S_SII_ratio_only.csv"
-# out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass.csv")
-# out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass.png")
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE_JADES.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_JADES.png")
+fits_path = (os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits"))
+# csv_path = "./results/csv/JADES_DR3_GOODS-S_SII_ratio_only.csv"
+out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass.csv")
+out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass.png")
+# out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE_JADES.csv")
+# out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_JADES.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -102,9 +102,9 @@ N_MC      = 5000
 # -----------------------
 # 読み込み
 # -----------------------
-# tab = Table.read(fits_path, hdu=1)
-# df  = tab.to_pandas()
-df = pd.read_csv(csv_path)
+tab = Table.read(fits_path, hdu=1)
+df  = tab.to_pandas()
+# df = pd.read_csv(csv_path)
 
 
 # -----------------------
@@ -117,21 +117,28 @@ def valid_mass(x):
     return m
 
 m_sii = (
-    np.isfinite(df["S2_6718"]) &
-    np.isfinite(df["S2_6733"]) &
-    np.isfinite(df["S2_6718_err"]) &
-    np.isfinite(df["S2_6733_err"]) &
-    (df["S2_6718_err"] > 0) &
-    (df["S2_6733_err"] > 0)
+    # np.isfinite(df["S2_6718"]) &
+    # np.isfinite(df["S2_6733"]) &
+    # np.isfinite(df["S2_6718_err"]) &
+    # np.isfinite(df["S2_6733_err"]) &
+    # (df["S2_6718_err"] > 0) &
+    # (df["S2_6733_err"] > 0)
+    np.isfinite(df["SII_6717_FLUX"]) &
+    np.isfinite(df["SII_6731_FLUX"]) &
+    np.isfinite(df["SII_6717_FLUX_ERR"]) &
+    np.isfinite(df["SII_6731_FLUX_ERR"]) &
+    (df["SII_6717_FLUX_ERR"] > 0) &
+    (df["SII_6731_FLUX_ERR"] > 0)
 )
-
-m_sm = valid_mass(df["logM"])
+# 'sm_MEDIAN', 'sm_P16', 'sm_P84'
+# m_sm = valid_mass(df["logM"])
+m_sm = valid_mass(df["sm_MEDIAN"])
 mask = m_sii & m_sm
 
 # -----------------------
 # ビン作成
 # -----------------------
-logM = df.loc[mask, "logM"].to_numpy()
+logM = df.loc[mask, "sm_MEDIAN"].to_numpy()
 
 edges = np.arange(
     np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
@@ -183,19 +190,22 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         mask &
-        (df["logM"] >= lo) & 
-        (df["logM"] <  hi)
+        (df["sm_MEDIAN"] >= lo) & 
+        (df["sm_MEDIAN"] <  hi)
     )
 
     N = int(np.sum(m_bin))
     if N < NMIN:
         continue
 
-    f6717 = df.loc[m_bin, "S2_6718"].to_numpy()
-    e6717 = df.loc[m_bin, "S2_6718_err"].to_numpy()
-    f6731 = df.loc[m_bin, "S2_6733"].to_numpy()
-    e6731 = df.loc[m_bin, "S2_6733_err"].to_numpy()
-
+    # f6717 = df.loc[m_bin, "S2_6718"].to_numpy()
+    # e6717 = df.loc[m_bin, "S2_6718_err"].to_numpy()
+    # f6731 = df.loc[m_bin, "S2_6733"].to_numpy()
+    # e6731 = df.loc[m_bin, "S2_6733_err"].to_numpy()
+    f6717 = df.loc[m_bin, "SII_6717_FLUX"].to_numpy()
+    f6731 = df.loc[m_bin, "SII_6731_FLUX"].to_numpy()
+    e6717 = df.loc[m_bin, "SII_6717_FLUX_ERR"].to_numpy()
+    e6731 = df.loc[m_bin, "SII_6731_FLUX_ERR"].to_numpy()
     # フラックススタック
     F1, e1 = weighted_mean(f6717, e6717)
     F2, e2 = weighted_mean(f6731, e6731)
@@ -265,8 +275,10 @@ ax.errorbar(
 # ---- 欠損・無効値マスク ----
 # SII flux は 0以下や NaN を除外（ratioにするので）
 m_sii = (
-    np.isfinite(df["S2_6718"]) & np.isfinite(df["S2_6733"]) &
-    np.isfinite(df["S2_6718_err"]) & np.isfinite(df["S2_6733_err"]) 
+    # np.isfinite(df["S2_6718"]) & np.isfinite(df["S2_6733"]) &
+    # np.isfinite(df["S2_6718_err"]) & np.isfinite(df["S2_6733_err"]) 
+    np.isfinite(df["SII_6717_FLUX"]) & np.isfinite(df["SII_6731_FLUX"]) &
+    np.isfinite(df["SII_6717_FLUX_ERR"]) & np.isfinite(df["SII_6731_FLUX_ERR"]) 
     # (df["SII_6717_FLUX"] > 0) & (df["SII_6731_FLUX"] > 0)
 )
 
@@ -278,15 +290,19 @@ def valid_mass(x):
     m &= (x > 0) & (x < 13)   # logM★は0〜13の範囲のみ採用
     return m
 
-m_sm  = valid_mass(df["logM"])
+m_sm  = valid_mass(df["sm_MEDIAN"])
+# m_sm  = valid_mass(df["logM"])
 
 
 # ---- ratio と誤差（単純誤差伝播：まず全体像用） ----
-R = df["S2_6718"] / df["S2_6733"]
+# R = df["S2_6718"] / df["S2_6733"]
+R = df["SII_6717_FLUX"] / df["SII_6731_FLUX"]
 # error propagation for ratio:
 Rerr = R * np.sqrt(
-    (df["S2_6718_err"] / df["S2_6718"])**2 +
-    (df["S2_6733_err"] / df["S2_6733"])**2
+    # (df["S2_6718_err"] / df["S2_6718"])**2 +
+    # (df["S2_6733_err"] / df["S2_6733"])**2
+    (df["SII_6717_FLUX_ERR"] / df["SII_6717_FLUX"])**2 +
+    (df["SII_6731_FLUX_ERR"] / df["SII_6731_FLUX"])**2
 )
 
 df[""] = R

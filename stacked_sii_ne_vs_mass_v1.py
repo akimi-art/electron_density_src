@@ -79,6 +79,7 @@ plt.rcParams.update({
     "mathtext.fontset": "stix",
 })
 
+
 # ==========================================
 # Imports
 # ==========================================
@@ -94,11 +95,11 @@ import astropy.units as u
 # 入出力
 # ==========================================
 current_dir = os.getcwd()
-# fits_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
-csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
+# csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
 
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_data.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_data.png")
+out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_slide.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -116,14 +117,14 @@ UNIT_FLUX = 1e-17        # MPA-JHU flux単位
 # ==========================================
 # 読み込み
 # ==========================================
-# tab = Table.read(fits_path, hdu=1)
-# df = tab.to_pandas()
-df = pd.read_csv(csv_path)
+tab = Table.read(fits_path, hdu=1)
+df = tab.to_pandas()
+# df = pd.read_csv(csv_path)
 
 # ==========================================
 # 基本量の計算
 # ==========================================
-z = df["z"].values
+z = df["Z"].values
 
 F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
 F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
@@ -155,7 +156,7 @@ m_sii = (
     (err6716 > 0) & (err6731 > 0)
 )
 
-m_sm = valid_mass(df["logSM_median"])
+m_sm = valid_mass(df["sm_MEDIAN"])
 m_ratio = np.isfinite(df["R_SII"])
 
 mask_all = m_sii & m_sm & m_ratio
@@ -168,7 +169,7 @@ m_complete = mask_all
 # ==========================================
 # ビン作成
 # ==========================================
-logM = df.loc[m_complete, "logSM_median"].values
+logM = df.loc[m_complete, "sm_MEDIAN"].values
 
 edges = np.arange(
     np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
@@ -196,8 +197,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["logSM_median"] >= lo) &
-        (df["logSM_median"] < hi)
+        (df["sm_MEDIAN"] >= lo) &
+        (df["sm_MEDIAN"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -245,7 +246,10 @@ print("Saved:", out_csv)
 # ==========================================
 # 描画
 # ==========================================
-fig, ax = plt.subplots(figsize=(12,6))
+fig, ax = plt.subplots(figsize=(6,6))
+
+# 描画前に必ず定義
+df["R_SII"] = F6716 / F6731
 
 # # 不完全（薄グレー）
 # ax.scatter(
@@ -260,7 +264,7 @@ fig, ax = plt.subplots(figsize=(12,6))
 
 # 完全（青）
 ax.scatter(
-    df.loc[m_complete, "logSM_median"],
+    df.loc[m_complete, "sm_MEDIAN"],
     df.loc[m_complete, "R_SII"],
     s=0.01,
     marker='.',
@@ -297,9 +301,9 @@ ax.errorbar(
 )
 
 
-ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
+ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(6,12)
+ax.set_xlim(10,12)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():

@@ -73,7 +73,7 @@ from scipy.optimize import curve_fit
 # ===============================
 # 入力
 # ===============================
-filename = "./results/SDSS/spectra/sdss_spectro_0275-51910-0141/spec-0275-51910-0141.fits"
+filename = "./results/SDSS/spectra/1d/sdss_spectro_0275-51910-0141/spec-0275-51910-0141.fits"
 
 z_init = 0.0818   # 初期値
 
@@ -178,7 +178,7 @@ ratio = F1 / F2
 # ===============================
 # 描画
 # ===============================
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(12, 6))
 
 ax.step(lam_fit, flux_fit, where='mid', color='black', lw=0.8)
 ax.fill_between(

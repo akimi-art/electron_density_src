@@ -301,7 +301,7 @@ def get_fill(AGN):
     return True if AGN == 1 else False
 
 # プロット
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 
 # x, y, yerr の値を格納するリスト
@@ -323,13 +323,21 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
+        # low-zのデータのみをプロット
+        if z > 1:
+            continue
+
         # 色の対応
         def get_color(z):
             if z < 1:
-                if main_sequence == 1:
-                    return "black"
-                else:
+                if ref_name in sdss:
                     return "gray"
+                else:
+                    return "black"
+                # if main_sequence == 1:
+                #     return "black"
+                # else:
+                #     return "gray"
                 # return "gray" # ひとまずは色を変えない
             elif 1 <= z < 4:
                 return "tab:blue"
@@ -337,7 +345,7 @@ for ref_name, galaxy_list in data_groups.items():
                 return "tab:green"
             else:
                 return "tab:red"
-
+            
         # 薄さの対応
         def get_alpha(z):
             if z < 1:
@@ -358,7 +366,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if ref_name in sdss:
                     return "gray"
                 else:
-                    return "gray"
+                    return "black"
             elif 1 <= z < 4:
                 return 'tab:blue'
             elif 4 <= z <= 7:
@@ -372,6 +380,7 @@ for ref_name, galaxy_list in data_groups.items():
                 if ref_name in sdss:
                     return 0.0
                 else:
+                    # return 0.25
                     return 0.25
             elif 1 <= z < 4:
                 return 0.25
@@ -506,89 +515,89 @@ for ref_name, galaxy_list in data_groups.items():
 
 
 # === 推定結果（あなたの値に置き換え） ===
-xmin = -13
-xmax = -6
-# slope（固定）
-m_hat_z0   = -0.297
+xmin = -11
+xmax = -8
+# # slope（固定）
+# m_hat_z0   = -0.297
 
-# intercept
-b_hat_z0   = -0.537
-b_hat_z3   =  0.142
-b_hat_z6   =  0.670
-b_hat_z9   =  0.848
+# # intercept
+# b_hat_z0   = -0.537
+# b_hat_z3   =  0.142
+# b_hat_z6   =  0.670
+# b_hat_z9   =  0.848
 
-# slope の標準誤差
-sigma_m_z0 = 0.002
-sigma_m_z3 = 0.000  
-sigma_m_z6 = 0.000  
-sigma_m_z9 = 0.000 
+# # slope の標準誤差
+# sigma_m_z0 = 0.002
+# sigma_m_z3 = 0.000  
+# sigma_m_z6 = 0.000  
+# sigma_m_z9 = 0.000 
 
-# intercept の標準誤差 
-sigma_b_z0 = 0.024
-sigma_b_z3 = 0.023
-sigma_b_z6 = 0.051
-sigma_b_z9 = 0.127
+# # intercept の標準誤差 
+# sigma_b_z0 = 0.024
+# sigma_b_z3 = 0.023
+# sigma_b_z6 = 0.051
+# sigma_b_z9 = 0.127
 
-# slope と intercept の相関（例：不明なら 0）
-rho_mb_z0  = 0    
-rho_mb_z3  = 0    
-rho_mb_z6  = 0    
-rho_mb_z9  = 0    
+# # slope と intercept の相関（例：不明なら 0）
+# rho_mb_z0  = 0    
+# rho_mb_z3  = 0    
+# rho_mb_z6  = 0    
+# rho_mb_z9  = 0    
 
-# x 範囲
-x = np.linspace(xmin, xmax, 1000)
-# 推定直線
-y_hat_z0 = m_hat_z0 * x + b_hat_z0
-y_hat_z3 = m_hat_z0 * x + b_hat_z3
-y_hat_z6 = m_hat_z0 * x + b_hat_z6
-y_hat_z9 = m_hat_z0 * x + b_hat_z9
-# パラメータ不確かさ由来の y の標準偏差
-cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
-cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
-cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
-cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
-sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
-sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
-sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
-sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
-# 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
-k = 1
-lower_z0 = y_hat_z0 - k * sigma_y_z0
-lower_z3 = y_hat_z3 - k * sigma_y_z3
-lower_z6 = y_hat_z6 - k * sigma_y_z6
-lower_z9 = y_hat_z9 - k * sigma_y_z9
-upper_z0 = y_hat_z0 + k * sigma_y_z0
-upper_z3 = y_hat_z3 + k * sigma_y_z3
-upper_z6 = y_hat_z6 + k * sigma_y_z6
-upper_z9 = y_hat_z9 + k * sigma_y_z9
-# ax.plot(x, y_hat_z0, color='black')
-ax.plot(x, y_hat_z3, color='tab:blue')
-ax.plot(x, y_hat_z6, color='tab:green')
-ax.plot(x, y_hat_z9, color='tab:red')
-# ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
-ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
-ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
-ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
+# # x 範囲
+# x = np.linspace(xmin, xmax, 1000)
+# # 推定直線
+# y_hat_z0 = m_hat_z0 * x + b_hat_z0
+# y_hat_z3 = m_hat_z0 * x + b_hat_z3
+# y_hat_z6 = m_hat_z0 * x + b_hat_z6
+# y_hat_z9 = m_hat_z0 * x + b_hat_z9
+# # パラメータ不確かさ由来の y の標準偏差
+# cov_mb_z0 = rho_mb_z0 * sigma_m_z0 * sigma_b_z0
+# cov_mb_z3 = rho_mb_z3 * sigma_m_z3 * sigma_b_z3
+# cov_mb_z6 = rho_mb_z6 * sigma_m_z6 * sigma_b_z6
+# cov_mb_z9 = rho_mb_z9 * sigma_m_z9 * sigma_b_z9
+# sigma_y_z0 = np.sqrt((x * sigma_m_z0)**2 + sigma_b_z0**2 + 2 * x * cov_mb_z0)
+# sigma_y_z3 = np.sqrt((x * sigma_m_z3)**2 + sigma_b_z3**2 + 2 * x * cov_mb_z3)
+# sigma_y_z6 = np.sqrt((x * sigma_m_z6)**2 + sigma_b_z6**2 + 2 * x * cov_mb_z6)
+# sigma_y_z9 = np.sqrt((x * sigma_m_z9)**2 + sigma_b_z9**2 + 2 * x * cov_mb_z9)
+# # 信頼水準（k=1 なら約68%, k=1.96 なら約95%）
+# k = 1
+# lower_z0 = y_hat_z0 - k * sigma_y_z0
+# lower_z3 = y_hat_z3 - k * sigma_y_z3
+# lower_z6 = y_hat_z6 - k * sigma_y_z6
+# lower_z9 = y_hat_z9 - k * sigma_y_z9
+# upper_z0 = y_hat_z0 + k * sigma_y_z0
+# upper_z3 = y_hat_z3 + k * sigma_y_z3
+# upper_z6 = y_hat_z6 + k * sigma_y_z6
+# upper_z9 = y_hat_z9 + k * sigma_y_z9
+# # ax.plot(x, y_hat_z0, color='black')
+# ax.plot(x, y_hat_z3, color='tab:blue')
+# ax.plot(x, y_hat_z6, color='tab:green')
+# ax.plot(x, y_hat_z9, color='tab:red')
+# # ax.fill_between(x, lower_z0, upper_z0, color='gray' , alpha=0.15)
+# ax.fill_between(x, lower_z3, upper_z3, color='tab:blue' , alpha=0.05)
+# ax.fill_between(x, lower_z6, upper_z6, color='tab:green', alpha=0.05)
+# ax.fill_between(x, lower_z9, upper_z9, color='tab:red'  , alpha=0.05)
 
 
-# 変わりに回帰分析をした時に得るを使う
-band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_ssfr_regression_band.csv"))
+# # 変わりに回帰分析をした時に得るを使う
+# band = pd.read_csv(os.path.join(current_dir, "results/csv/ne_vs_ssfr_regression_band.csv"))
 
-plt.plot(
-    band["x"],
-    band["y_med"],
-    color="black",
-    lw=2,
-    label="MCMC best-fit"
-)
+# plt.plot(
+#     band["x"],
+#     band["y_med"],
+#     color="black",
+#     lw=2,
+#     label="MCMC best-fit"
+# )
 
-plt.fill_between(
-    band["x"],
-    band["y_low"],
-    band["y_high"],
-    color="black",
-    alpha=0.05,
-)
+# plt.fill_between(
+#     band["x"],
+#     band["y_low"],
+#     band["y_high"],
+#     color="black",
+#     alpha=0.05,
+# )
 
 # =============================================
 # SDSSのstackデータ（Massビンごと）をプロットする 
@@ -640,23 +649,23 @@ if np.any(m_out):
         fmt="x", ms=6, capsize=2, lw=1,
     )
 
-# stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_ssfr_regression_band.csv"))
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_ssfr_regression_band.csv"))
 
-plt.plot(
-    band_stacked["x"],
-    band_stacked["y_med"],
-    color="black",
-    lw=2,
-)
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
 
-plt.fill_between(
-    band_stacked["x"],
-    band_stacked["y_low"],
-    band_stacked["y_high"],
-    color="black",
-    alpha=0.05,
-)
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.05,
+# )
 
 # # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
 # # Topping, Sanders+25
@@ -670,18 +679,18 @@ plt.fill_between(
 # # Steidel+16
 # plt.axvline(x=1.52, color='gray', linestyle=':', alpha=0.3)
 
-# SIIのcritical densityを表示する (6716, 6731)
-# 値の定義
-nc_6716 = np.log10(1917.5607046610592)
+# # SIIのcritical densityを表示する (6716, 6731)
+# # 値の定義
+# nc_6716 = np.log10(1917.5607046610592)
 
-x = np.linspace(xmin, xmin+2, 400)
-y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
-T = 6  # 閾値（しきい値）
-# 曲線（水平線）
-ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
-# しきい値の水平線
-ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
-plt.text(x=xmin+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=16,)
+# x = np.linspace(xmin, xmin+2, 400)
+# y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
+# T = 6  # 閾値（しきい値）
+# # 曲線（水平線）
+# ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
+# # しきい値の水平線
+# ax.axhline(T, color="gray", linestyle="-.", linewidth=1)
+# plt.text(x=xmin+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([SII]6716)", fontsize=16,)
 
 
 # # CLASSYのデータのみで線形回帰した時の直線を表示する
@@ -702,7 +711,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v6.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v6_slide.png"))
 plt.show()
 
 # Monitor memory usage

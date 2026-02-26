@@ -73,10 +73,19 @@ plt.rcParams.update({
 # -----------------------
 # 入出力
 # -----------------------
+# current_dir = os.getcwd()
+# fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
+# out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_ssfr.csv")
+# out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_COMPLETE_slide.png")
+
+# os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+# os.makedirs(os.path.dirname(out_png), exist_ok=True)
+
 current_dir = os.getcwd()
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
-out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_ssfr.csv")
-out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr.png")
+csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
+
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_ssfr_data.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_data.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -91,8 +100,9 @@ N_MC      = 5000
 # -----------------------
 # 読み込み
 # -----------------------
-tab = Table.read(fits_path, hdu=1)
-df  = tab.to_pandas()
+# tab = Table.read(fits_path, hdu=1)
+# df  = tab.to_pandas()
+df = pd.read_csv(csv_path)
 
 # -----------------------
 # マスク
@@ -128,8 +138,8 @@ m_sii = (
     (df["SII_6731_FLUX_ERR"] > 0)
 )
 
-m_sm  = valid_mass(df["sm_MEDIAN"])
-m_sfr = valid_sfr(df["sfr_MEDIAN"])
+m_sm  = valid_mass(df["logSM_median"])
+m_sfr = valid_sfr(df["logSFR_SED_median"])
 
 m_ssfr = m_sm & m_sfr
 mask = m_sii & m_ssfr
@@ -137,7 +147,7 @@ mask = m_sii & m_ssfr
 # -----------------------
 # ビン作成
 # -----------------------
-df["log_sSFR"] = df["sfr_MEDIAN"] - df["sm_MEDIAN"]
+df["log_sSFR"] = df["logSFR_SED_median"] - df["logSM_median"]
 log_sSFR = df.loc[mask, "log_sSFR"].to_numpy()
 
 
@@ -253,7 +263,7 @@ print("Saved:", out_csv)
 # -----------------------
 # プロット（比のみ）
 # -----------------------
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 ax.errorbar(
     res["logsSFR_cen"],
     res["R_med"],
@@ -302,8 +312,8 @@ def valid_sfr(x, bad_values=(-1.0, -99.9)):
 
     return m
 
-m_sm  = valid_mass(df["sm_MEDIAN"])
-m_sfr = valid_sfr(df["sfr_MEDIAN"])
+m_sm  = valid_mass(df["logSM_median"])
+m_sfr = valid_sfr(df["logSFR_SED_median"])
 
 m_ssfr = m_sm & m_sfr
 
@@ -342,13 +352,13 @@ def binned_median(x, y, bins=12, x_min=None, x_max=None):
 
 # Panel 4: vs sSFR (log sSFR = logSFR - logM*)
 m = m_sii & m_ssfr & np.isfinite(df["R_SII"])
-x = (df.loc[m, "sfr_MEDIAN"] - df.loc[m, "sm_MEDIAN"]).to_numpy()
+x = (df.loc[m, "logSFR_SED_median"] - df.loc[m, "logSM_median"]).to_numpy()
 y = df.loc[m, "R_SII"].to_numpy()
-ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='gray', marker='.')
+ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='C0', marker='.')
 xc, ym, y16, y84, n = binned_median(x, y, bins=14)
 ax.set_xlabel(r"$\log(\mathrm{sSFR})\ [\mathrm{yr}^{-1}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-14, -8)
+ax.set_xlim(-11, -8)
 # ---- 描画用：極端値を抑える（任意） ----
 # SII比の物理的な典型範囲は ~0.4-1.45 付近（Te~1e4K）なので、見やすさのために範囲で表示
 # しかし, 最初の段階では強く制限しない。

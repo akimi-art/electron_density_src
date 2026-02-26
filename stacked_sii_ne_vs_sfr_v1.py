@@ -105,7 +105,7 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 
 # current_dir = os.getcwd()
 # fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
-
+ 
 # out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr_COMPLETE.csv")
 # out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE.png")
 

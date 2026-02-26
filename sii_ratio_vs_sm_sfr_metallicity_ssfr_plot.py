@@ -65,8 +65,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 14,           # x軸ラベルサイズ
-    "ytick.labelsize": 14,           # y軸ラベルサイズ
+    "xtick.labelsize": 16,           # x軸ラベルサイズ
+    "ytick.labelsize": 16,           # y軸ラベルサイズ
 })
 
 # === 必要なモジュールのインポート ===
