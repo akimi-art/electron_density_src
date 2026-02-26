@@ -37,6 +37,7 @@ from astropy.table import Table, Column
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.colors import LogNorm
 import matplotlib.gridspec as gridspec
+from matplotlib.colors import Normalize
 
 
 
@@ -78,132 +79,263 @@ plt.rcParams.update({
     "mathtext.fontset": "stix",
 })
 
-# === FITS 読み込み（拡張HDUにテーブルがある場合はこれが簡単） ===
-# 例: "mpajhu_dr7_v5_2_merged.fits"
-# CSV読み込み
-current_dir = os.getcwd()
+# # === FITS 読み込み（拡張HDUにテーブルがある場合はこれが簡単） ===
+# # 例: "mpajhu_dr7_v5_2_merged.fits"
+# # CSV読み込み
+# current_dir = os.getcwd()
 # fits_path = os.path.join(current_dir,"results/fits/mpajhu_dr7_v5_2_merged.fits")
 # t = Table.read(fits_path, format="fits")
-csv_path = "./results/Samir16/Samir16in_standard_re_v1.csv"
+# # csv_path = "./results/Samir16/Samir16in_standard_re_v1.csv"
+
+# # pandasに変換（後続のコードをそのまま使うため）
+# df = t.to_pandas()
+# # df = pd.read_csv(csv_path)
+
+# # 以降は元コードと同じ
+# # --- 単位スケールの補正（MPA-JHU: 1e-17 erg s^-1 cm^-2 想定）---
+# UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認
+
+# z = df["Z"].values
+# F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
+# F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
+
+# err6716 = (df["SII_6717_FLUX_ERR"]) * UNIT_FLUX
+# err6731 = (df["SII_6731_FLUX_ERR"]) * UNIT_FLUX
+
+# sn6716 = F6716 / err6716
+# sn6731 = F6731 / err6731
+
+# # Luminosity
+# d_L = cosmo.luminosity_distance(z).to(u.cm).value
+# L6716 = 4 * np.pi * d_L**2 * F6716
+# L6731 = 4 * np.pi * d_L**2 * F6731
+
+# fig, axes = plt.subplots(2,1, figsize=(12,8), sharex=True)
+# fig.subplots_adjust(wspace=0, hspace=0)
+
+# ax1, ax2 = axes
+
+# norm = TwoSlopeNorm(vcenter=0.0, vmin=-3, vmax=5)
+# sc1 = ax1.scatter(
+#     z, L6716,
+#     c=sn6716,
+#     # Perceptually Uniform Sequential（知覚的に均一・連続）がデフォルト
+#     # viridis最も推奨。色覚差別にも強い。
+#     # plasma暖色より、明るく見える。
+#     # inferno暖色ベース、暗い背景に相性良い。
+#     # magma黒→赤→黄色、天文画像でも人気。
+#     # cividis色覚バリアフリーに最適。
+#     # 人間は色相差より 明度差 に敏感なため、Sequentialはお勧めしない
+#     # Sequential（連続色）、Greys, Purples, Blues, Greens, Oranges, Redsなど
+#     cmap="coolwarm",
+#     norm=norm,
+#     s=15,
+#     alpha=0.8
+# )
+
+# sc2 = ax2.scatter(
+#     z, L6731,
+#     c=sn6731,
+#     cmap="coolwarm",
+#     s=15,
+#     alpha=0.8,
+#     norm=norm
+# )
+
+# for ax in axes:
+#     ax.set_yscale("log")
+#     ax.set_xlim(0,0.4)
+#     ax.set_ylim(1e30,1e42) 
+#     # ax.set_ylim(1e30,1e50) # 一時的に超広くとる
+
+# # =======================================
+# # 追加: Plot L(SII 6717, flux一定のライン)
+# # =======================================
+
+# # 描画のためのzのグリッド
+# z_grid = np.linspace(0.0, 0.4, 200)  # 適当なz範囲をグリッド化
+# d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
+# L_6717_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
+# L_6717_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
+# L_6717_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
+# L_6731_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
+# L_6731_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
+# L_6731_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
+# lum_6717_flux_const_1 = L_6717_1
+# lum_6717_flux_const_2 = L_6717_2
+# lum_6717_flux_const_3 = L_6717_3
+# lum_6731_flux_const_1 = L_6731_1
+# lum_6731_flux_const_2 = L_6731_2
+# lum_6731_flux_const_3 = L_6731_3
+
+# ax1.plot(z_grid, lum_6717_flux_const_1, color='black', linestyle='--', linewidth=2) # '-', '--', '-.', ':'が使える
+# ax1.plot(z_grid, lum_6717_flux_const_2, color='black', linestyle='-.', linewidth=2)
+# ax1.plot(z_grid, lum_6717_flux_const_3, color='black', linestyle=':' , linewidth=2)
+# ax2.plot(z_grid, lum_6731_flux_const_1, color='black', linestyle='--', linewidth=2) # '-', '--', '-.', ':'が使える
+# ax2.plot(z_grid, lum_6731_flux_const_2, color='black', linestyle='-.', linewidth=2)
+# ax2.plot(z_grid, lum_6731_flux_const_3, color='black', linestyle=':' , linewidth=2)
+
+# # # Completeなサンプルを確かめるための線
+# # ax1.axhline(y=1e38, color='black', linestyle='--', linewidth=0.5)
+# # ax1.axhline(y=1e39, color='black', linestyle='--', linewidth=0.5)
+# # ax2.axhline(y=1e38, color='black', linestyle='--', linewidth=0.5)
+# # ax2.axhline(y=1e39, color='black', linestyle='--', linewidth=0.5)
+# # ax1.axvline(x=0.15, color='black', linestyle='--', linewidth=0.5)
+# # ax2.axvline(x=0.15, color='black', linestyle='--', linewidth=0.5)
+
+# # === 枠線 (spines) の設定 ===
+# # 線の太さ・色・表示非表示などを個別に制御
+# for spine in ax1.spines.values():
+#     spine.set_linewidth(2)       # 枠線の太さ
+#     spine.set_color("black")     # 枠線の色
+# for spine in ax2.spines.values():
+#     spine.set_linewidth(2)       # 枠線の太さ
+#     spine.set_color("black")     # 枠線の色
+
+# ax1.set_ylabel("L(SII 6716)")
+# ax2.set_ylabel("L(SII 6731)")
+# ax2.set_xlabel("z")
+
+# # カラーバー
+# # 参考: https://jp.matplotlib.net/stable/tutorials/colors/colormaps.html#google_vignette
+# cbar = fig.colorbar(sc1, ax=axes, label="S/N")
+
+# save_path = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_SDSS_data.png")
+# plt.savefig(save_path)
+# print(f"Saved as {save_path}.")
+# plt.show()
+
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
+from astropy.table import Table
+import astropy.units as u
+from astropy.cosmology import Planck18 as cosmo  # 必要に応じて変更
+
+# === FITS 読み込み（拡張HDUにテーブルがある場合はこれが簡単） ===
+# 例: "mpajhu_dr7_v5_2_merged.fits"
+current_dir = os.getcwd()
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
+t = Table.read(fits_path, format="fits")
 
 # pandasに変換（後続のコードをそのまま使うため）
-# df = t.to_pandas()
-df = pd.read_csv(csv_path)
+df = t.to_pandas()
 
-# 以降は元コードと同じ
 # --- 単位スケールの補正（MPA-JHU: 1e-17 erg s^-1 cm^-2 想定）---
 UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認
 
-z = df["z"].values
+# データ抽出
+z = df["Z"].values
 F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
-F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
-
-err6716 = (df["SII_6717_FLUX_ERR"]) * UNIT_FLUX
-err6731 = (df["SII_6731_FLUX_ERR"]) * UNIT_FLUX
-
+err6716 = df["SII_6717_FLUX_ERR"].values * UNIT_FLUX
 sn6716 = F6716 / err6716
-sn6731 = F6731 / err6731
 
-# Luminosity
-d_L = cosmo.luminosity_distance(z).to(u.cm).value
-L6716 = 4 * np.pi * d_L**2 * F6716
-L6731 = 4 * np.pi * d_L**2 * F6731
+# === Luminosity 計算 ===
+d_L = cosmo.luminosity_distance(z).to(u.cm).value  # [cm]
+L6716 = 4 * np.pi * d_L**2 * F6716                # [erg s^-1]
 
-fig, axes = plt.subplots(2,1, figsize=(12,8), sharex=True)
-fig.subplots_adjust(wspace=0, hspace=0)
+# === 描画 ===
+fig, ax = plt.subplots(1, 1, figsize=(12, 6))
 
-ax1, ax2 = axes
-
-norm = TwoSlopeNorm(vcenter=0.0, vmin=-3, vmax=5)
-sc1 = ax1.scatter(
+# S/N のカラースケール（中央0, vmin=-5, vmax=5は元コードに準拠）
+norm = TwoSlopeNorm(vcenter=0, vmin=-3, vmax=5)
+sc = ax.scatter(
     z, L6716,
     c=sn6716,
-    # Perceptually Uniform Sequential（知覚的に均一・連続）がデフォルト
-    # viridis最も推奨。色覚差別にも強い。
-    # plasma暖色より、明るく見える。
-    # inferno暖色ベース、暗い背景に相性良い。
-    # magma黒→赤→黄色、天文画像でも人気。
-    # cividis色覚バリアフリーに最適。
-    # 人間は色相差より 明度差 に敏感なため、Sequentialはお勧めしない
-    # Sequential（連続色）、Greys, Purples, Blues, Greens, Oranges, Redsなど
     cmap="coolwarm",
     norm=norm,
     s=15,
     alpha=0.8
 )
 
-sc2 = ax2.scatter(
-    z, L6731,
-    c=sn6731,
-    cmap="coolwarm",
-    s=15,
-    alpha=0.8,
-    norm=norm
-)
 
-for ax in axes:
-    ax.set_yscale("log")
-    ax.set_xlim(0,0.4)
-    ax.set_ylim(1e30,1e42) 
-    # ax.set_ylim(1e30,1e50) # 一時的に超広くとる
+# 軸スケール・範囲（元コード準拠）
+ax.set_yscale("log")
+ax.set_xlim(0, 0.4)
+ax.set_ylim(1e30, 1e42)  # 必要なら 1e50 まで暫定拡大可
+# plt.axhline(y=1e42, color='blue', linestyle='-', linewidth=5)
+# plt.axvline(x=0.0, color='blue', linestyle='-', linewidth=5)
+# plt.axvline(x=0.4, color='blue', linestyle='-', linewidth=5)
 
 # =======================================
-# 追加: Plot L(SII 6717, flux一定のライン)
+# 追加: L([S II] 6716) の一定フラックス線
 # =======================================
-
-# 描画のためのzのグリッド
-z_grid = np.linspace(0.0, 0.4, 200)  # 適当なz範囲をグリッド化
+z_grid = np.linspace(0.0, 0.4, 200)
 d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
-L_6717_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
-L_6717_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
-L_6717_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
-L_6731_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
-L_6731_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
-L_6731_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
-lum_6717_flux_const_1 = L_6717_1
-lum_6717_flux_const_2 = L_6717_2
-lum_6717_flux_const_3 = L_6717_3
-lum_6731_flux_const_1 = L_6731_1
-lum_6731_flux_const_2 = L_6731_2
-lum_6731_flux_const_3 = L_6731_3
+# 観測フラックス一定（erg s^-1 cm^-2）
+for flux, ls, lw, color in zip(
+    [1e-19, 1e-18, 1e-17],      # フラックス
+    ['--', '-.', '-'],          # ラインの種類
+    [2.0, 2.0, 5],             # ★ linewidth を各線で別々に指定
+    ["black", "black", "blue"]   # ★ 色も別々に指定（最後の線を赤にして目立たせる）
+):
+    L_const = 4 * np.pi * d_L_grid**2 * flux
+    ax.plot(z_grid, L_const, color=color, linestyle=ls, linewidth=lw)
 
-ax1.plot(z_grid, lum_6717_flux_const_1, color='black', linestyle='--', linewidth=2) # '-', '--', '-.', ':'が使える
-ax1.plot(z_grid, lum_6717_flux_const_2, color='black', linestyle='-.', linewidth=2)
-ax1.plot(z_grid, lum_6717_flux_const_3, color='black', linestyle=':' , linewidth=2)
-ax2.plot(z_grid, lum_6731_flux_const_1, color='black', linestyle='--', linewidth=2) # '-', '--', '-.', ':'が使える
-ax2.plot(z_grid, lum_6731_flux_const_2, color='black', linestyle='-.', linewidth=2)
-ax2.plot(z_grid, lum_6731_flux_const_3, color='black', linestyle=':' , linewidth=2)
 
-# # Completeなサンプルを確かめるための線
-# ax1.axhline(y=1e38, color='black', linestyle='--', linewidth=0.5)
-# ax1.axhline(y=1e39, color='black', linestyle='--', linewidth=0.5)
-# ax2.axhline(y=1e38, color='black', linestyle='--', linewidth=0.5)
-# ax2.axhline(y=1e39, color='black', linestyle='--', linewidth=0.5)
-# ax1.axvline(x=0.15, color='black', linestyle='--', linewidth=0.5)
-# ax2.axvline(x=0.15, color='black', linestyle='--', linewidth=0.5)
+
+
+
+
+# （前略）あなたのループ
+for flux, ls, lw, color in zip(
+    [1e-19, 1e-18, 1e-17],
+    ['--',    '-.',   '-'],
+    [2.0,     2.0,    5.0],
+    ["black", "black","blue"]
+):
+    L_const = 4 * np.pi * d_L_grid**2 * flux
+    ax.plot(z_grid, L_const, color=color, linestyle=ls, linewidth=lw)
+
+# ===============================
+# 1e-17 のラインより上側を塗る
+# ===============================
+# 1e-17 の L(z) を再計算（または上のループ内で保存しておいてもOK）
+flux_thr = 1e-17
+L_const_thr = 4 * np.pi * d_L_grid**2 * flux_thr
+
+# # 上端（塗りつぶしの上側境界）を決める
+# # すでに set_ylim を使っているなら、その上限を利用
+# # まだの場合は、想定レンジ（例：1e42）などの正値を明示
+# y_upper = 1e42  # 例：既に ax.set_ylim(1e35, 1e42) 済みなら 1e42 が入る
+
+# # log 軸でもOK：正の値であれば fill_between は機能します
+# ax.fill_between(
+#     z_grid,
+#     L_const_thr,
+#     y_upper,
+#     where=np.isfinite(L_const_thr),  # 念のため NaN/inf を除外
+#     color="blue",
+#     alpha=0.10,           # 塗りの濃さ（お好みで）
+#     interpolate=True,
+#     zorder=0,             # 点群や線の下に塗る（上に重ねたいなら大きく）
+# )
+
+
+
+
+
+
+
+
 
 # === 枠線 (spines) の設定 ===
-# 線の太さ・色・表示非表示などを個別に制御
-for spine in ax1.spines.values():
-    spine.set_linewidth(2)       # 枠線の太さ
-    spine.set_color("black")     # 枠線の色
-for spine in ax2.spines.values():
-    spine.set_linewidth(2)       # 枠線の太さ
-    spine.set_color("black")     # 枠線の色
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+    spine.set_color("black")
 
-ax1.set_ylabel("L(SII 6716)")
-ax2.set_ylabel("L(SII 6731)")
-ax2.set_xlabel("z")
+# ラベル・カラーバー
+ax.set_ylabel(r"L([S II] 6716 [erg s$^{-1}$]")
+ax.set_xlabel("z")
+cbar = fig.colorbar(sc, ax=ax, label="S/N")
 
-# カラーバー
-# 参考: https://jp.matplotlib.net/stable/tutorials/colors/colormaps.html#google_vignette
-cbar = fig.colorbar(sc1, ax=axes, label="S/N")
-
-save_path = os.path.join(current_dir, "results/figure/sii_luminosity_vs_z_SDSS_data.png")
-plt.savefig(save_path)
+# 保存
+save_path = os.path.join(current_dir, "results/figure/sii6716_luminosity_vs_z_SDSS_data.png")
+plt.savefig(save_path, bbox_inches="tight", dpi=200)
 print(f"Saved as {save_path}.")
 plt.show()
-
 
 # # =============================================================
 # # 密度マップを作成する

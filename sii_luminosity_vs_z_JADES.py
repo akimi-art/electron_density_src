@@ -74,12 +74,12 @@ plt.rcParams.update({
 })
 
 
-# === FITS 読み込み（拡張HDUにテーブルがある場合はこれが簡単） ===
-# 例: "mpajhu_dr7_v5_2_merged.fits"
-t = Table.read("./results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits", format="fits")
-# pandasに変換（後続のコードをそのまま使うため）
-df = t.to_pandas()
-# df = pd.read_csv("./results/csv/JADES_DR3_GOODS-N_SII_ratio_only.csv")
+# # === FITS 読み込み（拡張HDUにテーブルがある場合はこれが簡単） ===
+# # 例: "mpajhu_dr7_v5_2_merged.fits"
+# t = Table.read("./results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits", format="fits")
+# # pandasに変換（後続のコードをそのまま使うため）
+# df = t.to_pandas()
+# # df = pd.read_csv("./results/csv/JADES_DR3_GOODS-N_SII_ratio_only.csv")
 
 
 # # 以降は元コードと同じ
@@ -92,6 +92,9 @@ df = t.to_pandas()
 # # README↓
 # # 「Measured emission line flux from the Prism/Clear spectrum in units of x10^-20 erg s-1 cm-2」
 # UNIT_FLUX = 1e-20  # 必要に応じてヘッダで確認
+# # Measured emission line flux from the R~1000 spectra in units
+# #                   of x10^-20 erg s-1 cm-2. (See list of emission lines below)と書いていた
+
 
 # z = df["z_Spec"].values
 # # F6716 = df["S2_6718_flux"].values * UNIT_FLUX
@@ -99,12 +102,11 @@ df = t.to_pandas()
 
 # # err6716 = (df["S2_6718_err"]) * UNIT_FLUX
 # # err6731 = (df["S2_6733_err"]) * UNIT_FLUX
+# F6716 = df['S2_6718_flux'].values * UNIT_FLUX
+# F6731 = df["S2_6733_flux"].values * UNIT_FLUX
 
-# F6716 = df["S2_6716_flux"].values * UNIT_FLUX
-# F6731 = df["S2_6730_flux"].values * UNIT_FLUX
-
-# err6716 = 0.5 * (df["S2_6716_err_plus"] + df["S2_6716_err_minus"]) * UNIT_FLUX
-# err6731 = 0.5 * (df["S2_6730_err_plus"] + df["S2_6730_err_minus"]) * UNIT_FLUX
+# err6716 = (df["S2_6718_err"]) * UNIT_FLUX
+# err6731 = (df["S2_6733_err"]) * UNIT_FLUX
 
 # sn6716 = F6716 / err6716
 # sn6731 = F6731 / err6731
@@ -151,12 +153,12 @@ df = t.to_pandas()
 # # 描画のためのzのグリッド
 # z_grid = np.linspace(0.0, 7.0, 1000)  # 適当なz範囲をグリッド化
 # d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
-# L_6717_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
-# L_6717_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
-# L_6717_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
-# L_6731_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-19
-# L_6731_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-18
-# L_6731_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-17
+# L_6717_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-22
+# L_6717_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-21
+# L_6717_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-20
+# L_6731_1 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-22
+# L_6731_2 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-21
+# L_6731_3 = 4 * 3.141592653589793 * d_L_grid**2 * 1e-20
 # lum_6717_flux_const_1 = L_6717_1
 # lum_6717_flux_const_2 = L_6717_2
 # lum_6717_flux_const_3 = L_6717_3
@@ -192,81 +194,215 @@ df = t.to_pandas()
 # plt.show()
 
 
-# あるフラックス一定の線より上側のみのデータを抽出
 
-# ============================
-# パラメータ
-# ============================
-F_CONST_6717_CGS = 1e-20
-F_CONST_6731_CGS = 1e-20
-Z_RANGE = None   # None にすれば全z
-REQUIRE_FINITE = True
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm, Normalize
+from astropy.table import Table
+import astropy.units as u
+from astropy.cosmology import Planck18 as cosmo  # 必要に応じて変更
 
-# 必要列（例）
-# df に以下がある前提：
-# z, L6716, L6731
+# ============================================
+# 設定（必要に応じて変更）
+# ============================================
+# 観測一定フラックス線（erg s^-1 cm^-2）
+# JADES（JWST/NIRSpec）の感度を意識して SDSS より桁を下げるのが自然
+FLUX_LINES   = [1e-23, 1e-22, 1e-21]   # 例：JADES用の候補
+LINESTYLES   = ['--', '-.', '-']       # 各ラインのスタイル
+LINEWIDTHS   = [2.0, 2.0, 5.0]         # 各ラインの太さ
+LINECOLORS   = ['black', 'black', 'blue']  # 各ラインの色
+SHADE_THRESH = 1e-18        # このフラックス以上の領域を塗る（None で無効）
+SHADE_ALPHA  = 0.10         # 塗りの透明度
+SHADE_COLOR  = 'blue'       # 塗りの色（閾値線と合わせると直感的）
 
-# ============================
-# L_lim(z) 計算
-# ============================
-dL_each = cosmo.luminosity_distance(z).to(u.cm).value
-Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
-Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
+# S/N の着色（必要に応じて Sequential に変えてもOK）
+USE_DIVERGING = True  # Trueなら TwoSlopeNorm（中心=0）、Falseなら Normalize(0-5)
+SN_VMIN, SN_VMAX = -3, 5  # TwoSlopeNorm の範囲
+SN_VMIN_SEQ, SN_VMAX_SEQ = 0, 5  # Normalize を使う場合の範囲
 
-# ============================
-# マスク作成
-# ============================
-mask_L_6717 = (L6716 >= Llim6717_each)
-mask_L_6731 = (L6731 >= Llim6731_each)
-mask_L_both = mask_L_6717 & mask_L_6731
+# 軸範囲
+Z_MIN, Z_MAX = 0.0, 7.0
+Y_MIN, Y_MAX = 1e32, 1e40  # 対数軸なので正の値のみ
 
-# z 範囲
-if Z_RANGE is not None:
-    zmin, zmax = Z_RANGE
-    mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
+# 保存先
+save_path = "./results/figure/LSII6716_vs_z_JADES_DR3_GOODS-S.png"
+
+# ============================================
+# データ読み込み
+# ============================================
+t = Table.read("./results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits", format="fits")
+df = t.to_pandas()
+
+# JADES の単位（README より）:
+# 「Measured emission line flux from the R~1000 spectra in units of x10^-20 erg s^-1 cm^-2」
+UNIT_FLUX = 1e-20  # Katalogに合わせる
+
+# 必要列
+z = df["z_Spec"].values.astype(float)
+F6716 = df["S2_6718_flux"].values.astype(float) * UNIT_FLUX
+err6716 = df["S2_6718_err"].values.astype(float) * UNIT_FLUX
+
+# S/N
+sn6716 = F6716 / err6716
+
+# 距離と光度
+m_z = np.isfinite(z)
+d_L = np.full_like(z, np.nan, dtype=float)
+d_L[m_z] = cosmo.luminosity_distance(z[m_z]).to(u.cm).value
+
+L6716 = 4 * np.pi * d_L**2 * F6716
+
+# 作図用の正値マスク（log軸のため）
+mask = np.isfinite(z) & np.isfinite(L6716) & (L6716 > 0) & np.isfinite(sn6716)
+
+# ============================================
+# 図作成
+# ============================================
+fig = plt.figure(figsize=(12, 6))
+ax = fig.add_subplot(1, 1, 1)
+
+# カラースケール設定
+if USE_DIVERGING:
+    norm = TwoSlopeNorm(vcenter=0.0, vmin=SN_VMIN, vmax=SN_VMAX)  # 中心=0（正負を色で分ける）
+    cmap = "coolwarm"
 else:
-    mask_z = np.ones_like(z, dtype=bool)
+    norm = Normalize(vmin=SN_VMIN_SEQ, vmax=SN_VMAX_SEQ)  # 0〜5だけを色分け
+    cmap = "cividis"  # または "viridis"
 
-# 数値健全性
-if REQUIRE_FINITE:
-    mask_finite = (
-        np.isfinite(z) &
-        np.isfinite(L6716) & np.isfinite(L6731) &
-        np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
-    )
-else:
-    mask_finite = np.ones_like(z, dtype=bool)
+sc = ax.scatter(
+    z[mask], L6716[mask],
+    c=sn6716[mask],
+    cmap=cmap,
+    norm=norm,
+    s=15,
+    alpha=0.8
+)
 
-# ============================
-# 最終マスク
-# ============================
-select_mask = mask_L_both & mask_z & mask_finite
+# 一定フラックス線
+z_grid = np.linspace(Z_MIN, Z_MAX, 1000)
+d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
 
-print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(df)}")
+L_const_for_shade = None  # 塗りつぶし用に保存
+for flux, ls, lw, color in zip(FLUX_LINES, LINESTYLES, LINEWIDTHS, LINECOLORS):
+    L_const = 4 * np.pi * d_L_grid**2 * flux
+    ax.plot(z_grid, L_const, color=color, linestyle=ls, linewidth=lw)
+    if (SHADE_THRESH is not None) and (np.isclose(flux, SHADE_THRESH)):
+        L_const_for_shade = L_const
 
-# ============================
-# DataFrame 行抽出（列構造はそのまま）
-# ============================
-df_sel = df.loc[select_mask].copy()
+# 軸スケール・範囲
+ax.set_yscale("log")
+ax.set_xlim(Z_MIN, Z_MAX)
+ax.set_ylim(Y_MIN, Y_MAX)
 
-# ============================
+# 閾値より上を塗る（必要なら）
+# if (SHADE_THRESH is not None) and (L_const_for_shade is not None):
+#     ax.fill_between(
+#         z_grid, L_const_for_shade, ax.get_ylim()[1],
+#         where=np.isfinite(L_const_for_shade),
+#         color=SHADE_COLOR, alpha=SHADE_ALPHA,
+#         interpolate=True, zorder=0,
+#         label=fr"$F \ge {SHADE_THRESH:.0e}\ \mathrm{{erg\,s^{{-1}}\,cm^{{-2}}}}$"
+#     )
+
+# 枠線
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+    spine.set_color("black")
+
+# ラベル
+ax.set_xlabel("z")
+ax.set_ylabel("L([S II] 6716) [erg s$^{-1}$]")
+
+# カラーバー
+cbar = fig.colorbar(sc, ax=ax, label="S/N")
+
+# 余白
+plt.subplots_adjust(left=0.10, right=0.95, bottom=0.10, top=0.98)
+
 # 保存
-# ============================
-def _sci_notation(x):
-    return f"{x:.0e}".replace("+","")
+plt.savefig(save_path, dpi=200, bbox_inches="tight")
+print(f"Saved as {save_path}.")
+plt.show()
 
-suffix_parts = [
-    f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
-    f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
-]
-if Z_RANGE is not None:
-    suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
-suffix = "_".join(suffix_parts)
 
-out_dir = "./results/csv"
-os.makedirs(out_dir, exist_ok=True)
 
-out_path = os.path.join(out_dir, f"JADES_DR3_GOODS-N_SII_ratio_only_{suffix}.csv")
-df_sel.to_csv(out_path, index=False)
+# # あるフラックス一定の線より上側のみのデータを抽出
 
-print(f"[DONE] 書き出し完了: {out_path}")
+# # ============================
+# # パラメータ
+# # ============================
+# F_CONST_6717_CGS = 1e-20
+# F_CONST_6731_CGS = 1e-20
+# Z_RANGE = None   # None にすれば全z
+# REQUIRE_FINITE = True
+
+# # 必要列（例）
+# # df に以下がある前提：
+# # z, L6716, L6731
+
+# # ============================
+# # L_lim(z) 計算
+# # ============================
+# dL_each = cosmo.luminosity_distance(z).to(u.cm).value
+# Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
+# Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
+
+# # ============================
+# # マスク作成
+# # ============================
+# mask_L_6717 = (L6716 >= Llim6717_each)
+# mask_L_6731 = (L6731 >= Llim6731_each)
+# mask_L_both = mask_L_6717 & mask_L_6731
+
+# # z 範囲
+# if Z_RANGE is not None:
+#     zmin, zmax = Z_RANGE
+#     mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
+# else:
+#     mask_z = np.ones_like(z, dtype=bool)
+
+# # 数値健全性
+# if REQUIRE_FINITE:
+#     mask_finite = (
+#         np.isfinite(z) &
+#         np.isfinite(L6716) & np.isfinite(L6731) &
+#         np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
+#     )
+# else:
+#     mask_finite = np.ones_like(z, dtype=bool)
+
+# # ============================
+# # 最終マスク
+# # ============================
+# select_mask = mask_L_both & mask_z & mask_finite
+
+# print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(df)}")
+
+# # ============================
+# # DataFrame 行抽出（列構造はそのまま）
+# # ============================
+# df_sel = df.loc[select_mask].copy()
+
+# # ============================
+# # 保存
+# # ============================
+# def _sci_notation(x):
+#     return f"{x:.0e}".replace("+","")
+
+# suffix_parts = [
+#     f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
+#     f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
+# ]
+# if Z_RANGE is not None:
+#     suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
+# suffix = "_".join(suffix_parts)
+
+# out_dir = "./results/csv"
+# os.makedirs(out_dir, exist_ok=True)
+
+# out_path = os.path.join(out_dir, f"JADES_DR3_GOODS-N_SII_ratio_only_{suffix}.csv")
+# df_sel.to_csv(out_path, index=False)
+
+# print(f"[DONE] 書き出し完了: {out_path}")

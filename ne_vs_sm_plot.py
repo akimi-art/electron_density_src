@@ -32,9 +32,9 @@ import seaborn as sns
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
+    "font.size": 16,                 # 全体フォントサイズ
+    "axes.labelsize": 16,            # 軸ラベルのサイズ
+    "axes.titlesize": 16,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -44,8 +44,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 16,          # 長さ
+    "ytick.major.size": 16,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -58,14 +58,13 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 16,           # x軸ラベルサイズ
+    "ytick.labelsize": 16,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
     "mathtext.fontset": "stix",
 })
-
 
 # === ファイルパスを変数として格納 ===
 current_dir = os.getcwd()
@@ -320,7 +319,7 @@ def get_fill(AGN):
 
 
 # プロット
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 
 # x, y, yerr の値を格納するリスト
@@ -779,8 +778,8 @@ ax.errorbar(
 # =============================================
 # 全体のプロットの設定
 # =============================================
-plt.xlim(6, 12)
-plt.ylim(1.5, 4)
+plt.xlim(10, 12)
+plt.ylim(1.5, 3.0)
 ax.set_xlabel(r"$\log(M_\ast/M_\odot)$")
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
@@ -789,7 +788,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sm_plot_v6_z0.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sm_plot_v6_z0_slide.png"))
 plt.show()
 
 # Monitor memory usage

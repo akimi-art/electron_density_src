@@ -407,13 +407,6 @@ ax.errorbar(
 )
 
 
-
-
-
-
-
-
-
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
 ax.set_xlim(8, 12)

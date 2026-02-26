@@ -31,9 +31,9 @@ import numpy as np
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
+    "font.size": 16,                 # 全体フォントサイズ
+    "axes.labelsize": 16,            # 軸ラベルのサイズ
+    "axes.titlesize": 16,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -43,8 +43,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 16,          # 長さ
+    "ytick.major.size": 16,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -57,8 +57,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 16,           # x軸ラベルサイズ
+    "ytick.labelsize": 16,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -191,7 +191,7 @@ galaxy_ids_Bayliss14   = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 20000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        # if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
         #     break
         parts = line.strip().split()
         if parts:
@@ -302,7 +302,7 @@ def get_fill(AGN):
 
 
 # プロット
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 
 # x, y, yerr の値を格納するリスト
@@ -323,8 +323,8 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
-        if z > 1:
-            continue  # z > 1 のデータはプロットしない（現時点では）
+        if z < 1:
+            continue  # z < 1 のデータはプロットしない（現時点では）
 
         # 色の対応
         def get_color(z):
@@ -458,7 +458,7 @@ for ref_name, galaxy_list in data_groups.items():
 
             if z <= 1:
                 if ref_name in sdss:
-                    ms = 0.5
+                    ms = 0.3
                 else:
                     ms = 4
             else: 
@@ -614,14 +614,14 @@ yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
 mask_lt = x < thr
 mask_ge = ~mask_lt
 
-# # x < 10（白四角・黒縁）
-# ax.errorbar(
-#     x[mask_lt], y[mask_lt],
-#     yerr=yerr[:, mask_lt],
-#     fmt="s", mec="black", mfc="white",
-#     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
-#     capsize=3, label=f"x < {thr}"
-# )
+# x < 10（白四角・黒縁）
+ax.errorbar(
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
+)
 
 # x >= 10（黒四角）
 ax.errorbar(
@@ -649,6 +649,56 @@ ax.errorbar(
 #         yerr=[yerr_lo[m_out], yerr_hi[m_out]],
 #         fmt="x", ms=6, capsize=2, lw=1,
 #     )
+
+
+# # =============================================
+# # SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# # =============================================
+# # ===== 入出力 =====
+# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_sfr_from_ratio_data.csv")
+
+# # ===== 読み込み =====
+# res_data = pd.read_csv(in_csv_data)
+
+# # ===== 必要列を取り出し =====
+# x_data = res_data["logSFR_cen"].to_numpy(float)
+# y_data = res_data["log_ne_med"].to_numpy(float)
+# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res_data.columns:
+#     outside_data = res_data["R_outside"].to_numpy(bool)
+# else:
+#     outside_data = np.zeros_like(x_data, dtype=bool)
+
+# # ===== 有効値マスク（NaN/inf除外）=====
+# m_ok_data = (
+#     np.isfinite(x_data) &
+#     np.isfinite(y_data) &
+#     np.isfinite(yerr_lo_data) &
+#     np.isfinite(yerr_hi_data) &
+#     (yerr_lo_data >= 0) &
+#     (yerr_hi_data >= 0)
+# )
+
+# # stack結果（完全なものとそうでないものの色を分ける）
+# thr_data = 0.0
+
+# yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
+
+# mask_lt_data = x_data > thr_data
+# mask_ge_data = ~mask_lt_data
+
+# # x >= 0（黒四角）
+# ax.errorbar(
+#     x_data[mask_lt_data], y_data[mask_lt_data],
+#     yerr=yerr_data[:, mask_lt_data],
+#     fmt="s", mec="gray", mfc="gray",
+#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+#     capsize=3
+# )
+
 
 # # stackの回帰分析結果もプロットする
 # band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
@@ -683,7 +733,7 @@ ax.errorbar(
 # SIIのcritical densityを表示する (6716, 6731)
 # 値の定義
 nc_6716 = np.log10(1917.5607046610592)
-x = np.linspace(-3, -1, 400)
+x = np.linspace(-3, -2, 400)
 y = np.full_like(x, nc_6716)  # ★ 定数をxと同じ長さの配列にする
 T = 6  # 閾値（しきい値）
 ax.plot(x, y, color="gray", linestyle="-.", linewidth=1)
@@ -708,8 +758,8 @@ plt.text(x=-3+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([
 # plt.plot(x_range, y_range, color='black', linestyle='-.')
     
 
-plt.xlim(-3, 3)
-plt.ylim(1.5, 4)
+plt.xlim(0, 2)
+plt.ylim(1.5, 3.0)
 ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
@@ -717,8 +767,8 @@ ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
-plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0.png"))
+# plt.tight_layout()
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_slide.png"))
 plt.show()
 
 # Monitor memory usage

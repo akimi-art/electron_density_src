@@ -35,9 +35,9 @@ from astropy.table import Table
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
+    "font.size": 16,                 # 全体フォントサイズ
+    "axes.labelsize": 16,            # 軸ラベルのサイズ
+    "axes.titlesize": 16,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -47,8 +47,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 16,          # 長さ
+    "ytick.major.size": 16,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -61,8 +61,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 16,           # x軸ラベルサイズ
+    "ytick.labelsize": 16,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -76,7 +76,7 @@ plt.rcParams.update({
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
 out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr.csv")
-out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr.png")
+out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_slide.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -234,7 +234,7 @@ print("Saved:", out_csv)
 # -----------------------
 # プロット（比のみ）
 # -----------------------
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 ax.errorbar(
     res["logSFR_cen"],
     res["R_med"],
@@ -314,7 +314,7 @@ def binned_median(x, y, bins=12, x_min=None, x_max=None):
 m = m_sii & m_sfr & np.isfinite(df["R_SII"])
 x = df.loc[m, "sfr_MEDIAN"].to_numpy()
 y = df.loc[m, "R_SII"].to_numpy()
-ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='gray', marker='.')
+ax.scatter(x, y, s=0.1, alpha=0.5, rasterized=True, color='C0', marker='.')
 xc, ym, y16, y84, n = binned_median(x, y, bins=14)
 # axes[1].errorbar(xc, ym, yerr=[ym-y16, y84-ym], fmt="o", ms=4, color="crimson", capsize=2)
 ax.set_xlabel(r"log SFR [M$_\odot$ yr$^{-1}$]")
@@ -322,7 +322,7 @@ ax.set_xlabel(r"log SFR [M$_\odot$ yr$^{-1}$]")
 
 ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-4, 2)
+ax.set_xlim(0, 2)
 # ---- 描画用：極端値を抑える（任意） ----
 # SII比の物理的な典型範囲は ~0.4-1.45 付近（Te~1e4K）なので、見やすさのために範囲で表示
 # しかし, 最初の段階では強く制限しない。

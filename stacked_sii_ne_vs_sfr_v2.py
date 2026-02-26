@@ -11,10 +11,10 @@ logSFR ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_sfr_v1.py [オプション]
+    stacked_sii_ne_vs_sfr_v2.py [オプション]
 
 著者: A. M.
-作成日: 2026-02-16
+作成日: 2026-02-26
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -93,53 +93,67 @@ import astropy.units as u
 # ==========================================
 # 入出力
 # ==========================================
-# fits_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
+# fits_path = os.path.join(current_dir, "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch.csv")
+csv_path = "./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch_with_logSFR.csv"
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_data.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_data.png")
+out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr_JADES_DR3.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_JADES_DR3.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
 
-# current_dir = os.getcwd()
-# fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
-
-# out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr_COMPLETE.csv")
-# out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE.png")
-
-# os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-# os.makedirs(os.path.dirname(out_png), exist_ok=True)
-
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.1
-NMIN = 100
+BIN_WIDTH = 0.1 # 変更
+NMIN = 1          # スタックに含める最小データ数
 N_MC = 5000
-# Lcut = 1e39              # 完全サンプル条件
+# Lcut = 1e39     # 完全サンプル条件（使うなら下で有効化）
 
-UNIT_FLUX = 1e-17        # MPA-JHU flux単位
+# 単位スケール（カタログの単位に合わせて調整）
+# UNIT_FLUX = 1e-17  # 例: MPA-JHU などの慣例
+UNIT_FLUX = 1e-20    # いまの設定を踏襲
+
+# z-bin の定義（左開右閉ではなく、ここでは「(lo, hi]」を採用しないよう注意）
+# 今回は (1,4), (4,7), (>7) を色分け
+Z_BINS = [
+    dict(name="1<z<4", color="tab:blue",  lo=1.0, hi=4.0,  inclusive="(,)"),
+    dict(name="4<z<7", color="tab:green", lo=4.0, hi=7.0,  inclusive="(,)"),
+    dict(name="z>7",   color="tab:red",   lo=7.0, hi=np.inf, inclusive="(,]"),  # hi=inf
+]
+# 参考：inclusive の意味
+# "(,)"   :   lo <  z <  hi
+# "[,)"   :  lo <= z <  hi
+# "(,]"   :   lo <  z <= hi
+# ここは慣例的に開区間 "(,)" を使用（境界の二重カウント回避）
+
+# 質量ビンの作り方：
+#   'per_z'  : z-bin ごとに最小～最大から edges を作る（ユーザの意図）
+#   'global' : 全体の最小～最大から共通 edges を作る（比較しやすい）
+MASS_BIN_MODE = 'per_z'  # 'per_z' または 'global'
 
 # ==========================================
 # 読み込み
 # ==========================================
-df = pd.read_csv(csv_path)
 # tab = Table.read(fits_path, hdu=1)
 # df = tab.to_pandas()
+df = pd.read_csv(csv_path)
 
 # ==========================================
 # 基本量の計算
 # ==========================================
-# z = df["Z"].values
-z = df["z"].values
+z = df["z_spec"].values
 
-F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
-F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
-err6716 = df["SII_6717_FLUX_ERR"].values * UNIT_FLUX
-err6731 = df["SII_6731_FLUX_ERR"].values * UNIT_FLUX
-
+# SII line fluxes（列名はユーザの現状に合わせる）
+# F6716 = df["S2_6718_flux"].values * UNIT_FLUX
+# F6731 = df["S2_6733_flux"].values * UNIT_FLUX
+# err6716 = df["S2_6718_err"].values * UNIT_FLUX
+# err6731 = df["S2_6733_err"].values * UNIT_FLUX
+F6716 = df["S2_6718_flux"].values * UNIT_FLUX
+F6731 = df["S2_6733_flux"].values * UNIT_FLUX
+err6716 = df["S2_6718_err"].values * UNIT_FLUX
+err6731 = df["S2_6733_err"].values * UNIT_FLUX
 sn6716 = F6716 / err6716
 sn6731 = F6731 / err6731
 
@@ -148,7 +162,8 @@ d_L = cosmo.luminosity_distance(z).to(u.cm).value
 L6716 = 4 * np.pi * d_L**2 * F6716
 L6731 = 4 * np.pi * d_L**2 * F6731
 
-df["R_SII"] = F6716 / F6731
+# [SII] ratio
+df["S2_ratio"] = F6716 / F6731
 
 # ==========================================
 # マスク定義
@@ -169,9 +184,9 @@ m_sii = (
 # m_sfr = valid_sfr(df["sfr_MEDIAN"])
 # m_ratio = np.isfinite(df["R_SII"])
 # m_sfr = valid_sfr(df["sfr_MEDIAN"])
-m_sfr = valid_sfr(df["logSFR_SED_median"])
-m_ratio = np.isfinite(df["logSFR_SED_err_plus"])
-m_sfr = valid_sfr(df["logSFR_SED_err_minus"])
+m_sfr = valid_sfr(df["logSFR_hb"])
+m_ratio = np.isfinite(df["logSFR_hb_err_high"])
+m_sfr = valid_sfr(df["logSFR_hb_err_low"])
 
 mask_all = m_sii & m_sfr & m_ratio
 
@@ -184,7 +199,7 @@ m_complete = mask_all
 # ビン作成
 # ==========================================
 # logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
-logSFR = df.loc[m_complete, "logSFR_SED_median"].values
+logSFR = df.loc[m_complete, "SFR_hb"].values
 
 edges = np.arange(
     np.floor(logSFR.min()/BIN_WIDTH)*BIN_WIDTH,
@@ -212,8 +227,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["logSFR_SED_median"] >= lo) &
-        (df["logSFR_SED_median"] < hi)
+        (df["logSFR_hb"] >= lo) &
+        (df["logSFR_hb"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -261,7 +276,7 @@ print("Saved:", out_csv)
 # ==========================================
 # 描画
 # ==========================================
-fig, ax = plt.subplots(figsize=(12,6))
+fig, ax = plt.subplots(figsize=(6,6))
 
 # # 不完全（薄グレー）
 # ax.scatter(
@@ -276,8 +291,8 @@ fig, ax = plt.subplots(figsize=(12,6))
 # 完全（青）
 ax.scatter(
     # df.loc[m_complete, "sfr_MEDIAN"],
-    df.loc[m_complete, "logSFR_SED_median"],
-    df.loc[m_complete, "R_SII"],
+    df.loc[m_complete, "logSFR_hb"],
+    df.loc[m_complete, "S2_ratio"],
     s=0.01,
     marker='.',
     alpha=0.8,
@@ -315,7 +330,7 @@ ax.errorbar(
 
 ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-3, 3)
+ax.set_xlim(0, 2)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
