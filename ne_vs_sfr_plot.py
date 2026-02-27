@@ -31,9 +31,9 @@ import numpy as np
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 16,                 # 全体フォントサイズ
-    "axes.labelsize": 16,            # 軸ラベルのサイズ
-    "axes.titlesize": 16,            # タイトルのサイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 20,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -43,8 +43,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 16,          # 長さ
-    "ytick.major.size": 16,
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -57,8 +57,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 16,           # x軸ラベルサイズ
-    "ytick.labelsize": 16,           # y軸ラベルサイズ
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -458,7 +458,7 @@ for ref_name, galaxy_list in data_groups.items():
 
             if z <= 1:
                 if ref_name in sdss:
-                    ms = 1
+                    ms = 0.5
                 else:
                     ms = 4
             else: 
@@ -574,149 +574,212 @@ for ref_name, galaxy_list in data_groups.items():
 # )
 
 
+# =============================================
+# SDSSのstackデータ（Massビンごと）をプロットする 
+# =============================================
+# ===== 入出力 =====
+in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
+
+# ===== 読み込み =====
+res = pd.read_csv(in_csv)
+
+# ===== 必要列を取り出し =====
+x = res["logSFR_cen"].to_numpy(float)
+
+y = res["log_ne_med"].to_numpy(float)
+yerr_lo = res["log_ne_err_lo"].to_numpy(float)
+yerr_hi = res["log_ne_err_hi"].to_numpy(float)
+
+# outsideフラグ（なければ全部False）
+if "R_outside" in res.columns:
+    outside = res["R_outside"].to_numpy(bool)
+else:
+    outside = np.zeros_like(x, dtype=bool)
+
+# ===== 有効値マスク（NaN/inf除外）=====
+m_ok = (
+    np.isfinite(x) &
+    np.isfinite(y) &
+    np.isfinite(yerr_lo) &
+    np.isfinite(yerr_hi) &
+    (yerr_lo >= 0) &
+    (yerr_hi >= 0)
+)
+
+# stack結果（完全なものとそうでないものの色を分ける）
+thr = 0.0
+
+yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
+
+mask_lt = x < thr
+mask_ge = ~mask_lt
+
+# x < 10（白四角・黒縁）
+ax.errorbar(
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="black", mfc="white",
+    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
+)
+
+# x >= 10（黒四角）
+ax.errorbar(
+    x[mask_ge], y[mask_ge],
+    yerr=yerr[:, mask_ge],
+    fmt="s", mec="black", mfc="black",
+    ecolor="k", color="k",
+    capsize=3, label=f"x ≥ {thr}"
+)
+
+# 理論範囲内（inside）
+m_in = m_ok & (~outside)
+ax.errorbar(
+    x[m_in], y[m_in],
+    yerr=[yerr_lo[m_in], yerr_hi[m_in]],
+    fmt="s", ms=5, capsize=2, lw=1,
+    color='black', 
+)
+
+# 理論範囲外（outside）—表示したい場合のみ
+m_out = m_ok & outside
+if np.any(m_out):
+    ax.errorbar(
+        x[m_out], y[m_out],
+        yerr=[yerr_lo[m_out], yerr_hi[m_out]],
+        fmt="x", ms=6, capsize=2, lw=1,
+    )
+
+
+# =============================================
+# SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# =============================================
+# ===== 入出力 =====
+in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_sfr_from_ratio_data.csv")
+
+# ===== 読み込み =====
+res_data = pd.read_csv(in_csv_data)
+
+# ===== 必要列を取り出し =====
+x_data = res_data["logSFR_cen"].to_numpy(float)
+y_data = res_data["log_ne_med"].to_numpy(float)
+yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# outsideフラグ（なければ全部False）
+if "R_outside" in res_data.columns:
+    outside_data = res_data["R_outside"].to_numpy(bool)
+else:
+    outside_data = np.zeros_like(x_data, dtype=bool)
+
+# ===== 有効値マスク（NaN/inf除外）=====
+m_ok_data = (
+    np.isfinite(x_data) &
+    np.isfinite(y_data) &
+    np.isfinite(yerr_lo_data) &
+    np.isfinite(yerr_hi_data) &
+    (yerr_lo_data >= 0) &
+    (yerr_hi_data >= 0)
+)
+
+# stack結果（完全なものとそうでないものの色を分ける）
+thr_data = 0.0
+
+yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
+
+mask_lt_data = x_data > thr_data
+mask_ge_data = ~mask_lt_data
+
+# x >= 0（黒四角）
+ax.errorbar(
+    x_data[mask_lt_data], y_data[mask_lt_data],
+    yerr=yerr_data[:, mask_lt_data],
+    fmt="s", mec="gray", mfc="gray",
+    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+    capsize=3
+)
+
+
+# stackの回帰分析結果もプロットする
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
+
+plt.plot(
+    band_stacked["x"],
+    band_stacked["y_med"],
+    color="black",
+    lw=2,
+)
+
+plt.fill_between(
+    band_stacked["x"],
+    band_stacked["y_low"],
+    band_stacked["y_high"],
+    color="black",
+    alpha=0.15,
+)
+
+
 # # =============================================
-# # SDSSのstackデータ（Massビンごと）をプロットする 
+# # JADESのstackデータ（SFRビンごと、データ点）をプロットする 
 # # =============================================
-# # ===== 入出力 =====
-# in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
 
-# # ===== 読み込み =====
-# res = pd.read_csv(in_csv)
+# # =================================================
+# # 入出力
+# # =================================================
+# in_csv_jades = "./results/csv/stacked_sii_ne_vs_sfr_from_ratio_JADES_DR3.csv"
 
-# # ===== 必要列を取り出し =====
-# x = res["logSFR_cen"].to_numpy(float)
+# # =================================================
+# # JADES
+# # =================================================
+# res = pd.read_csv(in_csv_jades)
 
-# y = res["log_ne_med"].to_numpy(float)
-# yerr_lo = res["log_ne_err_lo"].to_numpy(float)
-# yerr_hi = res["log_ne_err_hi"].to_numpy(float)
+# x   = res["logSFR_cen"].to_numpy(float)
+# y   = res["log_ne_med"].to_numpy(float)
+# elo = res["log_ne_err_lo"].to_numpy(float)
+# ehi = res["log_ne_err_hi"].to_numpy(float)
+# zbin = res["z_bin"].values
 
-# # outsideフラグ（なければ全部False）
-# if "R_outside" in res.columns:
-#     outside = res["R_outside"].to_numpy(bool)
-# else:
-#     outside = np.zeros_like(x, dtype=bool)
-
-# # ===== 有効値マスク（NaN/inf除外）=====
-# m_ok = (
+# # ---- 両側誤差がある点のみ ----
+# m_twoside = (
 #     np.isfinite(x) &
 #     np.isfinite(y) &
-#     np.isfinite(yerr_lo) &
-#     np.isfinite(yerr_hi) &
-#     (yerr_lo >= 0) &
-#     (yerr_hi >= 0)
+#     np.isfinite(elo) &
+#     np.isfinite(ehi)
 # )
 
-# # stack結果（完全なものとそうでないものの色を分ける）
-# thr = 0.0
+# # z-bin
+# mask_4 = (zbin == "1<z<4") & m_twoside
+# mask_7 = (zbin == "4<z<7") & m_twoside
 
-# yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
+# # Ensure error values are non-negative
+# elo_jades_mask_4 = np.maximum(0, elo[mask_4])
+# ehi_jades_mask_4 = np.maximum(0, ehi[mask_4])
+# elo_jades_mask_7 = np.maximum(0, elo[mask_7])
+# ehi_jades_mask_7 = np.maximum(0, ehi[mask_7])
 
-# mask_lt = x < thr
-# mask_ge = ~mask_lt
-
-# # x < 10（白四角・黒縁）
+# # 1<z<4
 # ax.errorbar(
-#     x[mask_lt], y[mask_lt],
-#     yerr=yerr[:, mask_lt],
-#     fmt="s", mec="black", mfc="white",
-#     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
-#     capsize=3, label=f"x < {thr}"
+#     x[mask_4], y[mask_4],
+#     yerr=np.vstack([elo_jades_mask_4, ehi_jades_mask_4]),
+#     fmt="s",
+#     mfc="tab:blue", mec="tab:blue",
+#     ecolor="tab:blue", color="tab:blue",
+#     capsize=3,
+#     label="JADES 1<z<4"
 # )
 
-# # x >= 10（黒四角）
+# # 4<z<7
 # ax.errorbar(
-#     x[mask_ge], y[mask_ge],
-#     yerr=yerr[:, mask_ge],
-#     fmt="s", mec="black", mfc="black",
-#     ecolor="k", color="k",
-#     capsize=3, label=f"x ≥ {thr}"
-# )
-
-# # 理論範囲内（inside）
-# m_in = m_ok & (~outside)
-# ax.errorbar(
-#     x[m_in], y[m_in],
-#     yerr=[yerr_lo[m_in], yerr_hi[m_in]],
-#     fmt="s", ms=5, capsize=2, lw=1,
-#     color='black', 
-# )
-
-# # 理論範囲外（outside）—表示したい場合のみ
-# m_out = m_ok & outside
-# if np.any(m_out):
-#     ax.errorbar(
-#         x[m_out], y[m_out],
-#         yerr=[yerr_lo[m_out], yerr_hi[m_out]],
-#         fmt="x", ms=6, capsize=2, lw=1,
-#     )
-
-
-# # =============================================
-# # SDSSのstackデータ（Massビンごと、データ点）をプロットする 
-# # =============================================
-# # ===== 入出力 =====
-# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_sfr_from_ratio_data.csv")
-
-# # ===== 読み込み =====
-# res_data = pd.read_csv(in_csv_data)
-
-# # ===== 必要列を取り出し =====
-# x_data = res_data["logSFR_cen"].to_numpy(float)
-# y_data = res_data["log_ne_med"].to_numpy(float)
-# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
-# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
-
-# # outsideフラグ（なければ全部False）
-# if "R_outside" in res_data.columns:
-#     outside_data = res_data["R_outside"].to_numpy(bool)
-# else:
-#     outside_data = np.zeros_like(x_data, dtype=bool)
-
-# # ===== 有効値マスク（NaN/inf除外）=====
-# m_ok_data = (
-#     np.isfinite(x_data) &
-#     np.isfinite(y_data) &
-#     np.isfinite(yerr_lo_data) &
-#     np.isfinite(yerr_hi_data) &
-#     (yerr_lo_data >= 0) &
-#     (yerr_hi_data >= 0)
-# )
-
-# # stack結果（完全なものとそうでないものの色を分ける）
-# thr_data = 0.0
-
-# yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
-
-# mask_lt_data = x_data > thr_data
-# mask_ge_data = ~mask_lt_data
-
-# # x >= 0（黒四角）
-# ax.errorbar(
-#     x_data[mask_lt_data], y_data[mask_lt_data],
-#     yerr=yerr_data[:, mask_lt_data],
-#     fmt="s", mec="gray", mfc="gray",
-#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
-#     capsize=3
+#     x[mask_7], y[mask_7],
+#     yerr=np.vstack([elo_jades_mask_7, ehi_jades_mask_7]),
+#     fmt="s",
+#     mfc="tab:green", mec="tab:green",
+#     ecolor="tab:green", color="tab:green",
+#     capsize=3,
+#     label="JADES 4<z<7"
 # )
 
 
-# # stackの回帰分析結果もプロットする
-# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
-
-# plt.plot(
-#     band_stacked["x"],
-#     band_stacked["y_med"],
-#     color="black",
-#     lw=2,
-# )
-
-# plt.fill_between(
-#     band_stacked["x"],
-#     band_stacked["y_low"],
-#     band_stacked["y_high"],
-#     color="black",
-#     alpha=0.15,
-# )
 
 # # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
 # # Topping, Sanders+25
@@ -767,8 +830,8 @@ ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
-# plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_slide_normal.png"))
+plt.tight_layout()
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_slide.png"))
 plt.show()
 
 # Monitor memory usage

@@ -680,23 +680,23 @@ ax.errorbar(
 #     capsize=3
 # )
 
-# # stackの回帰分析結果もプロットする
-# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
+# stackの回帰分析結果もプロットする
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
 
-# plt.plot(
-#     band_stacked["x"],
-#     band_stacked["y_med"],
-#     color="black",
-#     lw=2,
-# )
+plt.plot(
+    band_stacked["x"],
+    band_stacked["y_med"],
+    color="black",
+    lw=2,
+)
 
-# plt.fill_between(
-#     band_stacked["x"],
-#     band_stacked["y_low"],
-#     band_stacked["y_high"],
-#     color="black",
-#     alpha=0.15,
-# )
+plt.fill_between(
+    band_stacked["x"],
+    band_stacked["y_low"],
+    band_stacked["y_high"],
+    color="black",
+    alpha=0.15,
+)
 
 
 # =============================================
