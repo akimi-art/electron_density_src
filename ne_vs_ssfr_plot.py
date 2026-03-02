@@ -323,6 +323,9 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
+        # sdssのデータ以外はプロットしない
+        if ref_name not in sdss:
+            continue
         # low-zのデータのみをプロット
         if z > 1:
             continue
@@ -599,58 +602,228 @@ xmax = -8
 #     alpha=0.05,
 # )
 
-# =============================================
-# SDSSのstackデータ（Massビンごと）をプロットする 
-# =============================================
-# ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_ssfr_from_ratio.csv")
+# # =============================================
+# # SDSSのstackデータ（Massビンごと）をプロットする 
+# # =============================================
+# # ===== 入出力 =====
+# in_csv  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv")
 
-# ===== 読み込み =====
-res = pd.read_csv(in_csv)
+# # ===== 読み込み =====
+# res = pd.read_csv(in_csv)
 
-# ===== 必要列を取り出し =====
-x = res["logsSFR_cen"].to_numpy(float)
+# # ===== 必要列を取り出し =====
+# x = res["logsSFR_cen"].to_numpy(float)
 
-y = res["log_ne_med"].to_numpy(float)
-yerr_lo = res["log_ne_err_lo"].to_numpy(float)
-yerr_hi = res["log_ne_err_hi"].to_numpy(float)
+# y = res["log_ne_med"].to_numpy(float)
+# yerr_lo = res["log_ne_err_lo"].to_numpy(float)
+# yerr_hi = res["log_ne_err_hi"].to_numpy(float)
 
-# outsideフラグ（なければ全部False）
-if "R_outside" in res.columns:
-    outside = res["R_outside"].to_numpy(bool)
-else:
-    outside = np.zeros_like(x, dtype=bool)
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res.columns:
+#     outside = res["R_outside"].to_numpy(bool)
+# else:
+#     outside = np.zeros_like(x, dtype=bool)
 
-# ===== 有効値マスク（NaN/inf除外）=====
-m_ok = (
-    np.isfinite(x) &
-    np.isfinite(y) &
-    np.isfinite(yerr_lo) &
-    np.isfinite(yerr_hi) &
-    (yerr_lo >= 0) &
-    (yerr_hi >= 0)
-)
+# # ===== 有効値マスク（NaN/inf除外）=====
+# m_ok = (
+#     np.isfinite(x) &
+#     np.isfinite(y) &
+#     np.isfinite(yerr_lo) &
+#     np.isfinite(yerr_hi) &
+#     (yerr_lo >= 0) &
+#     (yerr_hi >= 0)
+# )
 
-# 理論範囲内（inside）
-m_in = m_ok & (~outside)
-ax.errorbar(
-    x[m_in], y[m_in],
-    yerr=[yerr_lo[m_in], yerr_hi[m_in]],
-    fmt="s", ms=5, capsize=2, lw=1,
-    color='black', 
-)
+# # 理論範囲内（inside）
+# m_in = m_ok & (~outside)
+# ax.errorbar(
+#     x[m_in], y[m_in],
+#     yerr=[yerr_lo[m_in], yerr_hi[m_in]],
+#     fmt="s", ms=5, capsize=2, lw=1,
+#     color='black', 
+# )
 
-# 理論範囲外（outside）—表示したい場合のみ
-m_out = m_ok & outside
-if np.any(m_out):
-    ax.errorbar(
-        x[m_out], y[m_out],
-        yerr=[yerr_lo[m_out], yerr_hi[m_out]],
-        fmt="x", ms=6, capsize=2, lw=1,
-    )
+# # 理論範囲外（outside）—表示したい場合のみ
+# m_out = m_ok & outside
+# if np.any(m_out):
+#     ax.errorbar(
+#         x[m_out], y[m_out],
+#         yerr=[yerr_lo[m_out], yerr_hi[m_out]],
+#         fmt="x", ms=6, capsize=2, lw=1,
+#     )
+
+# # =============================================
+# # SDSSのstackデータ（sSFRビンごと、データ点）をプロットする （UPPER, LOWER LIMIT付き）
+# # =============================================
+
+# # ===== 入出力 =====
+# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv")
+
+# # ===== 読み込み =====
+# res_data = pd.read_csv(in_csv_data)
+
+# # ===== 必要列 =====
+# x_data = res_data["logsSFR_cen"].to_numpy(float)
+# y_data = res_data["log_ne_med"].to_numpy(float)
+# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res_data.columns:
+#     outside_data = res_data["R_outside"].to_numpy(bool)
+# else:
+#     outside_data = np.zeros_like(x_data, dtype=bool)
+
+# # ===== 有効値マスク =====
+# m_ok_data = (
+#     np.isfinite(x_data) &
+#     np.isfinite(y_data) &
+#     np.isfinite(yerr_lo_data) &
+#     np.isfinite(yerr_hi_data) &
+#     ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
+# )
+
+# # 完全サンプル閾値
+# thr_data = -11.0
+# mask_mass = x_data > thr_data
+
+# # 有効かつmass条件
+# base_mask = m_ok_data & mask_mass
+
+# # =============================================
+# # 誤差タイプ分類
+# # =============================================
+# is_lower_limit = base_mask & (yerr_lo_data == 0) & (yerr_hi_data > 0)
+# is_upper_limit = base_mask & (yerr_hi_data == 0) & (yerr_lo_data > 0)
+# is_normal = base_mask & ~(is_lower_limit | is_upper_limit)
+
+# # =============================================
+# # 描画
+# # =============================================
+
+# arrow_length = 0.15  # dex
+
+# # --- 通常点（両側誤差） ---
+# ax.errorbar(
+#     x_data[is_normal],
+#     y_data[is_normal],
+#     yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
+#     fmt="s",
+#     mec="k",
+#     mfc="k",
+#     ecolor="k",
+#     color="k",
+#     capsize=3
+# )
+
+# # --- lower limit（↑）---
+# ax.errorbar(
+#     x_data[is_lower_limit],
+#     y_data[is_lower_limit],
+#     yerr=arrow_length,
+#     fmt="s",
+#     color="k",
+#     lolims=True,
+#     capsize=4
+# )
+# # --- upper limit（↓）---
+# ax.errorbar(
+#     x_data[is_upper_limit],
+#     y_data[is_upper_limit],
+#     yerr=arrow_length,
+#     fmt="s",
+#     color="k",
+#     uplims=True,
+#     capsize=4
+# )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # =============================================
+# # SDSS stackデータ（sSFRビンごと）プロット
+# # 両側に誤差があるものだけ描画
+# # =============================================
+
+# # ===== 入出力 =====
+# in_csv_data = os.path.join(
+#     current_dir,
+#     "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv"
+# )
+
+# # ===== 読み込み =====
+# res_data = pd.read_csv(in_csv_data)
+
+# # ===== 必要列 =====
+# x_data = res_data["logsSFR_cen"].to_numpy(float)
+# y_data = res_data["log_ne_med"].to_numpy(float)
+# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# # ===== 完全サンプル閾値 =====
+# thr_data = -11.0
+# mask_mass = x_data > thr_data
+
+# # ===== 両側誤差があるものだけ残す =====
+# eps = 1e-8
+
+# mask_valid = (
+#     np.isfinite(x_data) &
+#     np.isfinite(y_data) &
+#     np.isfinite(yerr_lo_data) &
+#     np.isfinite(yerr_hi_data) &
+#     (yerr_lo_data > eps) &
+#     (yerr_hi_data > eps) &
+#     mask_mass
+# )
+
+# # =============================================
+# # 描画（通常の両側エラーバーのみ）
+# # =============================================
+
+# ax.errorbar(
+#     x_data[mask_valid],
+#     y_data[mask_valid],
+#     yerr=[yerr_lo_data[mask_valid], yerr_hi_data[mask_valid]],
+#     fmt="s",
+#     mec="k",
+#     mfc="k",
+#     ecolor="k",
+#     color="k",
+#     capsize=3
+# )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_ssfr_regression_band.csv"))
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_ssfr_regression_band_COMPLETE_v1.csv"))
 
 plt.plot(
     band_stacked["x"],
@@ -664,7 +837,7 @@ plt.fill_between(
     band_stacked["y_low"],
     band_stacked["y_high"],
     color="black",
-    alpha=0.05,
+    alpha=0.15,
 )
 
 
@@ -753,7 +926,7 @@ ax.errorbar(
 
 plt.xlim(xmin, xmax)
 plt.ylim(1.5, 4)
-ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$", fontsize=16) 
+ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
@@ -771,22 +944,22 @@ print(f"Memory usage before processing: {mem_info_before:.2f} GB")
 
 
 
-# 確認用（好きに変えてOKのコード）
-# === 必要なパッケージのインストール === #
-import os
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from astropy.io import fits
-import matplotlib.pyplot as plt
+# # 確認用（好きに変えてOKのコード）
+# # === 必要なパッケージのインストール === #
+# import os
+# import numpy as np
+# import pandas as pd
+# import seaborn as sns
+# from astropy.io import fits
+# import matplotlib.pyplot as plt
 
-# ヒストグラム
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.histplot(ssfr_list, bins=3000)
-plt.xlim(xmin, xmax)
-# plt.ylim(0, 20000)
-ax.set_xlabel("log(sSFR)")
-ax.set_ylabel("Count")
-plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/sSFR_histogram.png"))
-plt.show()
+# # ヒストグラム
+# fig, ax = plt.subplots(figsize=(10, 6))
+# sns.histplot(ssfr_list, bins=3000)
+# plt.xlim(xmin, xmax)
+# # plt.ylim(0, 20000)
+# ax.set_xlabel("log(sSFR)")
+# ax.set_ylabel("Count")
+# plt.tight_layout()
+# plt.savefig(os.path.join(current_dir, "results/figure/sSFR_histogram.png"))
+# plt.show()

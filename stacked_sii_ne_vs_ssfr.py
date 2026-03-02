@@ -73,22 +73,22 @@ plt.rcParams.update({
 # -----------------------
 # 入出力
 # -----------------------
-# current_dir = os.getcwd()
-# fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
-# out_csv   = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_ssfr.csv")
-# out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_COMPLETE_slide.png")
-
-# os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-# os.makedirs(os.path.dirname(out_png), exist_ok=True)
-
 current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
-
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_ssfr_data.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_data.png")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
+out_csv   = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_ssfr_COMPLETE_v1.csv")
+out_png   = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_COMPLETE_v1.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
+
+# current_dir = os.getcwd()
+# csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
+
+# out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_ssfr_data.csv")
+# out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_ssfr_data.png")
+
+# os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+# os.makedirs(os.path.dirname(out_png), exist_ok=True)
 
 # -----------------------
 # パラメータ
@@ -100,9 +100,9 @@ N_MC      = 5000
 # -----------------------
 # 読み込み
 # -----------------------
-# tab = Table.read(fits_path, hdu=1)
-# df  = tab.to_pandas()
-df = pd.read_csv(csv_path)
+tab = Table.read(fits_path, hdu=1)
+df  = tab.to_pandas()
+# df = pd.read_csv(csv_path)
 
 # -----------------------
 # マスク
@@ -138,8 +138,10 @@ m_sii = (
     (df["SII_6731_FLUX_ERR"] > 0)
 )
 
-m_sm  = valid_mass(df["logSM_median"])
-m_sfr = valid_sfr(df["logSFR_SED_median"])
+# m_sm  = valid_mass(df["logSM_median"])
+# m_sfr = valid_sfr(df["logSFR_SED_median"])
+m_sm  = valid_mass(df["sm_MEDIAN"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
 
 m_ssfr = m_sm & m_sfr
 mask = m_sii & m_ssfr
@@ -147,8 +149,12 @@ mask = m_sii & m_ssfr
 # -----------------------
 # ビン作成
 # -----------------------
-df["log_sSFR"] = df["logSFR_SED_median"] - df["logSM_median"]
-log_sSFR = df.loc[mask, "log_sSFR"].to_numpy()
+# m_sm = valid_mass(df["sm_MEDIAN"])
+# m_sfr = valid_sfr(df["sfr_MEDIAN"])
+# df["log_sSFR"] = df["logSFR_SED_median"] - df["logSM_median"]
+df["ssfr_MEDIAN"] = df["sfr_MEDIAN"] - df["sm_MEDIAN"]
+# log_sSFR = df.loc[mask, "log_sSFR"].to_numpy()
+log_sSFR = df.loc[mask, "ssfr_MEDIAN"].to_numpy()
 
 
 edges = np.arange(
@@ -201,8 +207,10 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         mask &
-        (df["log_sSFR"] >= lo) &
-        (df["log_sSFR"] <  hi)
+        # (df["log_sSFR"] >= lo) &
+        # (df["log_sSFR"] <  hi)
+        (df["ssfr_MEDIAN"] >= lo) &
+        (df["ssfr_MEDIAN"] <  hi)
     )
 
     N = int(np.sum(m_bin))
@@ -274,12 +282,12 @@ ax.errorbar(
 )
 
 
-# SDSSの個別の銀河の値
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")   # 適宜パスを変更
+# # SDSSの個別の銀河の値
+# # fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")   # 適宜パスを変更
 
-# ---- 読み込み（Table->pandas） ----
-tab = Table.read(fits_path, hdu=1)
-df = tab.to_pandas()
+# # ---- 読み込み（Table->pandas） ----
+# tab = Table.read(fits_path, hdu=1)
+# df = tab.to_pandas()
 
 # ---- 欠損・無効値マスク ----
 # SII flux は 0以下や NaN を除外（ratioにするので）
@@ -311,11 +319,6 @@ def valid_sfr(x, bad_values=(-1.0, -99.9)):
     m &= (np.abs(x - med) < 8 * sigma)  # ゆるい 8σ クリップ（実質欠損だけ除去）
 
     return m
-
-m_sm  = valid_mass(df["logSM_median"])
-m_sfr = valid_sfr(df["logSFR_SED_median"])
-
-m_ssfr = m_sm & m_sfr
 
 
 # ---- ratio と誤差（単純誤差伝播：まず全体像用） ----
@@ -352,7 +355,7 @@ def binned_median(x, y, bins=12, x_min=None, x_max=None):
 
 # Panel 4: vs sSFR (log sSFR = logSFR - logM*)
 m = m_sii & m_ssfr & np.isfinite(df["R_SII"])
-x = (df.loc[m, "logSFR_SED_median"] - df.loc[m, "logSM_median"]).to_numpy()
+x = (df.loc[m, "sfr_MEDIAN"] - df.loc[m, "sm_MEDIAN"]).to_numpy()
 y = df.loc[m, "R_SII"].to_numpy()
 ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='C0', marker='.')
 xc, ym, y16, y84, n = binned_median(x, y, bins=14)

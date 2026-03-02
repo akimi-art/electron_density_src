@@ -94,23 +94,23 @@ import astropy.units as u
 # 入出力
 # ==========================================
 # fits_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
-current_dir = os.getcwd()
-csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
-
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_data.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_data.png")
-
-os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-os.makedirs(os.path.dirname(out_png), exist_ok=True)
-
 # current_dir = os.getcwd()
-# fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
- 
-# out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_sfr_COMPLETE.csv")
-# out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE.png")
+# csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
+
+# out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_data.csv")
+# out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_data.png")
 
 # os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 # os.makedirs(os.path.dirname(out_png), exist_ok=True)
+
+current_dir = os.getcwd()
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
+ 
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_COMPLETE_v1.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE_v1.png")
+
+os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+os.makedirs(os.path.dirname(out_png), exist_ok=True)
 
 # ==========================================
 # パラメータ
@@ -125,15 +125,15 @@ UNIT_FLUX = 1e-17        # MPA-JHU flux単位
 # ==========================================
 # 読み込み
 # ==========================================
-df = pd.read_csv(csv_path)
-# tab = Table.read(fits_path, hdu=1)
-# df = tab.to_pandas()
+# df = pd.read_csv(csv_path)
+tab = Table.read(fits_path, hdu=1)
+df = tab.to_pandas()
 
 # ==========================================
 # 基本量の計算
 # ==========================================
 # z = df["Z"].values
-z = df["z"].values
+z = df["Z"].values
 
 F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
 F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
@@ -166,12 +166,12 @@ m_sii = (
     (err6716 > 0) & (err6731 > 0)
 )
 
-# m_sfr = valid_sfr(df["sfr_MEDIAN"])
-# m_ratio = np.isfinite(df["R_SII"])
-# m_sfr = valid_sfr(df["sfr_MEDIAN"])
-m_sfr = valid_sfr(df["logSFR_SED_median"])
-m_ratio = np.isfinite(df["logSFR_SED_err_plus"])
-m_sfr = valid_sfr(df["logSFR_SED_err_minus"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
+m_ratio = np.isfinite(df["R_SII"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
+# m_sfr = valid_sfr(df["logSFR_SED_median"])
+# m_ratio = np.isfinite(df["logSFR_SED_err_plus"])
+# m_sfr = valid_sfr(df["logSFR_SED_err_minus"])
 
 mask_all = m_sii & m_sfr & m_ratio
 
@@ -183,8 +183,8 @@ m_complete = mask_all
 # ==========================================
 # ビン作成
 # ==========================================
-# logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
-logSFR = df.loc[m_complete, "logSFR_SED_median"].values
+logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
+# logSFR = df.loc[m_complete, "logSFR_SED_median"].values
 
 edges = np.arange(
     np.floor(logSFR.min()/BIN_WIDTH)*BIN_WIDTH,
@@ -212,8 +212,10 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["logSFR_SED_median"] >= lo) &
-        (df["logSFR_SED_median"] < hi)
+        # (df["logSFR_SED_median"] >= lo) &
+        # (df["logSFR_SED_median"] < hi)
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -261,7 +263,7 @@ print("Saved:", out_csv)
 # ==========================================
 # 描画
 # ==========================================
-fig, ax = plt.subplots(figsize=(12,6))
+fig, ax = plt.subplots(figsize=(6,6))
 
 # # 不完全（薄グレー）
 # ax.scatter(
@@ -275,8 +277,8 @@ fig, ax = plt.subplots(figsize=(12,6))
 
 # 完全（青）
 ax.scatter(
-    # df.loc[m_complete, "sfr_MEDIAN"],
-    df.loc[m_complete, "logSFR_SED_median"],
+    df.loc[m_complete, "sfr_MEDIAN"],
+    # df.loc[m_complete, "logSFR_SED_median"],
     df.loc[m_complete, "R_SII"],
     s=0.01,
     marker='.',
@@ -315,7 +317,7 @@ ax.errorbar(
 
 ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-3, 3)
+ax.set_xlim(0, 2.0)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():

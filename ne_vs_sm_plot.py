@@ -32,9 +32,9 @@ import seaborn as sns
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 16,                 # 全体フォントサイズ
-    "axes.labelsize": 16,            # 軸ラベルのサイズ
-    "axes.titlesize": 16,            # タイトルのサイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 20,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -44,8 +44,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 16,          # 長さ
-    "ytick.major.size": 16,
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -58,8 +58,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 16,           # x軸ラベルサイズ
-    "ytick.labelsize": 16,           # y軸ラベルサイズ
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -320,7 +320,7 @@ def get_fill(AGN):
 
 # プロット
 fig, ax = plt.subplots(figsize=(6, 6))
-
+fig.subplots_adjust(left=0.20, right=0.95, top=0.95, bottom=0.15)
 
 # x, y, yerr の値を格納するリスト
 sm_list = []
@@ -622,54 +622,174 @@ plt.text(x=6+0.1, y=np.log10(1917.5607046610592)+0.1, s=r"$n_{\mathrm{crit}}$([S
 #     alpha=0.15,
 # )
 
+
+
+
+
+
+
+
+
+
+
+
+
+# # =============================================
+# # SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# # =============================================
+
+# # ===== 入出力 =====
+# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_COMPLETE_v1.csv")
+
+# # ===== 読み込み =====
+# res_data = pd.read_csv(in_csv_data)
+
+# # ===== 必要列 =====
+# x_data = res_data["logM_cen"].to_numpy(float)
+# y_data = res_data["log_ne_med"].to_numpy(float)
+# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res_data.columns:
+#     outside_data = res_data["R_outside"].to_numpy(bool)
+# else:
+#     outside_data = np.zeros_like(x_data, dtype=bool)
+
+# # ===== 有効値マスク =====
+# m_ok_data = (
+#     np.isfinite(x_data) &
+#     np.isfinite(y_data) &
+#     np.isfinite(yerr_lo_data) &
+#     np.isfinite(yerr_hi_data) &
+#     ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
+# )
+
+# # 完全サンプル閾値
+# thr_data = 10.0
+# mask_mass = x_data > thr_data
+
+# # 有効かつmass条件
+# base_mask = m_ok_data & mask_mass
+
+# # =============================================
+# # 誤差タイプ分類
+# # =============================================
+# is_lower_limit = base_mask & (yerr_lo_data == 0) & (yerr_hi_data > 0)
+# is_upper_limit = base_mask & (yerr_hi_data == 0) & (yerr_lo_data > 0)
+# is_normal = base_mask & ~(is_lower_limit | is_upper_limit)
+
+# # =============================================
+# # 描画
+# # =============================================
+
+# arrow_length = 0.15  # dex
+
+# # --- 通常点（両側誤差） ---
+# ax.errorbar(
+#     x_data[is_normal],
+#     y_data[is_normal],
+#     yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
+#     fmt="s",
+#     mec="k",
+#     mfc="k",
+#     ecolor="k",
+#     color="k",
+#     capsize=3
+# )
+
+# # --- lower limit（↑）---
+# ax.errorbar(
+#     x_data[is_lower_limit],
+#     y_data[is_lower_limit],
+#     yerr=arrow_length,
+#     fmt="s",
+#     color="k",
+#     lolims=True,
+#     capsize=4
+# )
+# # --- upper limit（↓）---
+# ax.errorbar(
+#     x_data[is_upper_limit],
+#     y_data[is_upper_limit],
+#     yerr=arrow_length,
+#     fmt="s",
+#     color="k",
+#     uplims=True,
+#     capsize=4
+# )
+
+
+
+
+
+
+
+
 # =============================================
-# SDSSのstackデータ（Massビンごと）をプロットする 
+# SDSS stackデータ（sSFRビンごと）プロット
+# 両側に誤差があるものだけ描画
 # =============================================
+
 # ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_COMPLETE.csv")
+in_csv_data = os.path.join(
+    current_dir,
+    "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv"
+)
 
 # ===== 読み込み =====
-res = pd.read_csv(in_csv)
+res_data = pd.read_csv(in_csv_data)
 
-# ===== 必要列を取り出し =====
-x = res["logM_cen"].to_numpy(float)
+# ===== 必要列 =====
+x_data = res_data["logsSFR_cen"].to_numpy(float)
+y_data = res_data["log_ne_med"].to_numpy(float)
+yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
 
-y = res["log_ne_med"].to_numpy(float)
-yerr_lo = res["log_ne_err_lo"].to_numpy(float)
-yerr_hi = res["log_ne_err_hi"].to_numpy(float)
+# ===== 完全サンプル閾値 =====
+thr_data = -11.0
+mask_mass = x_data > thr_data
 
-# outsideフラグ（なければ全部False）
-if "R_outside" in res.columns:
-    outside = res["R_outside"].to_numpy(bool)
-else:
-    outside = np.zeros_like(x, dtype=bool)
+# ===== 両側誤差があるものだけ残す =====
+eps = 1e-8
 
-# ===== 有効値マスク（NaN/inf除外）=====
-m_ok = (
-    np.isfinite(x) &
-    np.isfinite(y) &
-    np.isfinite(yerr_lo) &
-    np.isfinite(yerr_hi) &
-    (yerr_lo >= 0) &
-    (yerr_hi >= 0)
+mask_valid = (
+    np.isfinite(x_data) &
+    np.isfinite(y_data) &
+    np.isfinite(yerr_lo_data) &
+    np.isfinite(yerr_hi_data) &
+    (yerr_lo_data > eps) &
+    (yerr_hi_data > eps) &
+    mask_mass
 )
 
-# stack結果（完全なものとそうでないものの色を分ける）
-thr = 10.0
+# =============================================
+# 描画（通常の両側エラーバーのみ）
+# =============================================
 
-yerr = np.vstack([res["log_ne_err_lo"].values, res["log_ne_err_hi"].values])
-
-mask_lt = x > thr
-mask_ge = ~mask_lt
-
-# x >= 10（黒四角）
 ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="black",
-    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
+    x_data[mask_valid],
+    y_data[mask_valid],
+    yerr=[yerr_lo_data[mask_valid], yerr_hi_data[mask_valid]],
+    fmt="s",
+    mec="k",
+    mfc="k",
+    ecolor="k",
+    color="k",
     capsize=3
 )
+
+
+
+
+
+
+
+
+
+
+
+
 
 # # x < 10（白四角・黒縁）
 # ax.errorbar(
@@ -680,23 +800,23 @@ ax.errorbar(
 #     capsize=3
 # )
 
-# stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE.csv"))
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sm_regression_band_COMPLETE_v1.csv"))
 
-plt.plot(
-    band_stacked["x"],
-    band_stacked["y_med"],
-    color="black",
-    lw=2,
-)
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
 
-plt.fill_between(
-    band_stacked["x"],
-    band_stacked["y_low"],
-    band_stacked["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 
 # =============================================
@@ -727,8 +847,7 @@ m_ok_data = (
     np.isfinite(y_data) &
     np.isfinite(yerr_lo_data) &
     np.isfinite(yerr_hi_data) &
-    (yerr_lo_data >= 0) &
-    (yerr_hi_data >= 0)
+    ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
 )
 
 # stack結果（完全なものとそうでないものの色を分ける）
@@ -747,6 +866,8 @@ ax.errorbar(
     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
     capsize=3
 )
+
+
 
 # # x < 10（白四角・黒縁）
 # ax.errorbar(
@@ -779,7 +900,7 @@ ax.errorbar(
 # 全体のプロットの設定
 # =============================================
 plt.xlim(10, 12)
-plt.ylim(1.5, 3.0)
+plt.ylim(1.50, 3.0)
 ax.set_xlabel(r"$\log(M_\ast/M_\odot)$")
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===

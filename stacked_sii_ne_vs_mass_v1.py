@@ -95,11 +95,11 @@ import astropy.units as u
 # 入出力
 # ==========================================
 current_dir = os.getcwd()
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
 # csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
 
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_COMPLETE.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_slide.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_v1.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_slide_v1.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)

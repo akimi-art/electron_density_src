@@ -62,9 +62,9 @@ plt.rcParams.update({
 # 設定
 # ============================================================
 # in_csv  = "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv"
-in_csv  = "results/csv/stacked_sii_ne_vs_sfr_from_ratio_COMPLETE.csv"
-band_csv = "results/csv/stacked_ne_vs_sfr_regression_band.csv"
-out_png = "results/figure/stacked_ne_vs_sfr.png"
+in_csv  = "results/csv/stacked_sii_ne_vs_sfr_from_ratio_COMPLETE_v1.csv"
+band_csv = "results/csv/stacked_ne_vs_sfr_regression_band_v1.csv"
+out_png = "results/figure/stacked_ne_vs_sfr_v1.png"
 
 # ============================================================
 # 読み込み

@@ -209,10 +209,10 @@ from astropy.cosmology import Planck18 as cosmo  # 必要に応じて変更
 # ============================================
 # 観測一定フラックス線（erg s^-1 cm^-2）
 # JADES（JWST/NIRSpec）の感度を意識して SDSS より桁を下げるのが自然
-FLUX_LINES   = [1e-23, 1e-22, 1e-21]   # 例：JADES用の候補
-LINESTYLES   = ['--', '-.', '-']       # 各ラインのスタイル
-LINEWIDTHS   = [2.0, 2.0, 5.0]         # 各ラインの太さ
-LINECOLORS   = ['black', 'black', 'blue']  # 各ラインの色
+FLUX_LINES   = [3e-23, 1e-22, 3e-22]   # 例：JADES用の候補
+LINESTYLES   = ['--', '-.', ':']       # 各ラインのスタイル
+LINEWIDTHS   = [2.0, 2.0, 2.0]         # 各ラインの太さ
+LINECOLORS   = ['black', 'black', 'black']  # 各ラインの色
 SHADE_THRESH = 1e-18        # このフラックス以上の領域を塗る（None で無効）
 SHADE_ALPHA  = 0.10         # 塗りの透明度
 SHADE_COLOR  = 'blue'       # 塗りの色（閾値線と合わせると直感的）
@@ -224,7 +224,7 @@ SN_VMIN_SEQ, SN_VMAX_SEQ = 0, 5  # Normalize を使う場合の範囲
 
 # 軸範囲
 Z_MIN, Z_MAX = 0.0, 7.0
-Y_MIN, Y_MAX = 1e32, 1e40  # 対数軸なので正の値のみ
+Y_MIN, Y_MAX = 1e36, 1e40  # 対数軸なので正の値のみ
 
 # 保存先
 save_path = "./results/figure/LSII6716_vs_z_JADES_DR3_GOODS-S.png"
@@ -263,21 +263,25 @@ mask = np.isfinite(z) & np.isfinite(L6716) & (L6716 > 0) & np.isfinite(sn6716)
 fig = plt.figure(figsize=(12, 6))
 ax = fig.add_subplot(1, 1, 1)
 
-# カラースケール設定
-if USE_DIVERGING:
-    norm = TwoSlopeNorm(vcenter=0.0, vmin=SN_VMIN, vmax=SN_VMAX)  # 中心=0（正負を色で分ける）
-    cmap = "coolwarm"
-else:
-    norm = Normalize(vmin=SN_VMIN_SEQ, vmax=SN_VMAX_SEQ)  # 0〜5だけを色分け
-    cmap = "cividis"  # または "viridis"
+# norm = TwoSlopeNorm(vcenter=0.0, vmin=SN_VMIN, vmax=SN_VMAX)  # 中心=0（正負を色で分ける）
+# cmap = "coolwarm"
+
+# ============================================
+# redshiftレンジを色分けして塗る
+# ============================================
+
+ax.axvspan(0.5, 2.0, color="tab:blue",  alpha=0.08, zorder=0)
+ax.axvspan(2.0, 3.0, color="tab:green", alpha=0.08, zorder=0)
+ax.axvspan(3.0, 6.0, color="tab:red",   alpha=0.08, zorder=0)
+
 
 sc = ax.scatter(
     z[mask], L6716[mask],
-    c=sn6716[mask],
-    cmap=cmap,
-    norm=norm,
+    # c=sn6716[mask],
+    # cmap=cmap,
+    # norm=norm,
     s=15,
-    alpha=0.8
+    alpha=1.0
 )
 
 # 一定フラックス線
@@ -290,21 +294,13 @@ for flux, ls, lw, color in zip(FLUX_LINES, LINESTYLES, LINEWIDTHS, LINECOLORS):
     ax.plot(z_grid, L_const, color=color, linestyle=ls, linewidth=lw)
     if (SHADE_THRESH is not None) and (np.isclose(flux, SHADE_THRESH)):
         L_const_for_shade = L_const
+# ax.plot(z_grid, 4 * np.pi * d_L_grid**2 * 1e-22, color="black", linestyle="--", linewidth=2.0)
+plt.axhline(y=1e38, color="black", linestyle="-", linewidth=5.0)  # y=constの線も追加
 
 # 軸スケール・範囲
 ax.set_yscale("log")
 ax.set_xlim(Z_MIN, Z_MAX)
 ax.set_ylim(Y_MIN, Y_MAX)
-
-# 閾値より上を塗る（必要なら）
-# if (SHADE_THRESH is not None) and (L_const_for_shade is not None):
-#     ax.fill_between(
-#         z_grid, L_const_for_shade, ax.get_ylim()[1],
-#         where=np.isfinite(L_const_for_shade),
-#         color=SHADE_COLOR, alpha=SHADE_ALPHA,
-#         interpolate=True, zorder=0,
-#         label=fr"$F \ge {SHADE_THRESH:.0e}\ \mathrm{{erg\,s^{{-1}}\,cm^{{-2}}}}$"
-#     )
 
 # 枠線
 for spine in ax.spines.values():
@@ -315,11 +311,11 @@ for spine in ax.spines.values():
 ax.set_xlabel("z")
 ax.set_ylabel("L([S II] 6716) [erg s$^{-1}$]")
 
-# カラーバー
-cbar = fig.colorbar(sc, ax=ax, label="S/N")
+# # カラーバー
+# cbar = fig.colorbar(sc, ax=ax, label="S/N")
 
 # 余白
-plt.subplots_adjust(left=0.10, right=0.95, bottom=0.10, top=0.98)
+plt.subplots_adjust(left=0.10, right=0.95, bottom=0.15, top=0.95)
 
 # 保存
 plt.savefig(save_path, dpi=200, bbox_inches="tight")
@@ -328,81 +324,3 @@ plt.show()
 
 
 
-# # あるフラックス一定の線より上側のみのデータを抽出
-
-# # ============================
-# # パラメータ
-# # ============================
-# F_CONST_6717_CGS = 1e-20
-# F_CONST_6731_CGS = 1e-20
-# Z_RANGE = None   # None にすれば全z
-# REQUIRE_FINITE = True
-
-# # 必要列（例）
-# # df に以下がある前提：
-# # z, L6716, L6731
-
-# # ============================
-# # L_lim(z) 計算
-# # ============================
-# dL_each = cosmo.luminosity_distance(z).to(u.cm).value
-# Llim6717_each = 4 * np.pi * dL_each**2 * F_CONST_6717_CGS
-# Llim6731_each = 4 * np.pi * dL_each**2 * F_CONST_6731_CGS
-
-# # ============================
-# # マスク作成
-# # ============================
-# mask_L_6717 = (L6716 >= Llim6717_each)
-# mask_L_6731 = (L6731 >= Llim6731_each)
-# mask_L_both = mask_L_6717 & mask_L_6731
-
-# # z 範囲
-# if Z_RANGE is not None:
-#     zmin, zmax = Z_RANGE
-#     mask_z = np.isfinite(z) & (z >= zmin) & (z <= zmax)
-# else:
-#     mask_z = np.ones_like(z, dtype=bool)
-
-# # 数値健全性
-# if REQUIRE_FINITE:
-#     mask_finite = (
-#         np.isfinite(z) &
-#         np.isfinite(L6716) & np.isfinite(L6731) &
-#         np.isfinite(Llim6717_each) & np.isfinite(Llim6731_each)
-#     )
-# else:
-#     mask_finite = np.ones_like(z, dtype=bool)
-
-# # ============================
-# # 最終マスク
-# # ============================
-# select_mask = mask_L_both & mask_z & mask_finite
-
-# print(f"[INFO] 抽出件数（両線同時）: {select_mask.sum()} / {len(df)}")
-
-# # ============================
-# # DataFrame 行抽出（列構造はそのまま）
-# # ============================
-# df_sel = df.loc[select_mask].copy()
-
-# # ============================
-# # 保存
-# # ============================
-# def _sci_notation(x):
-#     return f"{x:.0e}".replace("+","")
-
-# suffix_parts = [
-#     f"L6717_ge_4pi_dL2_{_sci_notation(F_CONST_6717_CGS)}",
-#     f"L6731_ge_4pi_dL2_{_sci_notation(F_CONST_6731_CGS)}",
-# ]
-# if Z_RANGE is not None:
-#     suffix_parts.append(f"z{zmin:.2f}-{zmax:.2f}")
-# suffix = "_".join(suffix_parts)
-
-# out_dir = "./results/csv"
-# os.makedirs(out_dir, exist_ok=True)
-
-# out_path = os.path.join(out_dir, f"JADES_DR3_GOODS-N_SII_ratio_only_{suffix}.csv")
-# df_sel.to_csv(out_path, index=False)
-
-# print(f"[DONE] 書き出し完了: {out_path}")

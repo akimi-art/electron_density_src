@@ -61,9 +61,9 @@ plt.rcParams.update({
 # ============================================================
 # 設定
 # ============================================================
-in_csv  = "results/table/stacked_sii_ne_vs_ssfr_from_ratio.csv"
-band_csv = "results/csv/stacked_ne_vs_ssfr_regression_band.csv"
-out_png = "results/figure/stacked_ne_vs_ssfr.png"
+in_csv  = "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv"
+band_csv = "results/csv/stacked_ne_vs_ssfr_regression_band_COMPLETE_v1.csv"
+out_png = "results/figure/stacked_ne_vs_ssfr_COMPLETE_v1.png"
 
 # ============================================================
 # 読み込み
@@ -209,7 +209,7 @@ else:
     # ========================================================
     # 可視化
     # ========================================================
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     ax.errorbar(
         x_m, y_m,
         yerr=[yerr_lo_m, yerr_hi_m],
@@ -219,7 +219,10 @@ else:
     )
     ax.plot(x_band, y_med, color="k", label="median")
     ax.fill_between(x_band, y_low, y_high, color="k", alpha=0.2, label="16-84%")
-
+    xmin = -11
+    xmax = -8
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(1.5, 4)
     ax.set_xlabel(r"$\log(sSFR) [M_{\odot}\mathrm{yr^{-1}}]$", fontsize=16) 
     ax.set_ylabel(r"log $n_e$ [cm$^{-3}$]")
     ax.grid(alpha=0.3)

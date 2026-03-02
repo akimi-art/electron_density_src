@@ -117,10 +117,15 @@ UNIT_FLUX = 1e-20    # いまの設定を踏襲
 
 # z-bin の定義（左開右閉ではなく、ここでは「(lo, hi]」を採用しないよう注意）
 # 今回は (1,4), (4,7), (>7) を色分け
+# Z_BINS = [
+#     dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)"),
+#     dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)"),
+#     dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]"),  
+# ]
 Z_BINS = [
-    dict(name="1<z<4", color="tab:blue",  lo=1.0, hi=4.0,  inclusive="(,)"),
-    dict(name="4<z<7", color="tab:green", lo=4.0, hi=7.0,  inclusive="(,)"),
-    dict(name="z>7",   color="tab:red",   lo=7.0, hi=np.inf, inclusive="(,]"),  # hi=inf
+    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_mass_bin=2),
+    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_mass_bin=2),
+    dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]", n_mass_bin=1),
 ]
 # 参考：inclusive の意味
 # "(,)"   :   lo <  z <  hi
@@ -225,11 +230,12 @@ def in_interval(vals, lo, hi, inclusive="(,)"):
         raise ValueError("inclusive must be one of '(,)', '[,)', '(,]', '[,]'")
 
 # 先に "global" 用の質量ビンを用意しておく（必要な場合）
-if MASS_BIN_MODE == 'global':
-    logM_all = df.loc[m_complete, "logM"].values
-    mass_edges_global = make_mass_edges(logM_all, BIN_WIDTH)
-else:
-    mass_edges_global = None
+# if MASS_BIN_MODE == 'global':
+#     logM_all = df.loc[m_complete, "logM"].values
+#     mass_edges_global = make_mass_edges(logM_all, BIN_WIDTH)
+# else:
+#     mass_edges_global = None
+
 
 # ==========================================
 # z-bin ごとにスタック
@@ -254,10 +260,21 @@ for zb in Z_BINS:
     # この z-bin で使う logM と質量ビン
     logM_sub = df.loc[m_z, "logM"].values
 
-    if MASS_BIN_MODE == 'global':
-        edges = mass_edges_global
-    else:
-        edges = make_mass_edges(logM_sub, BIN_WIDTH)
+    # if MASS_BIN_MODE == 'global':
+    #     edges = mass_edges_global
+    # else:
+    #     edges = make_mass_edges(logM_sub, BIN_WIDTH)
+    
+    # ------------------------------------------
+    # ★ ここを置き換える
+    # ------------------------------------------
+    n_bin = zb["n_mass_bin"]
+
+    loM = logM_sub.min()
+    hiM = logM_sub.max()
+
+    edges = np.linspace(loM, hiM, n_bin + 1)
+    # ------------------------------------------
 
     rows = []
     # 各 logM ビンでスタック

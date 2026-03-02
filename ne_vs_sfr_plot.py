@@ -191,8 +191,8 @@ galaxy_ids_Bayliss14   = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
-        #     break
+        if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+            break
         parts = line.strip().split()
         if parts:
             galaxy_ids_Samir16.append(parts[0])
@@ -325,6 +325,9 @@ for ref_name, galaxy_list in data_groups.items():
 
         if z > 1:
             continue  # z > 1 のデータはプロットしない（現時点では）
+        # SDSSのデータ以外はプロットしない
+        if ref_name not in sdss:
+            continue
 
         # 色の対応
         def get_color(z):
@@ -578,7 +581,7 @@ for ref_name, galaxy_list in data_groups.items():
 # SDSSのstackデータ（Massビンごと）をプロットする 
 # =============================================
 # ===== 入出力 =====
-in_csv  = os.path.join(current_dir, "results/table/stacked_sii_ne_vs_sfr_from_ratio.csv")
+in_csv  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_sfr_from_ratio_COMPLETE_v1.csv")
 
 # ===== 読み込み =====
 res = pd.read_csv(in_csv)
@@ -701,7 +704,7 @@ ax.errorbar(
 
 
 # stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band.csv"))
+band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band_v1.csv"))
 
 plt.plot(
     band_stacked["x"],
@@ -831,7 +834,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_slide.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_normal.png"))
 plt.show()
 
 # Monitor memory usage

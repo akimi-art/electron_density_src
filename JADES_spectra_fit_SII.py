@@ -240,7 +240,15 @@ print(popt)
 # =========================
 # 7. プロット
 # =========================
-fig = plt.figure(figsize=(16,8))
+fig = plt.figure(figsize=(12,6))
+fig.subplots_adjust(
+    left=0.1,   # 左余白
+    right=0.95, # 右余白
+    bottom=0.15, # 下余白
+    top=0.85,    # 上余白
+    wspace=0.3, # サブプロット間の横スペース
+    hspace=0.3  # サブプロット間の縦スペース
+)
 gs = GridSpec(2,1,height_ratios=[1,5],hspace=0)
 
 ax2d = fig.add_subplot(gs[0])
@@ -276,7 +284,7 @@ x_model = np.linspace(x_fit.min(), x_fit.max(), 1000)
 ax1d.plot(x_model, s2_doublet_model(x_model, *popt), color="red", lw=2)
 ax1d.plot(x_model, s2_doublet_model_6716(x_model, *popt), color="red", lw=2, ls="--", label="SII 6716")
 ax1d.plot(x_model, s2_doublet_model_6730(x_model, *popt), color="red", lw=2, ls="-.", label="SII 6730")
-ax1d.legend(fontsize=16)
+# ax1d.legend(fontsize=16)
 mu_6716 = wave_length_6716 * (1 + z)
 mu_6730 = wave_length_6730 * (1 + z)
 ax1d.axvline(mu_6716, color="red", ls="--")

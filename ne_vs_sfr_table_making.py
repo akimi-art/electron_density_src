@@ -46,7 +46,7 @@ columns = ["tau", "p-value", "slope", "slope_err", "intercept", "intercept_err"]
 index = ["SDSS_only", "CLASSY_only", "SDSS_x<10", "SDSS_x>10.5",
          "z~0", "z~3", "z~6", "z~9",
          "z~3 (a=0.206)", "z~6 (a=0.206)", "z~9 (a=0.206)"]
-
+# 0.758, 0.000, 0.197, 0.027, 2.061, 0.035
 df = pd.DataFrame(data, columns=columns, index=index)
 # ※ インデックスを CSV に出すなら index=True（デフォルト）
 df.to_csv(os.path.join(output_dir_1, f"{file_name}.csv"))
