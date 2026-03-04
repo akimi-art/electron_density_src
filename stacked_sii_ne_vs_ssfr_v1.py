@@ -10,7 +10,7 @@ logSFR ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_sfr_v1.py [オプション]
+    stacked_sii_ne_vs_ssfr_v1.py [オプション]
 
 著者: A. M.
 作成日: 2026-02-27
@@ -76,7 +76,7 @@ plt.rcParams.update({
 current_dir = os.getcwd()
 
 csv_path = "./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch_with_logSFR.csv"
-out_csv = "./results/table/stacked_sii_ratio_vs_ssfr_JADES_DR3.csv"
+out_csv = "./results/csv/stacked_sii_ratio_vs_ssfr_JADES_DR3.csv"
 out_png = "./results/figure/stacked_sii_ratio_vs_ssfr_JADES_DR3.png"
 
 sdss_csv = "./results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE.csv"
@@ -93,9 +93,9 @@ NMIN = 1
 N_MC = 5000
 UNIT_FLUX = 1e-20
 Z_BINS = [
-    dict(name="1<z<4", color="tab:blue",  lo=1.0, hi=4.0,  inclusive="(,)"),
-    dict(name="4<z<7", color="tab:green", lo=4.0, hi=7.0,  inclusive="(,)"),
-    dict(name="z>7",   color="tab:red",   lo=7.0, hi=np.inf, inclusive="(,]"),
+    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_ssfr_bin=2),
+    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_ssfr_bin=2),
+    dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]", n_ssfr_bin=1),
 ]
 
 # ===============================
@@ -169,6 +169,14 @@ all_rows = []     # ← CSV 保存用
 res_by_z = {}     # ← 可視化用
 
 
+# ===============================
+# z-bin × SFR-bin スタック（z情報付き）
+# ===============================
+rng = np.random.default_rng()
+
+all_rows = []     # ← CSV 保存用
+res_by_z = {}     # ← 可視化用
+
 for zb in Z_BINS:
     name  = zb["name"]
     color = zb["color"]
@@ -176,16 +184,18 @@ for zb in Z_BINS:
     inclusive = zb.get("inclusive", "(,)")
 
     m_z = m_valid & in_interval(z, z_lo, z_hi, inclusive)
+
     if not np.any(m_z):
+        print(f"[{name}] no data")
         continue
 
     logsSFR_sub = df.loc[m_z, "log_sSFR"].values
 
-    edges = np.arange(
-        np.floor(logsSFR_sub.min()/BIN_WIDTH)*BIN_WIDTH,
-        np.ceil(logsSFR_sub.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
-        BIN_WIDTH
-    )
+    # ★ ここに入れる
+    n_bin = zb["n_ssfr_bin"]
+    losSFR = logsSFR_sub.min()
+    hisSFR = logsSFR_sub.max()
+    edges = np.linspace(losSFR, hisSFR, n_bin + 1)
 
     rows = []
     for lo, hi in zip(edges[:-1], edges[1:]):
@@ -206,6 +216,7 @@ for zb in Z_BINS:
         f1_mc = rng.normal(F1, e1, N_MC)
         f2_mc = rng.normal(F2, e2, N_MC)
         valid = f2_mc > 0
+
         if not np.any(valid):
             continue
 
@@ -215,30 +226,40 @@ for zb in Z_BINS:
         R84 = np.nanpercentile(R_mc, 84)
 
         row = dict(
+            # --- z-bin 情報（← 追加点） ---
             z_bin=name,
             z_lo=z_lo,
             z_hi=z_hi,
 
+            # --- SFR bin ---
             logsSFR_lo=lo,
             logsSFR_hi=hi,
             logsSFR_cen=0.5*(lo+hi),
 
+            # --- stack 結果 ---
             N=N,
             R_med=R50,
             R_err_lo=R50 - R16,
-            R_err_hi=R84 - R50
+            R_err_hi=R84 - R50,
+            N_MC_valid=int(valid.sum())
         )
 
         rows.append(row)
         all_rows.append(row)
 
-    res_by_z[name] = dict(df=pd.DataFrame(rows), color=color)
+    res_by_z[name] = dict(
+        df=pd.DataFrame(rows),
+        color=color
+    )
 
 # ===== ここから下に書く =====
 res_all = pd.DataFrame(all_rows)
 res_all.to_csv(out_csv, index=False)
 print("Saved:", out_csv)
 
+# ===============================
+# 描画
+# ===============================
 fig, ax = plt.subplots(figsize=(6,6))
 
 # ← ここが余白調整

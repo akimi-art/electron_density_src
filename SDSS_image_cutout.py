@@ -1,3 +1,22 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+スクリプトの概要:
+このスクリプトは
+SDSSのフレームFITSファイルから指定したRA/Decを中心に切り出し、PNG画像として保存します。
+
+使用方法:
+    SDSS_image_cutout.py [オプション]
+
+著者: A. M.
+作成日: 2026-02-27
+
+参考文献:
+    - PEP 8: https://peps.python.org/pep-0008/
+    - PEP 257 (Docstring規約): https://peps.python.org/pep-0257/
+    - Python公式ドキュメント: https://docs.python.org/ja/3/
+"""
+
 # 必要パッケージ:
 # pip install astropy numpy matplotlib
 
@@ -53,11 +72,11 @@ plt.rcParams.update({
 # -----------------------------------------
 # 入力パラメータ（例）
 # -----------------------------------------
-fits_file = "results/SDSS/image/sdss_image_000756-2-0309/frame-i-000756-2-0309.fits"   # 取得した SDSS フレーム
-ra_center = 162.16704                           # 中心RA (deg)
-dec_center = -0.52525                           # 中心Dec (deg)
+fits_file = "results/SDSS/image/sdss_image_004263-2-0231/frame-i-004263-2-0231.fits"   # 取得した SDSS フレーム
+ra_center = 17.222960                        # 中心RA (deg)
+dec_center = -0.826109                           # 中心Dec (deg)
 cutout_size_arcsec = 20.0                       # 切り出しサイズ（arcsec）
-png_output = "results/SDSS/figure/frame-i-000756-2-0309.png"  # 出力 PNG
+png_output = "results/SDSS/figure/frame-i-004263-2-0231.png"  # 出力 PNG
 # -----------------------------------------
 
 # ---- バンド名をファイル名から抽出（ラベル用） ----
@@ -128,6 +147,32 @@ vmin, vmax = z.get_limits(cutout)
 # -----------------------------------------
 fig, ax = plt.subplots(figsize=(3, 3), dpi=150)
 ax.imshow(cutout, cmap="gray", origin="lower", vmin=vmin, vmax=vmax)
+from matplotlib.patches import Ellipse
+
+# ---- SDSS ファイバーの円（直径 3 arcsec）を RA/Dec 中心に重ね描き ----
+fiber_diam_arcsec = 3.0          # SDSS-I/II のファイバー直径（3″）
+# BOSS/eBOSS の 2″.0 ファイバーを描くなら 2.0 に変更
+
+# 円のピクセルサイズ（x/y で微小な差があるため楕円として描くのが厳密）
+fiber_width_pix  = fiber_diam_arcsec / pixscale_x   # 画像 x 軸方向の直径（pix）
+fiber_height_pix = fiber_diam_arcsec / pixscale_y   # 画像 y 軸方向の直径（pix）
+
+# 切り出し画像（cutout）内での中心座標（imshow(origin="lower") を前提）
+xc_local = x_center - x_min
+yc_local = y_center - y_min
+
+# 可視範囲外に中心が出てしまう場合はスキップ（安全策）
+if (0 <= xc_local < cutout.shape[1]) and (0 <= yc_local < cutout.shape[0]):
+    # 線の太さは画像サイズに対する割合で（お好みで調整）
+    lw_circle = max(1, int(min(cutout.shape) * 0.01))
+
+    fiber_circle = Ellipse(
+        (xc_local, yc_local),
+        width=fiber_width_pix, height=fiber_height_pix, angle=0.0,
+        edgecolor="red", facecolor="none", lw=lw_circle
+    )
+    ax.add_patch(fiber_circle)
+
 ax.axis("off")
 
 # 1 arcsec の長さ（ピクセル）
@@ -145,15 +190,15 @@ bar_x_start = w * pos_x_frac
 bar_y_start = h * pos_y_frac
 lw = max(1, int(min(w, h) * linewidth_frac))
 
-# 横バー（RA方向）
-bar_x_end = bar_x_start + one_arcsec_pix_x
-ax.plot([bar_x_start, bar_x_end], [bar_y_start, bar_y_start],
-        color="white", lw=lw)
+# # 横バー（RA方向）
+# bar_x_end = bar_x_start + one_arcsec_pix_x
+# ax.plot([bar_x_start, bar_x_end], [bar_y_start, bar_y_start],
+#         color="white", lw=lw)
 
-# ラベル（1″）
-ax.text((bar_x_start + bar_x_end) / 2.0,
-        bar_y_start + (0.02 * h),
-        '1″', color="white", fontsize=20, ha='center', va='bottom')
+# # ラベル（1″）
+# ax.text((bar_x_start + bar_x_end) / 2.0,
+#         bar_y_start + (0.02 * h),
+#         '1″', color="white", fontsize=20, ha='center', va='bottom')
 
 # 画像の左上にバンド名を表示
 ax.text(w * pos_x_frac,

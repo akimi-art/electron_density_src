@@ -216,7 +216,7 @@ ax.set_ylabel(r'F$_{\lambda}$ ($10^{-19}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)')
 # plt.title(f"[SII] doublet fit  z_fit = {z_fit:.6f}")
 
 plt.tight_layout()
-save_dir = "./results/SDSS/spectra/sdss_spectro_0275-51910-0141/spec-0275-51910-0141.png"
+save_dir = "./results/SDSS/figure/spec-0275-51910-0141.png"
 plt.savefig(save_dir)
 print(f"Saved as {save_dir}")
 plt.show()

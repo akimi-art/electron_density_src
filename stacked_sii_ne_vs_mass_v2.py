@@ -97,7 +97,7 @@ current_dir = os.getcwd()
 # fits_path = os.path.join(current_dir, "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch.csv")
 csv_path = "./results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_crossmatch.csv"
 
-out_csv = os.path.join(current_dir, "results/table/stacked_sii_ratio_vs_mass_JADES_DR3.csv")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_JADES_DR3.csv")
 out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_JADES_DR3.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
@@ -335,7 +335,7 @@ print("Saved stacked table:", out_csv)
 # ==========================================
 # 描画
 # ==========================================
-fig, ax = plt.subplots(figsize=(12,6))
+fig, ax = plt.subplots(figsize=(6,6))
 
 # スキャッタ（個々の点）を z-bin 色分けで描画
 for zb in Z_BINS:
@@ -427,7 +427,7 @@ ax.errorbar(
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
 ax.set_xlim(8, 12)
-ax.set_ylim(0.0, 2.0)
+ax.set_ylim(0.75, 1.75)
 
 # 体裁
 for spine in ax.spines.values():

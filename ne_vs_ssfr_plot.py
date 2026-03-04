@@ -311,6 +311,12 @@ ne_list = []
 ne_yerr_list = []  
 
 
+
+# z>6のデータを格納するリスト
+z6_x_vals = []
+z6_y_vals = []
+z6_x_errs = []
+z6_y_errs = []
 sdss = {"data_Samir16"}
 for ref_name, galaxy_list in data_groups.items():
 
@@ -323,12 +329,15 @@ for ref_name, galaxy_list in data_groups.items():
         else:
             main_sequence = None  # or np.nan
 
-        # sdssのデータ以外はプロットしない
-        if ref_name not in sdss:
+        # high-zのデータのみをプロット
+        if z < 6:
             continue
-        # low-zのデータのみをプロット
-        if z > 1:
-            continue
+        # z > 1 のデータはプロットしない（現時点では）
+        # if z > 1:
+        #     continue  
+        # # SDSSのデータ以外はプロットしない
+        # if ref_name not in sdss:
+        #     continue
 
         # 色の対応
         def get_color(z):
@@ -365,17 +374,18 @@ for ref_name, galaxy_list in data_groups.items():
 
         # エラーバーの色
         def get_ecolors(z):
-            if z < 1:
-                if ref_name in sdss:
-                    return "gray"
-                else:
-                    return "black"
-            elif 1 <= z < 4:
-                return 'tab:blue'
-            elif 4 <= z <= 7:
-                return 'tab:green'
-            else:
-                return 'tab:red'
+            # if z < 1:
+            #     if ref_name in sdss:
+            #         return "gray"
+            #     else:
+            #         return "black"
+            # elif 1 <= z < 4:
+            #     return 'tab:blue'
+            # elif 4 <= z <= 7:
+            #     return 'tab:green'
+            # else:
+            #     return 'tab:red'
+            return "tab:purple"  # ひとまずは色を変えない
 
         # エラーバーの太さ
         def get_elinewidth(z):
@@ -498,8 +508,10 @@ for ref_name, galaxy_list in data_groups.items():
                 fmt=marker,
                 markersize=ms,
                 markeredgewidth=mew,
-                markerfacecolor=facecolor,
-                markeredgecolor=edgecolor,
+                # markerfacecolor=facecolor,
+                # markeredgecolor=edgecolor,
+                markerfacecolor="tab:purple",
+                markeredgecolor="tab:purple",
                 ecolor=get_ecolors(z),
                 capsize=0,
                 lw=get_elinewidth(z),
@@ -515,6 +527,50 @@ for ref_name, galaxy_list in data_groups.items():
             ssfr_xerr_list.append(xerr)
             ne_list.append(y)
             ne_yerr_list.append(yerr)
+
+        # ===== z>6 データを保存 =====
+        if np.isfinite(x) and np.isfinite(y) and np.isfinite(yerr) and yerr > 0:
+            z6_x_vals.append(x)
+            z6_y_vals.append(y)
+            z6_x_errs.append(xerr if np.isfinite(xerr) else np.nan)
+            z6_y_errs.append(yerr)
+
+
+# =====================================
+# z>6 平均値（誤差考慮）を計算
+# =====================================
+
+z6_x_vals = np.array(z6_x_vals)
+z6_y_vals = np.array(z6_y_vals)
+z6_y_errs = np.array(z6_y_errs)
+
+if len(z6_y_vals) > 0:
+
+    # 重み付き平均（1/σ²）
+    weights = 1.0 / z6_y_errs**2
+    y_mean = np.sum(weights * z6_y_vals) / np.sum(weights)
+    y_mean_err = np.sqrt(1.0 / np.sum(weights))
+
+    # xは単純平均（必要なら重み付きにもできる）
+    x_mean = np.nanmean(z6_x_vals)
+
+    # =========================
+    # 大きくプロット
+    # =========================
+    ax.errorbar(
+        x_mean,
+        y_mean,
+        yerr=y_mean_err,
+        fmt="s",               # ダイヤマーカー
+        markersize=10,         # 大きく
+        markeredgewidth=1.5,
+        markerfacecolor="tab:purple",
+        markeredgecolor="tab:purple",
+        ecolor="tab:purple",
+        capsize=4,
+        zorder=100,
+        label="z>6 weighted mean"
+    )
 
 
 # === 推定結果（あなたの値に置き換え） ===
@@ -652,69 +708,74 @@ xmax = -8
 #         fmt="x", ms=6, capsize=2, lw=1,
 #     )
 
-# # =============================================
-# # SDSSのstackデータ（sSFRビンごと、データ点）をプロットする （UPPER, LOWER LIMIT付き）
-# # =============================================
 
-# # ===== 入出力 =====
-# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv")
 
-# # ===== 読み込み =====
-# res_data = pd.read_csv(in_csv_data)
 
-# # ===== 必要列 =====
-# x_data = res_data["logsSFR_cen"].to_numpy(float)
-# y_data = res_data["log_ne_med"].to_numpy(float)
-# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
-# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
 
-# # outsideフラグ（なければ全部False）
-# if "R_outside" in res_data.columns:
-#     outside_data = res_data["R_outside"].to_numpy(bool)
-# else:
-#     outside_data = np.zeros_like(x_data, dtype=bool)
 
-# # ===== 有効値マスク =====
-# m_ok_data = (
-#     np.isfinite(x_data) &
-#     np.isfinite(y_data) &
-#     np.isfinite(yerr_lo_data) &
-#     np.isfinite(yerr_hi_data) &
-#     ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
-# )
+# =============================================
+# SDSSのstackデータ（sSFRビンごと、データ点）をプロットする （UPPER, LOWER LIMIT付き）
+# =============================================
 
-# # 完全サンプル閾値
-# thr_data = -11.0
-# mask_mass = x_data > thr_data
+# ===== 入出力 =====
+in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_ssfr_from_ratio_COMPLETE_v1.csv")
 
-# # 有効かつmass条件
-# base_mask = m_ok_data & mask_mass
+# ===== 読み込み =====
+res_data = pd.read_csv(in_csv_data)
 
-# # =============================================
-# # 誤差タイプ分類
-# # =============================================
-# is_lower_limit = base_mask & (yerr_lo_data == 0) & (yerr_hi_data > 0)
-# is_upper_limit = base_mask & (yerr_hi_data == 0) & (yerr_lo_data > 0)
-# is_normal = base_mask & ~(is_lower_limit | is_upper_limit)
+# ===== 必要列 =====
+x_data = res_data["logsSFR_cen"].to_numpy(float)
+y_data = res_data["log_ne_med"].to_numpy(float)
+yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
 
-# # =============================================
-# # 描画
-# # =============================================
+# outsideフラグ（なければ全部False）
+if "R_outside" in res_data.columns:
+    outside_data = res_data["R_outside"].to_numpy(bool)
+else:
+    outside_data = np.zeros_like(x_data, dtype=bool)
 
-# arrow_length = 0.15  # dex
+# ===== 有効値マスク =====
+m_ok_data = (
+    np.isfinite(x_data) &
+    np.isfinite(y_data) &
+    np.isfinite(yerr_lo_data) &
+    np.isfinite(yerr_hi_data) &
+    ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
+)
 
-# # --- 通常点（両側誤差） ---
-# ax.errorbar(
-#     x_data[is_normal],
-#     y_data[is_normal],
-#     yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
-#     fmt="s",
-#     mec="k",
-#     mfc="k",
-#     ecolor="k",
-#     color="k",
-#     capsize=3
-# )
+# 完全サンプル閾値
+thr_data = -11.0
+mask_mass = x_data > thr_data
+
+# 有効かつmass条件
+base_mask = m_ok_data & mask_mass
+
+# =============================================
+# 誤差タイプ分類
+# =============================================
+is_lower_limit = base_mask & (yerr_lo_data == 0) & (yerr_hi_data > 0)
+is_upper_limit = base_mask & (yerr_hi_data == 0) & (yerr_lo_data > 0)
+is_normal = base_mask & ~(is_lower_limit | is_upper_limit)
+
+# =============================================
+# 描画
+# =============================================
+
+arrow_length = 0.15  # dex
+
+# --- 通常点（両側誤差） ---
+ax.errorbar(
+    x_data[is_normal],
+    y_data[is_normal],
+    yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
+    fmt="s",
+    mec="k",
+    mfc="k",
+    ecolor="k",
+    color="k",
+    capsize=3
+)
 
 # # --- lower limit（↑）---
 # ax.errorbar(
@@ -880,14 +941,175 @@ yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi
 mask_lt_data = x_data > thr_data
 mask_ge_data = ~mask_lt_data
 
-# x >= 0（黒四角）
-ax.errorbar(
-    x_data[mask_lt_data], y_data[mask_lt_data],
-    yerr=yerr_data[:, mask_lt_data],
-    fmt="s", mec="gray", mfc="gray",
-    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
-    capsize=3
+# # x >= 0（黒四角）
+# ax.errorbar(
+#     x_data[mask_lt_data], y_data[mask_lt_data],
+#     yerr=yerr_data[:, mask_lt_data],
+#     fmt="s", mec="gray", mfc="gray",
+#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+#     capsize=3
+# )
+
+
+
+
+
+
+# =================================================
+# JADES
+# =================================================
+in_csv_jades = "./results/csv/stacked_sii_ne_vs_ssfr_from_ratio_JADES_DR3.csv"
+res = pd.read_csv(in_csv_jades)
+
+x   = res["logsSFR_cen"].to_numpy(float)
+y   = res["log_ne_med"].to_numpy(float)
+elo = res["log_ne_err_lo"].to_numpy(float)
+ehi = res["log_ne_err_hi"].to_numpy(float)
+zbin = res["z_bin"].values
+
+# ---- 両側誤差がある点のみ ----
+m_twoside = (
+    np.isfinite(x) &
+    np.isfinite(y) &
+    np.isfinite(elo) &
+    np.isfinite(ehi)
 )
+
+# z-bin
+# mask_2 = (zbin == "0.5<z<2.0") & m_twoside
+mask_2 = (zbin == "0.5<z<2.0") # 2はoneside
+mask_3 = (zbin == "2.0<z<3.0") & m_twoside
+mask_6 = (zbin == "3.0<z<6.0") & m_twoside
+
+# =================================================
+# 片側 limit 描画（1σ,2σ,3σ）（追加）
+# =================================================
+
+arrow_len = 0.15  # 見た目用（dex）
+
+# limit列読み込み
+log_ne_1_lo = res["log_ne_1sig_lo_limit"].to_numpy(float)
+log_ne_1_hi = res["log_ne_1sig_hi_limit"].to_numpy(float)
+
+log_ne_2_lo = res["log_ne_2sig_lo_limit"].to_numpy(float)
+log_ne_2_hi = res["log_ne_2sig_hi_limit"].to_numpy(float)
+
+log_ne_3_lo = res["log_ne_3sig_lo_limit"].to_numpy(float)
+log_ne_3_hi = res["log_ne_3sig_hi_limit"].to_numpy(float)
+
+def plot_limits(mask, xarr, ylimit, color, sigma_label, uplim=False):
+    """
+    uplim=True  → 上向き矢印（lower limit）
+    uplim=False → 下向き矢印（upper limit）
+    """
+    m = mask & np.isfinite(ylimit)
+
+    if np.any(m):
+        ax.errorbar(
+            xarr[m],
+            ylimit[m],
+            yerr=arrow_len,
+            fmt="s",
+            color=color,
+            uplims=uplim,
+            lolims=not uplim,
+            ms=10,
+            alpha=0.8,
+            capsize=4,
+        )
+
+# =============================
+# 各z binごとに描画
+# =============================
+
+# 全て描きたい場合
+# for zb, mask_z, color in [
+#     ("0.5<z<2.0", mask_2, "tab:blue"),
+#     ("2.0<z<3.0", mask_3, "tab:green"),
+#     ("3.0<z<6.0", mask_6, "tab:red"),
+# ]:
+
+#     # 1σ
+#     plot_limits(mask_z, x, log_ne_1_lo, color, "1σ", uplim=False)  # upper limit
+#     plot_limits(mask_z, x, log_ne_1_hi, color, "1σ", uplim=True)   # lower limi
+#     # 2σ
+#     plot_limits(mask_z, x, log_ne_2_lo, color, "2σ", uplim=False)
+#     plot_limits(mask_z, x, log_ne_2_hi, color, "2σ", uplim=True)
+#     # 3σ
+#     plot_limits(mask_z, x, log_ne_3_lo, color, "3σ", uplim=False)
+#     plot_limits(mask_z, x, log_ne_3_hi, color, "3σ", uplim=True)
+
+# 3σ upper limit のみ
+mask_2 = (zbin == "0.5<z<2.0") 
+mask_2_2 = (zbin == "0.5<z<2.0") & (m_twoside==False) # 変更
+plot_limits(
+    mask_2_2, 
+    x,
+    log_ne_3_hi,
+    color="tab:blue",
+    sigma_label="3σ",
+    uplim=True  # upper limit（下向き矢印）
+)
+
+# Ensure error values are non-negative
+elo_jades_mask_2 = np.maximum(0, elo[mask_2])
+ehi_jades_mask_2 = np.maximum(0, ehi[mask_2])
+elo_jades_mask_3 = np.maximum(0, elo[mask_3])
+ehi_jades_mask_3 = np.maximum(0, ehi[mask_3])
+elo_jades_mask_6 = np.maximum(0, elo[mask_6])
+ehi_jades_mask_6 = np.maximum(0, ehi[mask_6])
+
+
+# 0.5<z<2.0
+ax.errorbar(
+    x[mask_2], y[mask_2],
+    yerr=np.vstack([elo_jades_mask_2, ehi_jades_mask_2]),
+    fmt="s",
+    mfc="tab:blue", mec="tab:blue",
+    ecolor="tab:blue", color="tab:blue",
+    ms=10,
+    capsize=3,
+)
+
+# 2.0<z<3.0
+ax.errorbar(
+    x[mask_3], y[mask_3],
+    yerr=np.vstack([elo_jades_mask_3, ehi_jades_mask_3]),
+    fmt="s",
+    mfc="tab:green", mec="tab:green",
+    ecolor="tab:green", color="tab:green",
+    ms=10,
+    capsize=3,
+)
+
+# 3.0<z<6.0
+ax.errorbar(
+    x[mask_6], y[mask_6],
+    yerr=np.vstack([elo_jades_mask_6, ehi_jades_mask_6]),
+    fmt="s",
+    mfc="tab:red", mec="tab:red",
+    ecolor="tab:red", color="tab:red",
+    ms=10,
+    capsize=3,
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # # 2種類以上の輝線でneが求められている天体は、縦線でつなぐ
@@ -924,8 +1146,8 @@ ax.errorbar(
 # plt.plot(x_range, y_range, color='black', linestyle='-.')
     
 
-plt.xlim(xmin, xmax)
-plt.ylim(1.5, 4)
+plt.xlim(-10, -7)
+plt.ylim(1.5, 3.25)
 ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
 # === 枠線 (spines) の設定 ===
@@ -934,7 +1156,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v6_z0_slide.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_ssfr_plot_sdss_v6_highz_slide.png"))
 plt.show()
 
 # Monitor memory usage

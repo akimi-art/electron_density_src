@@ -252,14 +252,15 @@ for name, pack in res_by_z.items():
     ax.errorbar(
         res["logSFR_cen"], res["R_med"],
         yerr=[res["R_err_lo"], res["R_err_hi"]],
-        fmt="s", ms=8, mec=pack["color"], mfc=pack["color"],
-        ecolor=pack["color"], capsize=3
+        fmt="s", ms=10, mec=pack["color"], mfc=pack["color"],
+        ecolor=pack["color"], 
+        capsize=3
     )
 
 ax.set_xlabel(r"$\log(SFR)\ [M_\odot\,\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(0,2)
-ax.set_ylim(0.5,2.0)
+ax.set_xlim(-0.5,2)
+ax.set_ylim(1.0,1.6)
 
 for s in ax.spines.values():
     s.set_linewidth(2)

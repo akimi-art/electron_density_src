@@ -70,14 +70,14 @@ plt.rcParams.update({
 # ===============================
 # 入力
 # ===============================
-plate, mjd, fiber = 275, 51910, 141
-spplate_fn = "./results/SDSS/spectra/2d/spPlate-0275-51910.fits"
-specbs_fn  = "./results/SDSS/spectra/1d/sdss_spectro_0275-51910-0141/spec-0275-51910-0141.fits"
+plate, mjd, fiber = 694, 52209, 134
+spplate_fn = "./results/SDSS/spectra/2d/spPlate-0694-52209.fits"
+specbs_fn  = "./results/SDSS/spectra/1d/sdss_spectro_0694-52209-0134/spec-0694-52209-0134.fits"
 
 # [S II] 真空波長（Å）と z 初期値（表示窓）
 sii_6716_vac = 6716.440
 sii_6731_vac = 6730.820
-z_init = 0.0818
+z_init = 0.1837
 win = 50.0  # Å（[S II] を挟む表示幅）
 
 # ===============================
@@ -188,8 +188,8 @@ ax2d.imshow(
 # フィット中心（z_fit）に縦線
 lam1_fit = sii_6716_vac * (1 + z_fit)
 lam2_fit = sii_6731_vac * (1 + z_fit)
-ax2d.axvline(lam1_fit, color="w", ls="--", lw=0.8, alpha=0.8)
-ax2d.axvline(lam2_fit, color="w", ls="-.", lw=0.8, alpha=0.8)
+# ax2d.axvline(lam1_fit, color="w", ls="--", lw=0.8, alpha=0.8)
+# ax2d.axvline(lam2_fit, color="w", ls="-.", lw=0.8, alpha=0.8)
 ax2d.tick_params(axis="both", which="both",
                  bottom=False, top=False, left=False, right=False,
                  labelbottom=False, labelleft=False)
@@ -207,10 +207,10 @@ ax1d.plot(x_dense, sii_model_6731(x_dense, *popt), color="red", lw=1.1, ls="-.")
 ax1d.axvline(lam1_fit, color="red",  ls="--", lw=0.8, alpha=0.8)
 ax1d.axvline(lam2_fit, color="red",  ls="-.", lw=0.8, alpha=0.8)
 
-ax1d.set_xlabel(r"Observed wavelength $\lambda$ (Å)")
+ax1d.set_xlabel(r"$\lambda$ (Å)")
 ax1d.set_ylabel(r"$F_{\lambda}$ (10$^{-17}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)")
 
-save_dir = "./results/SDSS/figure/SDSS_0275-51910-0141_SII_fit.png"
+save_dir = "./results/SDSS/figure/SDSS_0694-52209-0134_SII_fit.png"
 plt.savefig(save_dir, dpi=300)
 print(f"Saved as {save_dir}")
 plt.tight_layout()

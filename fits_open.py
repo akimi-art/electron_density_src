@@ -25,7 +25,7 @@ from astropy.io import fits
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "./results/SDSS/image/sdss_image_000756-2-0301/frame-g-000756-2-0301.fits"
+file_galex =  "./results/SDSS/spectra/1d/sdss_spectro_0694-52209-0134/spSpec-52209-0694-134.fit"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
@@ -33,18 +33,32 @@ with fits.open(file_galex) as hdul:
     # HDUの構造を表示
     hdul.info()
 
-    # # 拡張HDU（通常 index 1）を取得
-    # ext_hdu = hdul[1]
+    # 0番目のHDU（通常はプライマリHDU）を取得
+    primary_hdu = hdul[0]
+    # 拡張HDU（通常 index 1）を取得
+    ext_hdu = hdul[6]
 
-    # # # 列名とデータ型を表示
-    # print("列名:", ext_hdu.columns.names)
-    # print("データ型:", ext_hdu.columns.formats)
+   # プライマリHDUの情報を表示
+    print("\n=== プライマリHDU ===")
+    print("データの形状:", primary_hdu.data.shape if primary_hdu.data is not None else "None")
+    # # 列名とデータ型を表示
+    print("列名:", ext_hdu.columns.names)
+    print("データ型:", ext_hdu.columns.formats)
 
-    # # データの最初の1行を表示
-    # print("最初の1行のデータ:")
-    # for row in ext_hdu.data[:1]:
-    #     print(row)
+    # データの最初の1行を表示
+    print("最初の1行のデータ:")
+    for row in ext_hdu.data[:1]:
+        print(row)
 
+
+from astropy.io import fits
+import numpy as np
+
+with fits.open(file_galex) as hdul:
+    h0 = hdul[0].header
+    data0 = hdul[0].data  # shape (3852, 5) の2D配列
+    print("Header of HDU 0:")
+    print(h0)
 
 # # === オプション: 'PLATEID', 'FIBERID', の部分だけ抜き出す ===
 # with fits.open(file_galex) as hdul:
