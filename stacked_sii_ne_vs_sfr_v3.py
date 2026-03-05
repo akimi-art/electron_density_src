@@ -98,8 +98,8 @@ NMIN = 1
 N_MC = 5000
 UNIT_FLUX = 1e-20
 Z_BINS = [
-    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_sfr_bin=2),
-    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_sfr_bin=2),
+    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_sfr_bin=1),
+    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_sfr_bin=1),
     dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]", n_sfr_bin=1),
 ]
 
@@ -130,7 +130,13 @@ F6731 = df["S2_6733_flux"].values * UNIT_FLUX
 e6716 = df["S2_6718_err"].values * UNIT_FLUX
 e6731 = df["S2_6733_err"].values * UNIT_FLUX
 
+
 df["S2_ratio"] = F6716 / F6731
+
+# 理論範囲（データサイズが小さいため追加）
+R = df["S2_ratio"].values
+# m_ratio_physical = (R > 0.44) & (R < 1.45)
+
 
 # ===============================
 # マスク
@@ -141,7 +147,8 @@ def valid_logSFR(x):
 m_valid = (
     np.isfinite(F6716) & np.isfinite(F6731) &
     (e6716 > 0) & (e6731 > 0) &
-    valid_logSFR(df["logSFR_hb"].values)
+    valid_logSFR(df["logSFR_hb"].values) 
+    # m_ratio_physical # 追加
 )
 
 
@@ -259,7 +266,7 @@ for name, pack in res_by_z.items():
 
 ax.set_xlabel(r"$\log(SFR)\ [M_\odot\,\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-0.5,2)
+ax.set_xlim(0.0,2)
 ax.set_ylim(1.0,1.6)
 
 for s in ax.spines.values():

@@ -123,8 +123,8 @@ UNIT_FLUX = 1e-20    # いまの設定を踏襲
 #     dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]"),  
 # ]
 Z_BINS = [
-    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_mass_bin=2),
-    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_mass_bin=2),
+    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_mass_bin=1),
+    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_mass_bin=1),
     dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]", n_mass_bin=1),
 ]
 # 参考：inclusive の意味
@@ -405,29 +405,29 @@ yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi
 mask_lt_data = x_data > thr_data
 mask_ge_data = ~mask_lt_data
 
-# x >= 10（黒四角）
-ax.errorbar(
-    x_data[mask_lt_data], y_data[mask_lt_data],
-    yerr=yerr_data[:, mask_lt_data],
-    fmt="s", mec="black", mfc="black",
-    ecolor="black", color="black",  # 誤差線色/線色（同時指定）
-    capsize=3
-)
+# # x >= 10（黒四角）
+# ax.errorbar(
+#     x_data[mask_lt_data], y_data[mask_lt_data],
+#     yerr=yerr_data[:, mask_lt_data],
+#     fmt="s", mec="black", mfc="black",
+#     ecolor="black", color="black",  # 誤差線色/線色（同時指定）
+#     capsize=3
+# )
 
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x_data[mask_ge_data], y_data[mask_ge_data],
-    yerr=yerr_data[:, mask_ge_data],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",
-    capsize=3, zorder=1  # データ点を前面に表示
-)
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x_data[mask_ge_data], y_data[mask_ge_data],
+#     yerr=yerr_data[:, mask_ge_data],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",
+#     capsize=3, zorder=1  # データ点を前面に表示
+# )
 
 
 ax.set_xlabel(r"log $M_\star$ [M$_\odot$]")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(8, 12)
-ax.set_ylim(0.75, 1.75)
+ax.set_xlim(9, 10)
+ax.set_ylim(1.0, 1.5)
 
 # 体裁
 for spine in ax.spines.values():

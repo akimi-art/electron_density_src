@@ -191,8 +191,8 @@ galaxy_ids_Bayliss14   = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
-            break
+        # if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+        #     break
         parts = line.strip().split()
         if parts:
             galaxy_ids_Samir16.append(parts[0])
@@ -318,23 +318,27 @@ z6_x_errs = []
 z6_y_errs = []
 
 sdss = {"data_Samir16"}
+classy = {"data_Mingozzi22"}
 for ref_name, galaxy_list in data_groups.items():
 
     for g_name in galaxy_list:
         g = all_data[g_name]
         z = g["z"]
         AGN = g["AGN"]
-        if "main_sequence" in g:
-            main_sequence = g["main_sequence"]
-        else:
-            main_sequence = None  # or np.nan
+        # if "main_sequence" in g:
+        #     main_sequence = g["main_sequence"]
+        # else:
+        #     main_sequence = None  # or np.nan
 
-        if z < 6:
-            continue  # z < 6 のデータはプロットしない（現時点では）
+        # if z < 6:
+            # continue  # z < 6 のデータはプロットしない（現時点では）
         # if z > 1:
         #     continue  # z > 1 のデータはプロットしない（現時点では）
         # SDSSのデータ以外はプロットしない
-        # if ref_name not in sdss:
+        if ref_name not in sdss:
+            continue
+        # # CLASSYのデータ以外はプロットしない
+        # if ref_name not in classy:
         #     continue
 
         # 色の対応
@@ -486,10 +490,12 @@ for ref_name, galaxy_list in data_groups.items():
                 markeredgewidth=mew,
                 # markerfacecolor=facecolor,
                 # markeredgecolor=edgecolor,
-                # markerfacecolor="gray",
-                # markeredgecolor="gray",
-                markerfacecolor="tab:purple",
-                markeredgecolor="tab:purple",
+                markerfacecolor="gray",
+                markeredgecolor="gray",
+                # markerfacecolor="tab:purple",
+                # markeredgecolor="tab:purple",
+                # markerfacecolor="black",
+                # markeredgecolor="black",
                 ecolor=get_ecolors(z),
                 capsize=0,
                 lw=get_elinewidth(z),
@@ -532,23 +538,23 @@ if len(z6_y_vals) > 0:
     # xは単純平均（必要なら重み付きにもできる）
     x_mean = np.nanmean(z6_x_vals)
 
-    # =========================
-    # 大きくプロット
-    # =========================
-    ax.errorbar(
-        x_mean,
-        y_mean,
-        yerr=y_mean_err,
-        fmt="s",               # ダイヤマーカー
-        markersize=10,         # 大きく
-        markeredgewidth=1.5,
-        markerfacecolor="tab:purple",
-        markeredgecolor="tab:purple",
-        ecolor="tab:purple",
-        capsize=4,
-        zorder=100,
-        label="z>6 weighted mean"
-    )
+    # # =========================
+    # # 大きくプロット
+    # # =========================
+    # ax.errorbar(
+    #     x_mean,
+    #     y_mean,
+    #     yerr=y_mean_err,
+    #     fmt="s",               # ダイヤマーカー
+    #     markersize=10,         # 大きく
+    #     markeredgewidth=1.5,
+    #     markerfacecolor="white",
+    #     markeredgecolor="tab:purple",
+    #     ecolor="tab:purple",
+    #     capsize=4,
+    #     zorder=100,
+    #     label="z>6 weighted mean"
+    # )
 
 
 #  # === 推定結果（あなたの値に置き換え） ===
@@ -770,18 +776,18 @@ is_normal = base_mask & ~(is_lower_limit | is_upper_limit)
 
 arrow_length = 0.15  # dex
 
-# --- 通常点（両側誤差） ---
-ax.errorbar(
-    x_data[is_normal],
-    y_data[is_normal],
-    yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
-    fmt="s",
-    mec="k",
-    mfc="k",
-    ecolor="k",
-    color="k",
-    capsize=3
-)
+# # --- 通常点（両側誤差） ---
+# ax.errorbar(
+#     x_data[is_normal],
+#     y_data[is_normal],
+#     yerr=[yerr_lo_data[is_normal], yerr_hi_data[is_normal]],
+#     fmt="s",
+#     mec="k",
+#     mfc="k",
+#     ecolor="k",
+#     color="k",
+#     capsize=3
+# )
 
 # # --- lower limit（↑）---
 # ax.errorbar(
@@ -805,23 +811,23 @@ ax.errorbar(
 # )
 
 
-# stackの回帰分析結果もプロットする
-band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band_v1.csv"))
+# # stackの回帰分析結果もプロットする
+# band_stacked = pd.read_csv(os.path.join(current_dir, "results/csv/stacked_ne_vs_sfr_regression_band_v1.csv"))
 
-plt.plot(
-    band_stacked["x"],
-    band_stacked["y_med"],
-    color="black",
-    lw=2,
-)
+# plt.plot(
+#     band_stacked["x"],
+#     band_stacked["y_med"],
+#     color="black",
+#     lw=2,
+# )
 
-plt.fill_between(
-    band_stacked["x"],
-    band_stacked["y_low"],
-    band_stacked["y_high"],
-    color="black",
-    alpha=0.15,
-)
+# plt.fill_between(
+#     band_stacked["x"],
+#     band_stacked["y_low"],
+#     band_stacked["y_high"],
+#     color="black",
+#     alpha=0.15,
+# )
 
 
 
@@ -876,14 +882,14 @@ yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi
 mask_lt_data = x_data > thr_data
 mask_ge_data = ~mask_lt_data
 
-# # x >= 0（黒四角）
-# ax.errorbar(
-#     x_data[mask_lt_data], y_data[mask_lt_data],
-#     yerr=yerr_data[:, mask_lt_data],
-#     fmt="s", mec="gray", mfc="gray",
-#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
-#     capsize=3
-# )
+# x >= 0（黒四角）
+ax.errorbar(
+    x_data[mask_lt_data], y_data[mask_lt_data],
+    yerr=yerr_data[:, mask_lt_data],
+    fmt="s", mec="gray", mfc="gray",
+    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+    capsize=3
+)
 
 
 
@@ -978,17 +984,17 @@ def plot_limits(mask, xarr, ylimit, color, sigma_label, uplim=False):
 #     plot_limits(mask_z, x, log_ne_3_lo, color, "3σ", uplim=False)
 #     plot_limits(mask_z, x, log_ne_3_hi, color, "3σ", uplim=True)
 
-# 3σ upper limit のみ
-mask_2 = (zbin == "0.5<z<2.0") 
-mask_2_2 = (zbin == "0.5<z<2.0") & (m_twoside==False) # 変更
-plot_limits(
-    mask_2_2, 
-    x,
-    log_ne_3_hi,
-    color="tab:blue",
-    sigma_label="3σ",
-    uplim=True  # upper limit（下向き矢印）
-)
+# # 3σ upper limit のみ
+# mask_2 = (zbin == "0.5<z<2.0") 
+# mask_2_2 = (zbin == "0.5<z<2.0") & (m_twoside==False) # 変更
+# plot_limits(
+#     mask_2_2, 
+#     x,
+#     log_ne_3_hi,
+#     color="tab:blue",
+#     sigma_label="3σ",
+#     uplim=True  # upper limit（下向き矢印）
+# )
 
 # Ensure error values are non-negative
 elo_jades_mask_2 = np.maximum(0, elo[mask_2])
@@ -999,41 +1005,41 @@ elo_jades_mask_6 = np.maximum(0, elo[mask_6])
 ehi_jades_mask_6 = np.maximum(0, ehi[mask_6])
 
 
-# 0.5<z<2.0
-ax.errorbar(
-    x[mask_2], y[mask_2],
-    yerr=np.vstack([elo_jades_mask_2, ehi_jades_mask_2]),
-    fmt="s",
-    mfc="tab:blue", mec="tab:blue",
-    ecolor="tab:blue", color="tab:blue",
-    ms=10,
-    capsize=3,
-    zorder=10
-)
+# # 0.5<z<2.0
+# ax.errorbar(
+#     x[mask_2], y[mask_2],
+#     yerr=np.vstack([elo_jades_mask_2, ehi_jades_mask_2]),
+#     fmt="s",
+#     mfc="tab:blue", mec="tab:blue",
+#     ecolor="tab:blue", color="tab:blue",
+#     ms=10,
+#     capsize=3,
+#     zorder=10
+# )
 
-# 2.0<z<3.0
-ax.errorbar(
-    x[mask_3], y[mask_3],
-    yerr=np.vstack([elo_jades_mask_3, ehi_jades_mask_3]),
-    fmt="s",
-    mfc="tab:green", mec="tab:green",
-    ecolor="tab:green", color="tab:green",
-    ms=10,
-    capsize=3,
-    zorder=11
-)
+# # 2.0<z<3.0
+# ax.errorbar(
+#     x[mask_3], y[mask_3],
+#     yerr=np.vstack([elo_jades_mask_3, ehi_jades_mask_3]),
+#     fmt="s",
+#     mfc="tab:green", mec="tab:green",
+#     ecolor="tab:green", color="tab:green",
+#     ms=10,
+#     capsize=3,
+#     zorder=11
+# )
 
-# 3.0<z<6.0
-ax.errorbar(
-    x[mask_6], y[mask_6],
-    yerr=np.vstack([elo_jades_mask_6, ehi_jades_mask_6]),
-    fmt="s",
-    mfc="tab:red", mec="tab:red",
-    ecolor="tab:red", color="tab:red",
-    ms=10,
-    capsize=3,
-    zorder=11
-)
+# # 3.0<z<6.0
+# ax.errorbar(
+#     x[mask_6], y[mask_6],
+#     yerr=np.vstack([elo_jades_mask_6, ehi_jades_mask_6]),
+#     fmt="s",
+#     mfc="tab:red", mec="tab:red",
+#     ecolor="tab:red", color="tab:red",
+#     ms=10,
+#     capsize=3,
+#     zorder=11
+# )
 
 
 
@@ -1077,7 +1083,7 @@ ax.errorbar(
 # plt.plot(x_range, y_range, color='black', linestyle='-.')
     
 
-plt.xlim(-0.5, 2)
+plt.xlim(0.0, 2)
 plt.ylim(1.8, 3.25)
 ax.set_xlabel(r"$\log(SFR) [M_{\odot}\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"$\log(n_e) [\mathrm{cm^{-3}}]$")
@@ -1087,7 +1093,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)       # 枠線の太さ
     spine.set_color("black")     # 枠線の色
 plt.tight_layout()
-plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_highz.png"))
+plt.savefig(os.path.join(current_dir, "results/figure/ne_vs_sfr_plot_v6_z0_data.png"))
 plt.show()
 
 # Monitor memory usage

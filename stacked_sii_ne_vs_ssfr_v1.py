@@ -93,8 +93,8 @@ NMIN = 1
 N_MC = 5000
 UNIT_FLUX = 1e-20
 Z_BINS = [
-    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_ssfr_bin=2),
-    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_ssfr_bin=2),
+    dict(name="0.5<z<2.0", color="tab:blue",  lo=0.5, hi=2.0,  inclusive="(,)", n_ssfr_bin=1),
+    dict(name="2.0<z<3.0", color="tab:green", lo=2.0, hi=3.0,  inclusive="(,)", n_ssfr_bin=1),
     dict(name="3.0<z<6.0", color="tab:red",   lo=3.0, hi=6.0, inclusive="(,]", n_ssfr_bin=1),
 ]
 
@@ -321,32 +321,33 @@ ehi_sdss_mask_lt = np.maximum(0, ehi[mask_lt])
 elo_sdss_mask_ge = np.maximum(0, elo[mask_ge])
 ehi_sdss_mask_ge = np.maximum(0, ehi[mask_ge])
 
-# x < thr（白四角）
-ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=np.vstack([elo_sdss_mask_lt, ehi_sdss_mask_lt]),
-    fmt="s",
-    mfc="white", mec="black",
-    ecolor="black", color="black",
-    capsize=3,
-    label=f"SDSS logSFR < {thr}"
-)
+# # x < thr（白四角）
+# ax.errorbar(
+#     x[mask_lt], y[mask_lt],
+#     yerr=np.vstack([elo_sdss_mask_lt, ehi_sdss_mask_lt]),
+#     fmt="s",
+#     mfc="white", mec="black",
+#     ecolor="black", color="black",
+#     capsize=3,
+#     label=f"SDSS logSFR < {thr}"
+# )
 
-# x >= thr（黒四角）
-ax.errorbar(
-    x[mask_ge], y[mask_ge],
-    yerr=np.vstack([elo_sdss_mask_ge, ehi_sdss_mask_ge]),
-    fmt="s",
-    mfc="black", mec="black",
-    ecolor="black", color="black",
-    capsize=3,
-    label=f"SDSS logSFR ≥ {thr}"
-)
+# # x >= thr（黒四角）
+# ax.errorbar(
+#     x[mask_ge], y[mask_ge],
+#     yerr=np.vstack([elo_sdss_mask_ge, ehi_sdss_mask_ge]),
+#     fmt="s",
+#     mfc="black", mec="black",
+#     ecolor="black", color="black",
+#     capsize=3,
+#     label=f"SDSS logSFR ≥ {thr}"
+# )
 
 
 for s in ax.spines.values():
     s.set_linewidth(2)
-ax.set_xlim(-11, -7)
+ax.set_xlim(-9, -8)
+ax.set_ylim(0.8, 1.4)
 ax.set_xlabel("log sSFR [yr$^{-1}$]")
 ax.set_ylabel("[SII] 6716 / 6731")
 plt.savefig(out_png, dpi=300)
