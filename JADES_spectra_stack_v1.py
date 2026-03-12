@@ -38,7 +38,8 @@ gratings = {
     "G395M": f"{spec_dir}/JADES_DR3_G395M"
 }
 
-wave_grid = np.arange(6500, 6900, 0.5)
+wave_grid = np.arange(6500, 6900, 0.5) 
+# wave_grid = np.arange(6680, 6760, 0.5) # Hα (6563) 完全除去
 
 # # SFR bins
 # sfr_bins = np.arange(-2, 4, 1)
@@ -89,8 +90,8 @@ def read_spectrum(file):
 def restframe(wave, flux, err, z):
 
     wave = wave / (1 + z)
-    flux = flux * (1 + z)
-    err  = err  * (1 + z)
+    # flux = flux * (1 + z) # いらないだろ
+    # err  = err  * (1 + z)
 
     return wave, flux, err
 
@@ -133,8 +134,8 @@ def stack(fluxes, errs):
 
 sfr_bins_per_grating = {
     "G140M": 1,
-    "G235M": 2,
-    "G395M": 2
+    "G235M": 1,
+    "G395M": 1
 }
 
 # ============================
@@ -259,6 +260,172 @@ for gr in gratings:
             continue
 
         # ============================
+        # individual spectra plot (G140M only)
+        # ============================
+
+        if gr == "G140M":
+        
+            import matplotlib.pyplot as plt
+            from matplotlib import gridspec
+
+            flux_array = np.array(flux_list)
+
+            n_spec = flux_array.shape[0]
+            ncol = 5
+            nrow = int(np.ceil(n_spec / ncol))
+
+            fig = plt.figure(figsize=(3*ncol, 1.5*nrow))
+
+            gs = gridspec.GridSpec(nrow, ncol)
+            gs.update(hspace=0.0, wspace=0.00)
+
+            for i in range(n_spec):
+            
+                ax = fig.add_subplot(gs[i])
+
+                ax.plot(wave_grid, flux_array[i], lw=1)
+
+                # Halpha line
+                ax.axvline(6563, color="red", lw=1)
+                # SII lines
+                ax.axvline(6716, color="red", lw=1)
+                ax.axvline(6731, color="red", lw=1)
+
+                # ax.set_xlim(6680, 6760)
+                ax.set_xlim(6500, 6900)
+
+                # 上のスペクトル以外はx軸消す
+                if i < (nrow-1)*ncol:
+                    ax.set_xticklabels([])
+
+                # y軸も簡略化
+                ax.set_yticks([])
+
+            plt.suptitle(f"{gr} individual spectra (N={n_spec})")
+
+            plt.show()
+
+        if gr == "G235M":
+        
+            import matplotlib.pyplot as plt
+            from matplotlib import gridspec
+
+            flux_array = np.array(flux_list)
+
+            n_spec = flux_array.shape[0]
+            ncol = 15
+            nrow = int(np.ceil(n_spec / ncol))
+
+            fig = plt.figure(figsize=(3*ncol, 1.5*nrow))
+
+            gs = gridspec.GridSpec(nrow, ncol)
+            gs.update(hspace=0.0, wspace=0.00)
+
+            for i in range(n_spec):
+            
+                ax = fig.add_subplot(gs[i])
+
+                ax.plot(wave_grid, flux_array[i], lw=1)
+
+                # Halpha line
+                ax.axvline(6563, color="red", lw=1)
+                # SII lines
+                ax.axvline(6716, color="red", lw=1)
+                ax.axvline(6731, color="red", lw=1)
+
+                # ax.set_xlim(6680, 6760)
+                ax.set_xlim(6500, 6900)
+
+                # 上のスペクトル以外はx軸消す
+                if i < (nrow-1)*ncol:
+                    ax.set_xticklabels([])
+
+                # y軸も簡略化
+                ax.set_yticks([])
+
+            plt.suptitle(f"{gr} individual spectra (N={n_spec})")
+
+            plt.show()
+
+
+        if gr == "G395M":
+        
+            import matplotlib.pyplot as plt
+            from matplotlib import gridspec
+
+            flux_array = np.array(flux_list)
+
+            n_spec = flux_array.shape[0]
+            ncol =15
+            nrow = int(np.ceil(n_spec / ncol))
+
+            fig = plt.figure(figsize=(3*ncol, 1.5*nrow))
+
+            gs = gridspec.GridSpec(nrow, ncol)
+            gs.update(hspace=0.0, wspace=0.00)
+
+            for i in range(n_spec):
+            
+                ax = fig.add_subplot(gs[i])
+
+                ax.plot(wave_grid, flux_array[i], lw=1)
+
+                # Halpha line
+                ax.axvline(6563, color="red", lw=1)
+                # SII lines
+                ax.axvline(6716, color="red", lw=1)
+                ax.axvline(6731, color="red", lw=1)
+
+                # ax.set_xlim(6680, 6760)
+                ax.set_xlim(6500, 6900)
+
+                # 上のスペクトル以外はx軸消す
+                if i < (nrow-1)*ncol:
+                    ax.set_xticklabels([])
+
+                # y軸も簡略化
+                ax.set_yticks([])
+
+            plt.suptitle(f"{gr} individual spectra (N={n_spec})")
+
+            plt.show()
+
+        # ============================
+        # individual SNR check
+        # ============================
+
+        sn_individual = []
+
+        for f, e in zip(flux_list, err_list):
+            sn = np.nanmedian(f / e)
+            sn_individual.append(sn)
+
+        sn_individual = np.array(sn_individual)
+
+        print("median individual SNR:", np.nanmedian(sn_individual))
+
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.hist(sn_individual, bins=20)
+        plt.xlabel("median SNR per spectrum")
+        plt.title(f"{gr} SNR distribution")
+        plt.show()
+
+        # ============================
+        # error distribution
+        # ============================
+
+        errs = np.array(err_list)
+
+        plt.figure()
+        plt.hist(np.log10(errs.flatten()), bins=100)
+        plt.xlabel("log10(error)")
+        plt.title(f"{gr} error distribution")
+        plt.show()
+
+
+        # ============================
         # SFR statistics
         # ============================
 
@@ -282,38 +449,58 @@ for gr in gratings:
 
         print(f"mean z = {z_mean:.3f} ± {z_err:.3f}")
 
+
         # ============================
-        # coverage check
+        # weight dominance check
+        # ============================
+
+        weights = 1 / errs**2
+        weight_sum = np.nansum(weights, axis=1)
+
+        plt.figure()
+        plt.scatter(sfr_used, weight_sum)
+        plt.xlabel("log SFR")
+        plt.ylabel("total weight")
+        plt.title(f"{gr} weight dominance")
+        plt.show()
+
+        # ============================
+        # spectra matrix
         # ============================
 
         flux_array = np.array(flux_list)
 
-        coverage = np.sum(np.isfinite(flux_array), axis=0)
-
-        print("coverage min:", np.min(coverage))
-        print("coverage max:", np.max(coverage))
-
-        import matplotlib.pyplot as plt
-
-        plt.figure()
-        plt.plot(wave_grid, coverage)
-        plt.xlabel("Rest wavelength")
-        plt.ylabel("N spectra")
-        plt.title(f"{gr} coverage")
+        plt.figure(figsize=(6,8))
+        plt.imshow(
+            flux_array,
+            aspect="auto",
+            vmin=np.nanpercentile(flux_array,5),
+            vmax=np.nanpercentile(flux_array,95)
+        )
+        plt.xlabel("wavelength pixel")
+        plt.ylabel("galaxy index")
+        plt.title(f"{gr} spectra matrix")
+        plt.colorbar()
         plt.show()
 
         # ============================
-        # individual spectra check
+        # median spectrum diagnostic
         # ============================
 
         plt.figure()
 
-        for f in flux_list[:20]:
-            plt.plot(wave_grid, f, alpha=0.2)
+        median_spec = np.nanmedian(flux_array, axis=0)
 
-        plt.xlabel("Rest wavelength")
-        plt.ylabel("Flux")
-        plt.title(f"{gr} individual spectra")
+        plt.plot(wave_grid, median_spec)
+
+        plt.axvline(6563, color="red", label="Halpha")
+
+        plt.xlabel("Rest wavelength (Å)")
+        plt.ylabel("Median flux")
+        plt.title(f"{gr} median spectrum")
+
+        plt.legend()
+
         plt.show()
 
         # ============================
@@ -331,3 +518,4 @@ for gr in gratings:
         )
 
 print("\nDone.")
+

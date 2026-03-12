@@ -73,7 +73,7 @@ plt.rcParams.update({
 # =========================
 # 1. データ読み込み
 # =========================
-name = "stack_G395M_SFR_0.01_5.95"
+name = "stack_G140M_SFR_0.01_1.42"
 data = np.loadtxt(f"{name}.txt")
 
 wave = data[:,0]   # Å (rest)
