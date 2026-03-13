@@ -73,7 +73,7 @@ plt.rcParams.update({
 # =========================
 # 1. データ読み込み
 # =========================
-name = "stack_G140M_SFR_0.01_1.42"
+name = "stack_G395M"
 data = np.loadtxt(f"{name}.txt")
 
 wave = data[:,0]   # Å (rest)
@@ -203,6 +203,7 @@ print("SII ratio = %.3f+%.3f-%.3f" %
 x_model = np.linspace(6650,6800,1000)
 
 fig, ax = plt.subplots(figsize=(12, 6))
+plt.subplots_adjust(left=0.1, right=0.95, top=0.95, bottom=0.15, wspace=0.3, hspace=0.3)
 ax.step(x, y, where="mid", color="black", lw=0.8)
 ax.fill_between(
     x,
