@@ -555,6 +555,7 @@ if len(z6_y_vals) > 0:
         zorder=100,
         label="z>6 weighted mean"
     )
+    print(f"z>6 weighted mean: log(SFR)={x_mean:.2f}, log(ne)={y_mean:.2f} ± {y_mean_err:.2f}")
 
 
 #  # === 推定結果（あなたの値に置き換え） ===

@@ -73,7 +73,7 @@ plt.rcParams.update({
 # =========================
 # 1. データ読み込み
 # =========================
-name = "stack_G395M"
+name = "stack_all_zbin1"
 data = np.loadtxt(f"{name}.txt")
 
 wave = data[:,0]   # Å (rest)
@@ -97,42 +97,50 @@ yerr = err[mask]
 # =========================
 # 3. モデル
 # =========================
+
+w1 = 6716.44
+w2 = 6730.82
+dw = w2 - w1
+
+x0 = np.mean(x)
+
 def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-(x-mu)**2/(2*sigma**2))
 
-# --- doublet model (shift付き) ---
-def model(x, a1, a2, sigma, shift, bg):
+
+# ===== doublet + linear continuum =====
+def model(x, a1, a2, sigma, shift, c0, c1):
 
     mu1 = w1 + shift
-    mu2 = w2 + shift
+    mu2 = mu1 + dw
 
     g1 = gaussian(x, a1, mu1, sigma)
     g2 = gaussian(x, a2, mu2, sigma)
 
-    return g1 + g2 + bg
+    cont = c0 + c1*(x-x0)
+
+    return g1 + g2 + cont
 
 
-def model_6716(x, a1, a2, sigma, shift, bg):
+def model_6716(x, a1, a2, sigma, shift, c0, c1):
 
     mu1 = w1 + shift
+    cont = c0 + c1*(x-x0)
 
-    g1 = gaussian(x, a1, mu1, sigma)
-
-    return g1 + bg
+    return gaussian(x, a1, mu1, sigma) + cont
 
 
-def model_6731(x, a1, a2, sigma, shift, bg):
+def model_6731(x, a1, a2, sigma, shift, c0, c1):
 
     mu2 = w2 + shift
+    cont = c0 + c1*(x-x0)
 
-    g2 = gaussian(x, a2, mu2, sigma)
-
-    return g2 + bg
+    return gaussian(x, a2, mu2, sigma) + cont
 
 # =========================
 # 4. curve_fit
 # =========================
-p0 = [1, 1, 2, 0, 0]
+p0 = [1,1,2,0,0,0]
 
 popt,_ = curve_fit(
     model,
@@ -150,14 +158,16 @@ print("curve_fit ratio =", popt[0]/popt[1])
 # =========================
 def log_prior(theta):
 
-    a1,a2,s,shift,b = theta
+    a1,a2,s,shift,c0,c1 = theta
 
     if a1 <= 0: return -np.inf
     if a2 <= 0: return -np.inf
     if s <= 0: return -np.inf
 
-    # shift 制限
     if not (-5 < shift < 5):
+        return -np.inf
+
+    if not (-1 < c1 < 1):
         return -np.inf
 
     return 0
@@ -171,13 +181,16 @@ def log_prob(theta,x,y,yerr):
         return -np.inf
     return lp + log_like(theta,x,y,yerr)
 
-ndim = 5
-nwalkers=32
+ndim = 6
+nwalkers = 32
 
 pos = popt + 1e-4*np.random.randn(nwalkers,ndim)
 
 sampler = emcee.EnsembleSampler(
-    nwalkers,ndim,log_prob,args=(x,y,yerr)
+    nwalkers,
+    ndim,
+    log_prob,
+    args=(x,y,yerr)
 )
 
 sampler.run_mcmc(pos,3000,progress=True)
@@ -242,6 +255,5 @@ plt.show()
 # 8. corner
 # =========================
 corner.corner(samples,
-              labels=["amp6716","amp6730","sigma","shift", "bg"])
-
+              labels=["amp6716","amp6730","sigma","shift", "c0", "c1"],)
 plt.show()
