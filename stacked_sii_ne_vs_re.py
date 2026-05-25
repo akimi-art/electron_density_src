@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+Re ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -11,7 +10,7 @@ logM* ビンごとに
 
 
 使用方法:
-    stacked_sii_ne_vs_mass_v1.py [オプション]
+    stacked_sii_ne_vs_re.py [オプション]
 
 著者: A. M.
 作成日: 2026-02-16
@@ -79,7 +78,6 @@ plt.rcParams.update({
     "mathtext.fontset": "stix",
 })
 
-
 # ==========================================
 # Imports
 # ==========================================
@@ -94,12 +92,12 @@ import astropy.units as u
 # ==========================================
 # 入出力
 # ==========================================
-current_dir = os.getcwd()
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
-# csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_bin0.2.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_bin0.2.png")
+current_dir = os.getcwd()
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39_radius.fits")
+
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_re_COMPLETE.csv")
+out_png = os.path.join(current_dir, "results/figure/sii_ratio_vs_logRe.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -107,136 +105,93 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.2
+BIN_WIDTH = 0.1
 NMIN = 100
-N_MC = 5000
-# Lcut = 1e39              # 完全サンプル条件
 
-UNIT_FLUX = 1e-17        # MPA-JHU flux単位
+UNIT_FLUX = 1e-17
 
 # ==========================================
 # 読み込み
 # ==========================================
 tab = Table.read(fits_path, hdu=1)
 df = tab.to_pandas()
-# df = pd.read_csv(csv_path)
 
 # ==========================================
-# 基本量の計算
+# 基本量
 # ==========================================
-z = df["Z"].values
-
 F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
 F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
 err6716 = df["SII_6717_FLUX_ERR"].values * UNIT_FLUX
 err6731 = df["SII_6731_FLUX_ERR"].values * UNIT_FLUX
 
-sn6716 = F6716 / err6716
-sn6731 = F6731 / err6731
-
-# luminosity
-d_L = cosmo.luminosity_distance(z).to(u.cm).value
-L6716 = 4 * np.pi * d_L**2 * F6716
-L6731 = 4 * np.pi * d_L**2 * F6731
-
 df["R_SII"] = F6716 / F6731
 
 # ==========================================
-# マスク定義
+# Re（arcsec → kpc）
 # ==========================================
-def valid_mass(x):
-    x = np.asarray(x, float)
-    m = np.isfinite(x)
-    m &= (x > 0) & (x < 13)
-    return m
+Re = df["Re"].values  # arcsec想定
 
-m_sii = (
-    np.isfinite(F6716) & np.isfinite(F6731) &
-    np.isfinite(err6716) & np.isfinite(err6731) &
-    (err6716 > 0) & (err6731 > 0)
+z = df["Z"].values
+
+# arcsec → kpc 変換係数
+arcsec_to_kpc = cosmo.kpc_proper_per_arcmin(z).value / 60.0
+
+# Re[kpc]
+Re_kpc = df["Re"].values * arcsec_to_kpc
+
+df["Re_kpc"] = Re_kpc
+
+# log10(Re[kpc])
+logRe = np.log10(Re_kpc)
+df["logRe"] = logRe
+
+# ==========================================
+# マスク
+# ==========================================
+mask = (
+    np.isfinite(df["R_SII"]) &
+    np.isfinite(logRe) &
+    (Re > 0)
 )
 
-m_sm = valid_mass(df["sm_MEDIAN"])
-m_ratio = np.isfinite(df["R_SII"])
-
-mask_all = m_sii & m_sm & m_ratio
-
-# 完全サンプル
-# m_complete = mask_all & (L6716 >= Lcut) & (L6731 >= Lcut)
-m_complete = mask_all
-# m_incomplete = mask_all & (~m_complete)
-
 # ==========================================
-# ビン作成
+# ビン作成（logRe）
 # ==========================================
-logM = df.loc[m_complete, "sm_MEDIAN"].values
+vals = df.loc[mask, "logRe"].values
 
 edges = np.arange(
-    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(vals.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(vals.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
 # ==========================================
-# スタック用関数
+# bin内中央値のみ（誤差なし）
 # ==========================================
-def weighted_mean(flux, err):
-    w = 1.0 / err**2
-    mu = np.sum(w * flux) / np.sum(w)
-    sigma = np.sqrt(1.0 / np.sum(w))
-    return mu, sigma
-
-rng = np.random.default_rng()
-
 rows = []
 
-# ==========================================
-# メインstack（完全サンプルのみ）
-# ==========================================
 for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
-        m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+        mask &
+        (df["logRe"] >= lo) &
+        (df["logRe"] < hi)
     )
 
     N = np.sum(m_bin)
     if N < NMIN:
         continue
 
-    f1 = F6716[m_bin]
-    e1 = err6716[m_bin]
-    f2 = F6731[m_bin]
-    e2 = err6731[m_bin]
+    R_vals = df.loc[m_bin, "R_SII"].values
 
-    F1, e1_stack = weighted_mean(f1, e1)
-    F2, e2_stack = weighted_mean(f2, e2)
-
-    # Monte Carlo for ratio
-    f1_mc = rng.normal(F1, e1_stack, N_MC)
-    f2_mc = rng.normal(F2, e2_stack, N_MC)
-
-    valid = (f2_mc > 0)
-    R_mc = f1_mc[valid] / f2_mc[valid]
-
-    R50 = np.nanmedian(R_mc)
-    R16 = np.nanpercentile(R_mc, 16)
-    R84 = np.nanpercentile(R_mc, 84)
+    R_med = np.nanmedian(R_vals)
 
     rows.append(dict(
-        logM_lo=lo,
-        logM_hi=hi,
-        logM_cen = 0.5*(lo+hi),
-        N = N,
-        # F6717=F1, # 構文が違う
-        # F6717_err=e1,
-        # F6731=F2,
-        # F6731_err=e2,
-        R_med = R50,
-        R_err_lo = R50 - R16,
-        R_err_hi = R84 - R50,
-        N_MC_valid=int(valid.sum())
+        logRe_lo=lo,
+        logRe_hi=hi,
+        logRe_cen = 0.5*(lo+hi),
+        N=N,
+        R_med=R_med
     ))
 
 res = pd.DataFrame(rows)
@@ -248,63 +203,27 @@ print("Saved:", out_csv)
 # ==========================================
 fig, ax = plt.subplots(figsize=(6,6))
 
-# 描画前に必ず定義
-df["R_SII"] = F6716 / F6731
-
-# # 不完全（薄グレー）
-# ax.scatter(
-#     df.loc[m_incomplete, "sm_MEDIAN"],
-#     df.loc[m_incomplete, "R_SII"],
-#     s=0.01,
-#     marker='.',
-#     alpha=0.8,
-#     color="gray",
-# )
-
-
-# 完全（青）
+# scatter
 ax.scatter(
-    df.loc[m_complete, "sm_MEDIAN"],
-    df.loc[m_complete, "R_SII"],
+    df.loc[mask, "logRe"],
+    df.loc[mask, "R_SII"],
     s=0.01,
-    marker='.',
     alpha=0.8,
-    color="C0",
+    color="C0"
 )
 
-# stack結果（完全なものとそうでないものの色を分ける）
-thr = 10.0
-
-x = res["logM_cen"].values
-y = res["R_med"].values
-yerr = np.vstack([res["R_err_lo"].values, res["R_err_hi"].values])
-
-mask_lt = x < thr
-mask_ge = ~mask_lt
-
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x[mask_lt], y[mask_lt],
-    yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
-    capsize=3, label=f"x < {thr}"
+# median only（エラーバーなし）
+ax.plot(
+    res["logRe_cen"],
+    res["R_med"],
+    "ks",
+    label="median"
 )
 
-# x >= 10（黒四角）
-ax.errorbar(
-    x[mask_ge], y[mask_ge],
-    yerr=yerr[:, mask_ge],
-    fmt="s", mec="black", mfc="black",
-    ecolor="k", color="k",
-    capsize=3, label=f"x ≥ {thr}"
-)
-
-
-ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_xlabel(r"$\log(R_e\ [{\rm kpc}])$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(9,11)
-ax.set_ylim(0.5,2.0)
+ax.set_xlim(-0.5, 1.5)
+ax.set_ylim(0.5, 2.0)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)

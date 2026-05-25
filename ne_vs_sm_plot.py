@@ -201,8 +201,8 @@ galaxy_ids_Berg25      = []
 
 with open(Samir16in, "r") as f:
     for i, line in enumerate(f):
-        # if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
-        #     break
+        if i >= 1000: # 現時点でまだSDSSのmetallicityの情報は載せていない
+            break
         parts = line.strip().split()
         if parts:
             galaxy_ids_Samir16.append(parts[0])
@@ -871,64 +871,64 @@ arrow_length = 0.15  # dex
 # )
 
 
-# =============================================
-# SDSSのstackデータ（Massビンごと、データ点）をプロットする 
-# =============================================
-# ===== 入出力 =====
-in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_data.csv")
+# # =============================================
+# # SDSSのstackデータ（Massビンごと、データ点）をプロットする 
+# # =============================================
+# # ===== 入出力 =====
+# in_csv_data  = os.path.join(current_dir, "results/csv/stacked_sii_ne_vs_mass_from_ratio_data.csv")
 
-# ===== 読み込み =====
-res_data = pd.read_csv(in_csv_data)
+# # ===== 読み込み =====
+# res_data = pd.read_csv(in_csv_data)
 
-# ===== 必要列を取り出し =====
-x_data = res_data["logM_cen"].to_numpy(float)
+# # ===== 必要列を取り出し =====
+# x_data = res_data["logM_cen"].to_numpy(float)
 
-y_data = res_data["log_ne_med"].to_numpy(float)
-yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
-yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
+# y_data = res_data["log_ne_med"].to_numpy(float)
+# yerr_lo_data = res_data["log_ne_err_lo"].to_numpy(float)
+# yerr_hi_data = res_data["log_ne_err_hi"].to_numpy(float)
 
-# outsideフラグ（なければ全部False）
-if "R_outside" in res_data.columns:
-    outside_data = res_data["R_outside"].to_numpy(bool)
-else:
-    outside_data = np.zeros_like(x_data, dtype=bool)
+# # outsideフラグ（なければ全部False）
+# if "R_outside" in res_data.columns:
+#     outside_data = res_data["R_outside"].to_numpy(bool)
+# else:
+#     outside_data = np.zeros_like(x_data, dtype=bool)
 
-# ===== 有効値マスク（NaN/inf除外）=====
-m_ok_data = (
-    np.isfinite(x_data) &
-    np.isfinite(y_data) &
-    np.isfinite(yerr_lo_data) &
-    np.isfinite(yerr_hi_data) &
-    ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
-)
+# # ===== 有効値マスク（NaN/inf除外）=====
+# m_ok_data = (
+#     np.isfinite(x_data) &
+#     np.isfinite(y_data) &
+#     np.isfinite(yerr_lo_data) &
+#     np.isfinite(yerr_hi_data) &
+#     ((yerr_lo_data > 0) | (yerr_hi_data > 0))  # ← 修正
+# )
 
-# stack結果（完全なものとそうでないものの色を分ける）
-thr_data = 10.0
+# # stack結果（完全なものとそうでないものの色を分ける）
+# thr_data = 10.0
 
-yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
+# yerr_data = np.vstack([res_data["log_ne_err_lo"].values, res_data["log_ne_err_hi"].values])
 
-mask_lt_data = x_data > thr_data
-mask_ge_data = ~mask_lt_data
+# mask_lt_data = x_data > thr_data
+# mask_ge_data = ~mask_lt_data
 
-# x >= 10（黒四角）
-ax.errorbar(
-    x_data[mask_lt_data], y_data[mask_lt_data],
-    yerr=yerr_data[:, mask_lt_data],
-    fmt="s", mec="gray", mfc="gray",
-    ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
-    capsize=3
-)
+# # x >= 10（黒四角）
+# ax.errorbar(
+#     x_data[mask_lt_data], y_data[mask_lt_data],
+#     yerr=yerr_data[:, mask_lt_data],
+#     fmt="s", mec="gray", mfc="gray",
+#     ecolor="gray", color="gray",  # 誤差線色/線色（同時指定）
+#     capsize=3
+# )
 
 
 
-# x < 10（白四角・黒縁）
-ax.errorbar(
-    x_data[mask_ge_data], y_data[mask_ge_data],
-    yerr=yerr_data[:, mask_ge_data],
-    fmt="s", mec="black", mfc="white",
-    ecolor="k", color="k",
-    capsize=3
-)
+# # x < 10（白四角・黒縁）
+# ax.errorbar(
+#     x_data[mask_ge_data], y_data[mask_ge_data],
+#     yerr=yerr_data[:, mask_ge_data],
+#     fmt="s", mec="black", mfc="white",
+#     ecolor="k", color="k",
+#     capsize=3
+# )
 
 
 

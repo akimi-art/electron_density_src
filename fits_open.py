@@ -65,7 +65,7 @@ plt.rcParams.update({
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "./results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gs_v1.1.fits"
+file_galex =  "./data/data_SDSS/DR7/fits_files/Skyserver_SQL5_25_2026_1_58_46 AM.fits"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
@@ -85,47 +85,47 @@ with fits.open(file_galex) as hdul:
     print("列名:", ext_hdu.columns.names)
     print("データ型:", ext_hdu.columns.formats)
 
-    # データの最初の1行を表示
-    # print("最初の1行のデータ:")
-    # for row in ext_hdu.data[:5]:
-    #     print(row)
+    # データの最初の5行を表示
+    print("最初の5行のデータ:")
+    for row in ext_hdu.data[:5]:
+        print(row)
 
-fits_path = file_galex  # ← ここをあなたのファイル名に
+# fits_path = file_galex  # ← ここをあなたのファイル名に
 
-with fits.open(fits_path) as hdul:
-    # テーブルが入っていそうな拡張HDUを探す
-    table_hdu = None
-    for hdu in hdul:
-        if hasattr(hdu, "data") and hdu.data is not None and hdu.header.get("XTENSION", "").upper() in ("BINTABLE", "TABLE"):
-            table_hdu = hdu
-            break
+# with fits.open(fits_path) as hdul:
+#     # テーブルが入っていそうな拡張HDUを探す
+#     table_hdu = None
+#     for hdu in hdul:
+#         if hasattr(hdu, "data") and hdu.data is not None and hdu.header.get("XTENSION", "").upper() in ("BINTABLE", "TABLE"):
+#             table_hdu = hdu
+#             break
 
-    if table_hdu is None:
-        raise ValueError("テーブルHDUが見つかりません。'z_Spec'がヘッダーキーワードなら、ヒストグラムは作れません（単一値のため）。")
+#     if table_hdu is None:
+#         raise ValueError("テーブルHDUが見つかりません。'z_Spec'がヘッダーキーワードなら、ヒストグラムは作れません（単一値のため）。")
 
-    # z_Spec列を取得
-    cols = table_hdu.columns.names
-    if "z_Spec" not in cols:
-        raise KeyError(f"'z_Spec' 列が見つかりません。見つかった列名: {cols}")
+#     # z_Spec列を取得
+#     cols = table_hdu.columns.names
+#     if "z_Spec" not in cols:
+#         raise KeyError(f"'z_Spec' 列が見つかりません。見つかった列名: {cols}")
 
-    z = np.array(table_hdu.data["z_Spec"], dtype=float)
-    z = z[np.isfinite(z)]  # NaNやinfを除去
+#     z = np.array(table_hdu.data["z_Spec"], dtype=float)
+#     z = z[np.isfinite(z)]  # NaNやinfを除去
 
-# ヒストグラムの描画
-fig, ax = plt.subplots(figsize=(6, 6))
-ax.hist(z, bins=30, color="#4e79a7", alpha=0.85, edgecolor="white")
-ax.set_xlabel("z_Spec", fontsize=20)
-ax.set_ylabel("Numbers", fontsize=20)
-ax.set_xlim(0, 10)
-ax.set_ylim(0, 300)
-plt.title("z_Spec jades dr3 gs", fontsize=20)
-# === 枠線 (spines) の設定 ===
-# 線の太さ・色・表示非表示などを個別に制御
-for spine in ax.spines.values():
-    spine.set_linewidth(2)       # 枠線の太さ
-    spine.set_color("black")     # 枠線の色
-plt.tight_layout()
-plt.show()
+# # ヒストグラムの描画
+# fig, ax = plt.subplots(figsize=(6, 6))
+# ax.hist(z, bins=30, color="#4e79a7", alpha=0.85, edgecolor="white")
+# ax.set_xlabel("z_Spec", fontsize=20)
+# ax.set_ylabel("Numbers", fontsize=20)
+# ax.set_xlim(0, 10)
+# ax.set_ylim(0, 300)
+# plt.title("z_Spec jades dr3 gs", fontsize=20)
+# # === 枠線 (spines) の設定 ===
+# # 線の太さ・色・表示非表示などを個別に制御
+# for spine in ax.spines.values():
+#     spine.set_linewidth(2)       # 枠線の太さ
+#     spine.set_color("black")     # 枠線の色
+# plt.tight_layout()
+# plt.show()
 
 
 # from astropy.io import fits
