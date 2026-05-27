@@ -96,8 +96,8 @@ import astropy.units as u
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39_radius.fits")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sigma_sfr_COMPLETE.csv")
-out_png = os.path.join(current_dir, "results/figure/sii_ratio_vs_sigma_sfr.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sigma_sfr_COMPLET_v1.csv")
+out_png = os.path.join(current_dir, "results/figure/sii_ratio_vs_sigma_sfr_v1.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -105,8 +105,8 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.1
-NMIN = 100
+BIN_WIDTH = 0.2 # 調整 (0.1がデフォルト)
+NMIN = 10 # 調整 (100がデフォルト)
 
 UNIT_FLUX = 1e-17
 
