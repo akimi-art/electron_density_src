@@ -93,8 +93,8 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # -----------------------
 # パラメータ
 # -----------------------
-BIN_WIDTH = 0.1      # dex
-NMIN      = 100
+BIN_WIDTH = 0.4 # log sSFR のビン幅（好みで調整）
+NMIN      = 50 # デフォルトは100だが、ビンの数を増やすために緩和（好みで調整）
 N_MC      = 5000
 
 # -----------------------
@@ -361,7 +361,7 @@ ax.scatter(x, y, s=0.01, alpha=0.5, rasterized=True, color='C0', marker='.')
 xc, ym, y16, y84, n = binned_median(x, y, bins=14)
 ax.set_xlabel(r"$\log(\mathrm{sSFR})\ [\mathrm{yr}^{-1}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-11, -8)
+ax.set_xlim(-10, -7)
 # ---- 描画用：極端値を抑える（任意） ----
 # SII比の物理的な典型範囲は ~0.4-1.45 付近（Te~1e4K）なので、見やすさのために範囲で表示
 # しかし, 最初の段階では強く制限しない。

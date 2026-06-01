@@ -7,13 +7,14 @@ Re ビンごとに
 → PyNebで ne 分布
 → P16, P50, P84 を保存・描画
 → 完全なサンプルのみを対象とする
+→ errを追加
 
 
 使用方法:
-    stacked_sii_ne_vs_sigma_sfr.py [オプション]
+    stacked_sii_ne_vs_sigma_sfr_v1.py [オプション]
 
 著者: A. M.
-作成日: 2026-05-27
+作成日: 2026-06-01
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -105,9 +106,9 @@ os.makedirs(os.path.dirname(out_png), exist_ok=True)
 # ==========================================
 # パラメータ
 # ==========================================
-BIN_WIDTH = 0.2 # 調整 (0.1がデフォルト)
+BIN_WIDTH = 0.3 # 調整 (0.1がデフォルト)
 NMIN = 10 # 調整 (100がデフォルト)
-
+N_MC = 5000
 UNIT_FLUX = 1e-17
 
 # ==========================================
@@ -169,6 +170,22 @@ edges = np.arange(
 )
 
 # ==========================================
+# weighted mean
+# ==========================================
+def weighted_mean(flux, err):
+
+    w = 1.0 / err**2
+
+    mu = np.sum(w * flux) / np.sum(w)
+
+    sigma = np.sqrt(1.0 / np.sum(w))
+
+    return mu, sigma
+
+
+rng = np.random.default_rng()
+
+# ==========================================
 # bin内中央値（ratio）
 # ==========================================
 rows = []
@@ -185,15 +202,66 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     if N < NMIN:
         continue
 
-    ratio_vals = df.loc[m_bin, "R_SII"].values
-    ratio_med = np.nanmedian(ratio_vals)
+    f1 = F6716[m_bin]
+    e1 = err6716[m_bin]
+
+    f2 = F6731[m_bin]
+    e2 = err6731[m_bin]
+
+    F1, e1_stack = weighted_mean(
+        f1,
+        e1
+    )
+
+    F2, e2_stack = weighted_mean(
+        f2,
+        e2
+    )
+
+    f1_mc = rng.normal(
+        F1,
+        e1_stack,
+        N_MC
+    )
+
+    f2_mc = rng.normal(
+        F2,
+        e2_stack,
+        N_MC
+    )
+
+    valid = (f2_mc > 0)
+
+    R_mc = (
+        f1_mc[valid]
+        /
+        f2_mc[valid]
+    )
+
+    R50 = np.nanmedian(R_mc)
+
+    R16 = np.nanpercentile(
+        R_mc,
+        16
+    )
+
+    R84 = np.nanpercentile(
+        R_mc,
+        84
+    )
 
     rows.append(dict(
+    
         logSigma_lo=lo,
         logSigma_hi=hi,
         logSigma_cen=0.5*(lo+hi),
+    
         N=N,
-        R_med=ratio_med
+    
+        R_med=R50,
+        R_err_lo=R50-R16,
+        R_err_hi=R84-R50
+    
     ))
 
 res = pd.DataFrame(rows)
@@ -214,11 +282,18 @@ ax.scatter(
 )
 
 # median
-ax.plot(
+ax.errorbar(
+
     res["logSigma_cen"],
     res["R_med"],
-    "ks",
-    label="median"
+
+    yerr=[
+        res["R_err_lo"],
+        res["R_err_hi"]
+    ],
+
+    fmt="ks",
+    capsize=3
 )
 
 ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")

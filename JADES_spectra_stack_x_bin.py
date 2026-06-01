@@ -3,16 +3,14 @@
 """
 スクリプトの概要:
 JADESスペクトルスタックを作成します。
-SFRのビンごとにスタックを作成します。
-加えて、
-ΣSFRのビンごとにスタックを作成します。
+z, 物理量（例: SFR, Mstar, sSFR, Sigma_SFR）を基に、スペクトルを複数のビンに分割してスタックします。
 
 使用方法:
-    JADES_spectra_stack_SFR_v1.py [オプション]
+    JADES_spectra_stack_x_bin.py [オプション]
 
 著者: A. M.
-作成日: 2026-05-27
-最終更新日: 2026-05-29
+作成日: 2026-05-29
+最終更新日: 2026-06-01
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -30,8 +28,10 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
 from astropy.cosmology import Planck18
+from scipy.optimize import curve_fit
 
 # ============================
 # SETTINGS
@@ -51,6 +51,8 @@ wave_grid = np.arange(6500, 6900, 0.5)
 
 # ← ここだけ変えればOK
 n_bins = 1 # 一番安定したスタックを得るためには、bin数は少なめ（1-3程度）が良いと思います。
+# ↓追加
+n_phys_bins = 2 # 変更
 
 # ============================
 # CSV
@@ -323,6 +325,61 @@ def compute_log_ssfr(
         total_sigma
     )
 
+# ↓追加
+def gaussian(x, amp, mu, sigma, bg):
+
+    return (
+        amp *
+        np.exp(
+            -(x-mu)**2 /
+            (2*sigma**2)
+        )
+        +
+        bg
+    )
+
+def fit_Ha_center(
+    wave,
+    flux
+):
+
+    mask = (
+        (wave > 6550)
+        &
+        (wave < 6575)
+    )
+
+    x = wave[mask]
+    y = flux[mask]
+
+    if len(x) < 5:
+        return np.nan
+
+    try:
+
+        p0 = [
+            np.nanmax(y),
+            6562.8,
+            2.0,
+            np.nanmedian(y)
+        ]
+
+        popt, _ = curve_fit(
+            gaussian,
+            x,
+            y,
+            p0=p0,
+            maxfev=10000
+        )
+
+        return popt[1]
+
+    except:
+
+        return np.nan
+
+
+
 # ============================
 # MAIN
 # ============================
@@ -419,7 +476,10 @@ for gr in gratings:
                 "err": err_i,
                 "id": sid,
                 "gr": gr,
-                
+                # ↓ 追加
+                "wave_rest": wave,
+                "flux_rest": flux,
+
                 "sfr": row["log10_SFR_hb"],
                 "sfr_err_lo": row["log10_SFR_hb_err_lower"],
                 "sfr_err_hi": row["log10_SFR_hb_err_upper"],
@@ -444,36 +504,45 @@ for gr in gratings:
             continue
 
 # ============================
-# z-bin split
+# Sigma_SFR-bin split
 # ============================
-
 if len(used_items_all) == 0:
 
     print("No usable spectra.")
 
 else:
 
-    used_z_all = np.array([it["z"] for it in used_items_all])
+    # =====================================
+    # use Sigma_SFR as binning variable
+    # =====================================
 
-    N = len(used_z_all)
-
-    print("\nTotal usable spectra:", N)
-
-    # ============================
-    # Sigma_SFR distribution
-    # ============================
-
-    vals = np.array([
+    used_sigma_all = np.array([
         it["sigma_sfr"]
         for it in used_items_all
     ])
 
-    vals = vals[np.isfinite(vals)]
+    valid_mask = np.isfinite(used_sigma_all)
+
+    used_sigma_all = used_sigma_all[valid_mask]
+
+    used_items_valid = [
+        used_items_all[i]
+        for i in range(len(used_items_all))
+        if valid_mask[i]
+    ]
+
+    N = len(used_sigma_all)
+
+    print("\nTotal usable spectra:", N)
+
+    # =====================================
+    # histogram
+    # =====================================
 
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        vals,
+        used_sigma_all,
         bins=30,
         color="0.7",
         edgecolor="black"
@@ -485,164 +554,198 @@ else:
     plt.tight_layout()
     plt.show()
 
-    print("median =", np.nanmedian(vals))
-    print("std =", np.nanstd(vals))
+    print("median =", np.nanmedian(used_sigma_all))
+    print("std =", np.nanstd(used_sigma_all))
 
-    sort_idx = np.argsort(used_z_all)
+    # =====================================
+    # equal-number bins
+    # =====================================
 
-    q, r = divmod(N, n_bins)
+    sort_idx = np.argsort(used_sigma_all)
 
-    counts = [q + 1 if i < r else q for i in range(n_bins)]
+    q, r = divmod(N, n_phys_bins)
+
+    counts = [
+        q + 1 if i < r else q
+        for i in range(n_phys_bins)
+    ]
 
     cum = np.cumsum([0] + counts)
 
     print("equal-count bins:", counts)
 
-    # ============================
-    # histogram
-    # ============================
+    # =====================================
+    # stack each Sigma_SFR bin
+    # =====================================
 
-    z_sorted = used_z_all[sort_idx]
-
-    boundaries = []
-
-    for i in range(1, n_bins):
-
-        left_end = z_sorted[cum[i] - 1]
-        right_start = z_sorted[cum[i]]
-
-        boundaries.append(0.5 * (left_end + right_start))
-
-    plt.figure(figsize=(7,4))
-
-    plt.hist(
-        used_z_all,
-        bins="auto",
-        color="0.7",
-        edgecolor="black"
-    )
-
-    for bx in boundaries:
-
-        plt.axvline(
-            bx,
-            color="tab:red",
-            linestyle="--",
-            linewidth=2
-        )
-
-    plt.xlabel("redshift")
-    plt.ylabel("count")
-
-    plt.title(
-        f"usable galaxies (N={N})\n"
-        f"equal-count {n_bins} bins"
-    )
-
-    plt.tight_layout()
-    plt.show()
-
-    # ============================
-    # stack each z-bin
-    # ============================
-
-    for b in range(n_bins):
+    for b in range(n_phys_bins):
 
         s = cum[b]
         e = cum[b+1]
 
         sel_idx = sort_idx[s:e]
 
-        selected = [used_items_all[i] for i in sel_idx]
-
-        z_vals = np.array([it["z"] for it in selected])
-
-        flux_list = [it["flux"] for it in selected]
-        err_list  = [it["err"]  for it in selected]
-
-        # ============================
-        # Sigma_SFR subsample
-        # ============================
-
-        selected_sigma = [
-        
-            it for it in selected
-
-            if np.isfinite(it["sigma_sfr"])
+        selected = [
+            used_items_valid[i]
+            for i in sel_idx
         ]
 
-        flux_list_sigma = [
-            it["flux"]
-            for it in selected_sigma
+        # outlierを除去するために、以下のIDを除外します。
+        bad_ids = [
+        
+            "00051209", # bin1
+
+            "00028139", # bin2
+
+            "00045967", # bin3
+
         ]
 
-        err_list_sigma = [
-            it["err"]
-            for it in selected_sigma
+        selected = [
+            it
+            for it in selected
+            if it["id"] not in bad_ids
         ]
 
-        # ============================
-        # SFR weighted mean
-        # ============================
-        
-        sfr_vals = [it["sfr"] for it in selected]
-        
-        sfr_err_lo = [it["sfr_err_lo"] for it in selected]
-        
-        sfr_err_hi = [it["sfr_err_hi"] for it in selected]
-        
-        sfr_mean, sfr_err = weighted_mean_sfr(
-            sfr_vals,
-            sfr_err_lo,
-            sfr_err_hi
-        )
         # ↓追加
-        mass_vals = [
-            it["logM"]
-            for it in selected
-        ]
+        ha_offsets = []
 
-        mass_err_lo = [
-            it["logM_err_lo"]
-            for it in selected
-        ]
+        for it in selected:
+        
+            center = fit_Ha_center(
+                it["wave_rest"],
+                it["flux_rest"]
+            )
 
-        mass_err_hi = [
-            it["logM_err_hi"]
-            for it in selected
-        ]
+            if np.isfinite(center):
+            
+                ha_offsets.append(
+                    center - 6562.8
+                )
 
-        mass_mean, mass_err = weighted_mean_sfr(
-            mass_vals,
-            mass_err_lo,
-            mass_err_hi
+        ha_offsets = np.array(
+            ha_offsets
         )
+
+        print(
+            "Hα offset mean =",
+            np.nanmean(ha_offsets)
+        )
+
+        print(
+            "Hα offset std =",
+            np.nanstd(ha_offsets)
+        )
+
+        plt.figure(figsize=(6,4))
+
+        plt.hist(
+            ha_offsets,
+            bins=20,
+            color="0.7",
+            edgecolor="black"
+        )
+
+        plt.axvline(
+            0,
+            color="red",
+            ls="--"
+        )
+
+        plt.xlabel(
+            r"$\lambda_{H\alpha}-6562.8$ (Å)"
+        )
+
+        plt.ylabel("count")
+
+        plt.title(
+            f"Hα offset distribution bin {b+1}"
+        )
+
+        plt.show()
+
+
+
+        # ↓ 追加
+        plt.figure(figsize=(6,6))
+
+        for it in selected:
+        
+            wave = it["wave_rest"]
+            flux = it["flux_rest"]
+
+            mask = (
+                (wave > 6540)
+                & (wave < 6585)
+            )
+
+            wave_sel = wave[mask]
+            flux_sel = flux[mask]
+
+            # ★ここで平滑化
+            flux_smooth = gaussian_filter1d(flux_sel, sigma=2)
+
+            plt.plot(
+                wave_sel,
+                flux_smooth,
+                alpha=0.3,
+                color="black"
+            )
+
+        plt.axvline(6562.8, color="red", ls="--")
+
+        plt.xlabel("Rest wavelength (A)")
+        plt.ylabel("Flux")
+        plt.show()
+
         # ↓追加
-        ssfr_vals = [
-            it["ssfr"]
-            for it in selected
-        ]
+        for it in selected:
+        
+            wave = it["wave_rest"]
+            flux = it["flux_rest"]
 
-        ssfr_err_lo = [
-            it["ssfr_err_lo"]
-            for it in selected
-        ]
+            mask = (
+                (wave > 6540)
+                &
+                (wave < 6585)
+            )
 
-        ssfr_err_hi = [
-            it["ssfr_err_hi"]
-            for it in selected
-        ]
+            plt.figure(figsize=(6,4))
 
-        ssfr_mean, ssfr_err = weighted_mean_sfr(
-            ssfr_vals,
-            ssfr_err_lo,
-            ssfr_err_hi
-        )
+            plt.plot(
+                wave[mask],
+                flux[mask]
+            )
 
-        sigma_vals = [
+            plt.axvline(
+                6562.8,
+                color="red",
+                ls="--"
+            )
+
+            plt.title(it["id"])
+
+            plt.show()
+
+
+        sigma_vals = np.array([
             it["sigma_sfr"]
             for it in selected
+        ])
+
+        flux_list = [
+            it["flux"]
+            for it in selected
         ]
+
+        err_list = [
+            it["err"]
+            for it in selected
+        ]
+
+        # =====================================
+        # weighted mean Sigma_SFR
+        # =====================================
 
         sigma_err_lo = [
             it["sigma_sfr_err_lo"]
@@ -653,6 +756,7 @@ else:
             it["sigma_sfr_err_hi"]
             for it in selected
         ]
+
         sigma_mean, sigma_err = weighted_mean_sfr(
             sigma_vals,
             sigma_err_lo,
@@ -660,89 +764,58 @@ else:
         )
 
         print(
-            f"log10(SFR) weighted mean = "
-            f"{sfr_mean:.3f} ± {sfr_err:.3f}"
-        )
-        # ↓追加
-        print(
-            f"log10(Mstar) weighted mean = "
-            f"{mass_mean:.3f} ± {mass_err:.3f}"
+            f"\nSigma_SFR bin {b+1}"
         )
 
         print(
-            f"log10(sSFR) weighted mean = "
-            f"{ssfr_mean:.3f} ± {ssfr_err:.3f}"
+            f"N = {len(selected)}"
         )
+
         print(
-            f"log10(Sigma_SFR) weighted mean = "
+            f"logSigmaSFR = "
             f"{sigma_mean:.3f} ± {sigma_err:.3f}"
         )
 
-        z_min = np.min(z_vals)
-        z_max = np.max(z_vals)
-
         print(
-            f"\nz-bin {b+1}: "
-            f"N={len(selected)} "
-            f"z=[{z_min:.3f}, {z_max:.3f}]"
+            f"range = "
+            f"[{np.min(sigma_vals):.3f}, "
+            f"{np.max(sigma_vals):.3f}]"
         )
 
-        flux_stack_w, err_stack_w = stack(flux_list, err_list)
+        # =====================================
+        # stack
+        # =====================================
 
-        # ============================
-        # Sigma_SFR stack
-        # ============================
-
-        flux_stack_sigma_w, err_stack_sigma_w = stack(
-            flux_list_sigma,
-            err_list_sigma
+        flux_stack_w, err_stack_w = stack(
+            flux_list,
+            err_list
         )
 
-        flux_stack_sigma_m = median_stack(
-            flux_list_sigma
+        flux_stack_m = median_stack(
+            flux_list
         )
 
-        err_stack_sigma_m = bootstrap_median_error(
-            flux_list_sigma
+        err_stack_m = bootstrap_median_error(
+            flux_list
         )
 
-        flux_stack_m = median_stack(flux_list)
+        # =====================================
+        # output names
+        # =====================================
 
-        err_stack_m = bootstrap_median_error(flux_list)
-
-        outname_w = f"results/JADES/JADES_DR3/spectra/stack_zbin{b+1}.txt"
-
-        outname_m = f"results/JADES/JADES_DR3/spectra/stack_zbin{b+1}_median.txt"
-        # ↓追加
-        outname_mass_w = (
+        outname_w = (
             f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_mass.txt"
+            f"stack_sigmaSFR_bin{b+1}.txt"
         )
 
-        outname_mass_m = (
+        outname_m = (
             f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_mass_median.txt"
-        )
-        # ↓追加
-        outname_ssfr_w = (
-            f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_ssfr.txt"
+            f"stack_sigmaSFR_bin{b+1}_median.txt"
         )
 
-        outname_ssfr_m = (
-            f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_ssfr_median.txt"
-        )
-
-        outname_sigma_w = (
-            f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_sigmaSFR.txt"
-        )
-
-        outname_sigma_m = (
-            f"results/JADES/JADES_DR3/spectra/"
-            f"stack_zbin{b+1}_sigmaSFR_median.txt"
-        )
+        # =====================================
+        # save
+        # =====================================
 
         np.savetxt(
             outname_w,
@@ -754,9 +827,10 @@ else:
             header=(
                 f"wave flux err | "
                 f"weighted stack | "
-                f"z-bin {b+1}/{n_bins} | "
+                f"Sigma_SFR bin {b+1}/{n_phys_bins} | "
                 f"N={len(selected)} | "
-                f"z=[{z_min:.5f},{z_max:.5f}]"
+                f"logSigmaSFR="
+                f"{sigma_mean:.5f}+/-{sigma_err:.5f}"
             )
         )
 
@@ -770,110 +844,11 @@ else:
             header=(
                 f"wave flux err | "
                 f"median stack | "
-                f"z-bin {b+1}/{n_bins}"
-            )
-        )
-        # ↓追加
-        np.savetxt(
-            outname_mass_w,
-            np.column_stack([
-                wave_grid,
-                flux_stack_w,
-                err_stack_w
-            ]),
-            header=(
-                f"wave flux err | "
-                f"weighted stack | "
-                f"z-bin {b+1}/{n_bins} | "
-                f"N={len(selected)} | "
-                f"z=[{z_min:.5f},{z_max:.5f}]"
-            )
-        )
-
-        np.savetxt(
-            outname_mass_m,
-            np.column_stack([
-                wave_grid,
-                flux_stack_m,
-                err_stack_m
-            ]),
-            header=(
-                f"wave flux err | "
-                f"median stack | "
-                f"z-bin {b+1}/{n_bins}"
-            )
-        )
-        # ↓追加
-        np.savetxt(
-            outname_ssfr_w,
-            np.column_stack([
-                wave_grid,
-                flux_stack_w,
-                err_stack_w
-            ]),
-            header=(
-                f"wave flux err | "
-                f"weighted stack | "
-                f"z-bin {b+1}/{n_bins} | "
-                f"N={len(selected)} | "
-                f"z=[{z_min:.5f},{z_max:.5f}]"
-            )
-        )
-
-        np.savetxt(
-            outname_ssfr_m,
-            np.column_stack([
-                wave_grid,
-                flux_stack_m,
-                err_stack_m
-            ]),
-            header=(
-                f"wave flux err | "
-                f"median stack | "
-                f"z-bin {b+1}/{n_bins}"
-            )
-        )
-
-        np.savetxt(
-            outname_sigma_w,
-            np.column_stack([
-                wave_grid,
-                flux_stack_sigma_w,
-                err_stack_sigma_w
-            ]),
-            header=(
-                f"wave flux err | "
-                f"weighted stack | "
-                f"Sigma_SFR subsample | "
-                f"z-bin {b+1}/{n_bins} | "
-                f"N={len(selected_sigma)} | "
-                f"logSigmaSFR="
-                f"{sigma_mean:.5f}+/-{sigma_err:.5f}"
-            )
-        )
-
-        np.savetxt(
-            outname_sigma_m,
-            np.column_stack([
-                wave_grid,
-                flux_stack_sigma_m,
-                err_stack_sigma_m
-            ]),
-            header=(
-                f"wave flux err | "
-                f"median stack | "
-                f"Sigma_SFR subsample | "
-                f"z-bin {b+1}/{n_bins}"
+                f"Sigma_SFR bin {b+1}/{n_phys_bins}"
             )
         )
 
         print("saved:", outname_w)
         print("saved:", outname_m)
-        print("saved:", outname_mass_w)
-        print("saved:", outname_mass_m)
-        print("saved:", outname_ssfr_w)
-        print("saved:", outname_ssfr_m)
-        print("saved:", outname_sigma_w)
-        print("saved:", outname_sigma_m)
 
 print("\nDone.")
