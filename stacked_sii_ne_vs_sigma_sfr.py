@@ -96,8 +96,8 @@ import astropy.units as u
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39_radius.fits")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sigma_sfr_COMPLET_v1.csv")
-out_png = os.path.join(current_dir, "results/figure/sii_ratio_vs_sigma_sfr_v1.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sigma_sfr_COMPLET.csv")
+out_png = os.path.join(current_dir, "results/figure/sii_ratio_vs_sigma_sfr.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)

@@ -9,8 +9,8 @@ z, 物理量（例: SFR, Mstar, sSFR, Sigma_SFR）を基に、スペクトルを
     JADES_spectra_stack_x_bin.py [オプション]
 
 著者: A. M.
-作成日: 2026-05-29
-最終更新日: 2026-06-01
+作成日: 2026-06-03
+最終更新日: 2026-06-03
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -52,7 +52,7 @@ wave_grid = np.arange(6500, 6900, 0.5)
 # ← ここだけ変えればOK
 n_bins = 1 # 一番安定したスタックを得るためには、bin数は少なめ（1-3程度）が良いと思います。
 # ↓追加
-n_phys_bins = 2 # 変更
+n_phys_bins = 3 # 変更
 
 # ============================
 # CSV
@@ -63,6 +63,7 @@ df = pd.read_csv(csv_file)
 df = df[df["z_spec"].notna()]
 df = df[df["HA_6563_flux"].notna()]
 df = df[df["log10_SFR_hb"].notna()]
+df = df[df["logM"].notna()]
 df = df[df["log10_SFR_hb"] >= 0]
 
 print("usable rows after CSV filtering:", len(df))
@@ -516,14 +517,14 @@ else:
     # use Sigma_SFR as binning variable
     # =====================================
 
-    used_sigma_all = np.array([
-        it["sigma_sfr"]
+    used_sfr_all = np.array([
+        it["sfr"]
         for it in used_items_all
     ])
 
-    valid_mask = np.isfinite(used_sigma_all)
+    valid_mask = np.isfinite(used_sfr_all)
 
-    used_sigma_all = used_sigma_all[valid_mask]
+    used_sfr_all = used_sfr_all[valid_mask]
 
     used_items_valid = [
         used_items_all[i]
@@ -531,7 +532,7 @@ else:
         if valid_mask[i]
     ]
 
-    N = len(used_sigma_all)
+    N = len(used_sfr_all)
 
     print("\nTotal usable spectra:", N)
 
@@ -542,26 +543,26 @@ else:
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        used_sigma_all,
+        used_sfr_all,
         bins=30,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log \Sigma_{\rm SFR}$')
+    plt.xlabel(r'$\log {\rm SFR}$')
     plt.ylabel("count")
 
     plt.tight_layout()
     plt.show()
 
-    print("median =", np.nanmedian(used_sigma_all))
-    print("std =", np.nanstd(used_sigma_all))
+    print("median =", np.nanmedian(used_sfr_all))
+    print("std =", np.nanstd(used_sfr_all))
 
     # =====================================
     # equal-number bins
     # =====================================
 
-    sort_idx = np.argsort(used_sigma_all)
+    sort_idx = np.argsort(used_sfr_all)
 
     q, r = divmod(N, n_phys_bins)
 
@@ -710,26 +711,27 @@ else:
                 (wave < 6585)
             )
 
-            plt.figure(figsize=(6,4))
+            # 確認用のプロット（必要に応じてコメントアウト）
+            # plt.figure(figsize=(6,4))
 
-            plt.plot(
-                wave[mask],
-                flux[mask]
-            )
+            # plt.plot(
+            #     wave[mask],
+            #     flux[mask]
+            # )
 
-            plt.axvline(
-                6562.8,
-                color="red",
-                ls="--"
-            )
+            # plt.axvline(
+            #     6562.8,
+            #     color="red",
+            #     ls="--"
+            # )
 
-            plt.title(it["id"])
+            # plt.title(it["id"])
 
-            plt.show()
+            # plt.show()
 
 
-        sigma_vals = np.array([
-            it["sigma_sfr"]
+        sfr_vals = np.array([
+            it["sfr"]
             for it in selected
         ])
 
@@ -747,24 +749,24 @@ else:
         # weighted mean Sigma_SFR
         # =====================================
 
-        sigma_err_lo = [
-            it["sigma_sfr_err_lo"]
+        sfr_err_lo = [
+            it["sfr_err_lo"]
             for it in selected
         ]
 
-        sigma_err_hi = [
-            it["sigma_sfr_err_hi"]
+        sfr_err_hi = [
+            it["sfr_err_hi"]
             for it in selected
         ]
 
-        sigma_mean, sigma_err = weighted_mean_sfr(
-            sigma_vals,
-            sigma_err_lo,
-            sigma_err_hi
+        sfr_mean, sfr_err = weighted_mean_sfr(
+            sfr_vals,
+            sfr_err_lo,
+            sfr_err_hi
         )
 
         print(
-            f"\nSigma_SFR bin {b+1}"
+            f"\nSFR bin {b+1}"
         )
 
         print(
@@ -772,14 +774,14 @@ else:
         )
 
         print(
-            f"logSigmaSFR = "
-            f"{sigma_mean:.3f} ± {sigma_err:.3f}"
+            f"logSFR = "
+            f"{sfr_mean:.3f} ± {sfr_err:.3f}"
         )
 
         print(
             f"range = "
-            f"[{np.min(sigma_vals):.3f}, "
-            f"{np.max(sigma_vals):.3f}]"
+            f"[{np.min(sfr_vals):.3f}, "
+            f"{np.max(sfr_vals):.3f}]"
         )
 
         # =====================================
@@ -805,12 +807,12 @@ else:
 
         outname_w = (
             f"results/JADES/JADES_DR3/spectra/"
-            f"stack_sigmaSFR_bin{b+1}.txt"
+            f"stack_SFR_bin{b+1}.txt"
         )
 
         outname_m = (
             f"results/JADES/JADES_DR3/spectra/"
-            f"stack_sigmaSFR_bin{b+1}_median.txt"
+            f"stack_SFR_bin{b+1}_median.txt"
         )
 
         # =====================================
@@ -827,10 +829,10 @@ else:
             header=(
                 f"wave flux err | "
                 f"weighted stack | "
-                f"Sigma_SFR bin {b+1}/{n_phys_bins} | "
+                f"SFR bin {b+1}/{n_phys_bins} | "
                 f"N={len(selected)} | "
-                f"logSigmaSFR="
-                f"{sigma_mean:.5f}+/-{sigma_err:.5f}"
+                f"logSFR="
+                f"{sfr_mean:.5f}+/-{sfr_err:.5f}"
             )
         )
 
@@ -844,7 +846,7 @@ else:
             header=(
                 f"wave flux err | "
                 f"median stack | "
-                f"Sigma_SFR bin {b+1}/{n_phys_bins}"
+                f"SFR bin {b+1}/{n_phys_bins}"
             )
         )
 
