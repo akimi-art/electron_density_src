@@ -122,15 +122,15 @@ mask = (
 )
 
 # 5. ratioヒートマップ
-xbins = np.arange(8.0, 11.6, 0.01)
-ybins = np.arange(3.5, 4.5, 0.01)
+xbins = np.arange(8.0, 11.6, 0.1)
+ybins = np.arange(-3.0, 3.1, 0.1)
 
 ratio_map, xedge, yedge, _ = (
     binned_statistic_2d(
         logM[mask],
         logSFR[mask],
         ratio[mask],
-        statistic="mean",
+        statistic="median", # 必要に応じて "mean" や "count" に変更可能
         bins=[xbins, ybins]
     )
 )
@@ -138,10 +138,14 @@ ratio_map, xedge, yedge, _ = (
 fig, ax = plt.subplots(figsize=(8,6))
 fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
 
+vmin = np.nanpercentile(ratio_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = np.nanpercentile(ratio_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+
 plt.pcolormesh(
     xedge,
     yedge,
     ratio_map.T,
+    vmin=vmin, vmax=vmax,  # カラーマップの範囲を固定（必要に応じて調整）
     shading="auto",
     cmap="viridis"
 )

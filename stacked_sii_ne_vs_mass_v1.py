@@ -35,7 +35,7 @@ import matplotlib.gridspec as gridspec
 from pathlib import Path
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
-
+from scipy.stats import binned_statistic_2d
 
 
 # -----------------------
@@ -314,3 +314,55 @@ plt.savefig(out_png, dpi=200)
 plt.show()
 
 print("Saved:", out_png)
+
+
+# ==========================================
+# countヒートマップを作成
+# ==========================================
+xbins = np.arange(8, 12.1, 0.01)
+ybins = np.arange(0.5, 2.1, 0.01)
+
+count_map, xedge, yedge, _ = (
+    binned_statistic_2d(
+        df.loc[m_complete, "sm_MEDIAN"],
+        df.loc[m_complete, "R_SII"],
+        values=None,
+        statistic="count",
+        bins=[xbins, ybins]
+    )
+)
+
+fig, ax = plt.subplots(figsize=(8,6))
+fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
+
+vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+
+plt.pcolormesh(
+    xedge,
+    yedge,
+    count_map.T,
+    vmin=vmin, vmax=vmax,  # カラーマップの範囲を固定（必要に応じて調整）
+    shading="auto",
+    cmap="viridis" # 必要に応じて調整
+)
+
+plt.colorbar()
+
+ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_ylabel(r"[SII] 6717 / 6731")
+
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+plt.tight_layout()
+# 保存
+fig_dir = os.path.join(current_dir, "results/figure")
+os.makedirs(fig_dir, exist_ok=True)
+save_path_count = os.path.join(
+    fig_dir,
+    "heat_sm_sii_ratio_count_sdss.png"
+)
+
+plt.savefig(save_path_count)
+print(f"Saved heatmap to: {save_path_count}")
+plt.show()

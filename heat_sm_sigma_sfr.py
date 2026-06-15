@@ -144,6 +144,8 @@ mask = (
     &
     (F6731 > 0)
     &
+    (Re_kpc > 0)
+    &
     (sn6716 > 3)
     &
     (sn6731 > 3)
@@ -151,7 +153,7 @@ mask = (
 
 # 5. ratioヒートマップ
 xbins = np.arange(8.0, 11.6, 0.1)
-ybins = np.arange(-5, 1, 0.1)
+ybins = np.arange(-5, 1.1, 0.1)
 
 ratio_map, xedge, yedge, _ = (
     binned_statistic_2d(
@@ -166,8 +168,8 @@ ratio_map, xedge, yedge, _ = (
 fig, ax = plt.subplots(figsize=(8,6))
 fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
 
-vmin = np.nanpercentile(ratio_map,5)
-vmax = np.nanpercentile(ratio_map,95)
+vmin = np.nanpercentile(ratio_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = np.nanpercentile(ratio_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
 
 plt.pcolormesh(
     xedge,
@@ -175,7 +177,7 @@ plt.pcolormesh(
     ratio_map.T,
     vmin=vmin, vmax=vmax,  # カラーマップの範囲を固定（必要に応じて調整）
     shading="auto",
-    cmap="viridis"
+    cmap="viridis" # 必要に応じて調整
 )
 
 plt.colorbar()

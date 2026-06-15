@@ -35,7 +35,7 @@ import matplotlib.gridspec as gridspec
 from pathlib import Path
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
-
+from scipy.stats import binned_statistic_2d
 
 
 # -----------------------
@@ -142,22 +142,52 @@ df["logRe"] = logRe
 # ==========================================
 # ΣSFRの計算
 # ==========================================
-# SFRはすでにlogSFRとして与えられているため、以下の計算は間違っている。
-SFR = df["sfr_MEDIAN"].values
-Sigma_SFR = SFR / (2 * np.pi * Re_kpc**2)
+SFR = df["sfr_MEDIAN"].values # log10
+# Sigma_SFR = SFR / (2 * np.pi * Re_kpc**2) # SFRはすでにlogSFRとして与えられているため、この計算は間違っている。
 
-df["Sigma_SFR"] = Sigma_SFR
-logSigma = np.log10(Sigma_SFR)
+# logΣSFRの計算(logSFRから計算)
+logSigma = (
+    SFR
+    -
+    np.log10(2*np.pi*Re_kpc**2)
+)
+
 df["logSigma_SFR"] = logSigma
 
 # ==========================================
 # マスク
 # ==========================================
 mask = (
+    np.isfinite(df["Z"]) &
+    np.isfinite(df["sfr_MEDIAN"]) &
     np.isfinite(df["R_SII"]) &
     np.isfinite(logSigma) &
-    (Sigma_SFR > 0)
+    np.isfinite(Re_kpc) &
+    (z > 0) &
+    (Re_kpc > 0) 
 )
+
+def valid_sfr(x):
+    x = np.asarray(x, float)
+    m = np.isfinite(x)
+    # 極端な outlier だけ落とす（-5<log(SFR)<3ならまず間違いない→-1が異常値になっていないか？）
+    m &= (x > -5) & (x < 3) & (x != -1.0)
+    return m
+
+m_sii = (
+    np.isfinite(F6716) & np.isfinite(F6731) &
+    np.isfinite(err6716) & np.isfinite(err6731) &
+    (err6716 > 0) & (err6731 > 0)
+)
+
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
+m_ratio = np.isfinite(df["R_SII"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
+
+mask_all = m_sii & m_sfr & m_ratio & mask
+
+# 完全サンプル
+m_complete = mask_all 
 
 # ==========================================
 # ビン作成（logΣSFR）
@@ -307,4 +337,57 @@ for spine in ax.spines.values():
 
 plt.tight_layout()
 plt.savefig(out_png, dpi=200)
+print(f"Saved plot to: {out_png}")
+plt.show()
+
+
+# ==========================================
+# countヒートマップを作成
+# ==========================================
+xbins = np.arange(-5, 1.1, 0.02)
+ybins = np.arange(0.5, 2.1, 0.02)
+
+count_map, xedge, yedge, _ = (
+    binned_statistic_2d(
+        df.loc[m_complete, "logSigma_SFR"],
+        df.loc[m_complete, "R_SII"],
+        values=None,
+        statistic="count",
+        bins=[xbins, ybins]
+    )
+)
+
+fig, ax = plt.subplots(figsize=(8,6))
+fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
+
+vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+
+plt.pcolormesh(
+    xedge,
+    yedge,
+    count_map.T,
+    vmin=vmin, vmax=vmax,  # カラーマップの範囲を固定（必要に応じて調整）
+    shading="auto",
+    cmap="viridis" # 必要に応じて調整
+)
+
+plt.colorbar()
+
+ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
+ax.set_ylabel(r"[SII] 6717 / 6731")
+
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+plt.tight_layout()
+# 保存
+fig_dir = os.path.join(current_dir, "results/figure")
+os.makedirs(fig_dir, exist_ok=True)
+save_path_count = os.path.join(
+    fig_dir,
+    "heat_sigma_sfr_sii_ratio_count_sdss.png"
+)
+
+plt.savefig(save_path_count)
+print(f"Saved heatmap to: {save_path_count}")
 plt.show()
