@@ -286,7 +286,7 @@ mask_ge = ~mask_lt
 ax.errorbar(
     x[mask_lt], y[mask_lt],
     yerr=yerr[:, mask_lt],
-    fmt="s", mec="black", mfc="white",
+    fmt="s", mec="black", mfc="k",
     ecolor="k", color="k",  # 誤差線色/線色（同時指定）
     capsize=3, label=f"x < {thr}"
 )

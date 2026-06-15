@@ -65,7 +65,7 @@ plt.rcParams.update({
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "./data/data_SDSS/DR7/fits_files/Skyserver_SQL5_25_2026_1_58_46 AM.fits"
+file_galex =  "./results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている

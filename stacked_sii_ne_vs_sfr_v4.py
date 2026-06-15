@@ -364,8 +364,8 @@ mask_ge = ~mask_lt
 ax.errorbar(
     x[mask_lt], y[mask_lt],
     yerr=yerr[:, mask_lt],
-    fmt="s", mec="C0", mfc="C0",
-    ecolor="C0", color="C0",  # 誤差線色/線色（同時指定）
+    fmt="s", mec="k", mfc="k",
+    ecolor="k", color="k",  # 誤差線色/線色（同時指定）
     capsize=3, label=f"x < {thr}"
 )
 
@@ -373,39 +373,39 @@ ax.errorbar(
 ax.errorbar(
     x[mask_ge], y[mask_ge],
     yerr=yerr[:, mask_ge],
-    fmt="s", mec="C0", mfc="C0",
-    ecolor="C0", color="C0",
+    fmt="s", mec="k", mfc="k",
+    ecolor="k", color="k",
     capsize=3, label=f"x ≥ {thr}"
 )
 
 
-# ==========================================
-# high-z stack (fiber-loss test)
-# ==========================================
+# # ==========================================
+# # high-z stack (fiber-loss test)
+# # ==========================================
 
 
-# 完全（青）
-ax.scatter(
-    df.loc[m_complete_highz, "sfr_MEDIAN"],
-    # df.loc[m_complete, "logSFR_SED_median"],
-    df.loc[m_complete_highz, "R_SII"],
-    s=0.01,
-    marker='.',
-    alpha=0.8,
-    color="C1",
-)
+# # 完全（青）
+# ax.scatter(
+#     df.loc[m_complete_highz, "sfr_MEDIAN"],
+#     # df.loc[m_complete, "logSFR_SED_median"],
+#     df.loc[m_complete_highz, "R_SII"],
+#     s=0.01,
+#     marker='.',
+#     alpha=0.8,
+#     color="C1",
+# )
 
-ax.errorbar(
-    res_highz["logSFR_cen"],
-    res_highz["R_med"],
-    yerr=[res_highz["R_err_lo"], res_highz["R_err_hi"]],
-    fmt="s",
-    color="C1",
-    mec="C1",
-    mfc="C1",
-    capsize=3,
-    label="z=0.15–0.20 stack"
-)
+# ax.errorbar(
+#     res_highz["logSFR_cen"],
+#     res_highz["R_med"],
+#     yerr=[res_highz["R_err_lo"], res_highz["R_err_hi"]],
+#     fmt="s",
+#     color="C1",
+#     mec="C1",
+#     mfc="C1",
+#     capsize=3,
+#     label="z=0.15–0.20 stack"
+# )
 
 ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")

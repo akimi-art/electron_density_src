@@ -259,7 +259,7 @@ ax.scatter(
     df.loc[m_complete_highz, "sfr_MEDIAN"],
     df.loc[m_complete_highz, "R_SII"],
 
-    s=0.01,
+    s=0.1,
     marker='.',
     alpha=0.8,
     color="C0"
