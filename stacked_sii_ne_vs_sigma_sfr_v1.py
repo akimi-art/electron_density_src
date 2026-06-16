@@ -360,8 +360,10 @@ count_map, xedge, yedge, _ = (
 fig, ax = plt.subplots(figsize=(8,6))
 fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
 
-vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
-vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+# vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+# vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+vmin = 0 # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = 40 # 上限を95パーセンタイルに設定（必要に応じて調整）
 
 plt.pcolormesh(
     xedge,
@@ -374,8 +376,26 @@ plt.pcolormesh(
 
 plt.colorbar()
 
+# median
+ax.errorbar(
+
+    res["logSigma_cen"],
+    res["R_med"],
+
+    yerr=[
+        res["R_err_lo"],
+        res["R_err_hi"]
+    ],
+
+    fmt="ks",
+    ecolor="white", color="white",  # 誤差線色/線色（同時指定）
+    mec="white", mfc="None",  # マーカーエッジ色/マーカー内部色（同時指定）
+    capsize=3
+)
+
 ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
+ax.set_xlim(-5.0, 1.0)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)

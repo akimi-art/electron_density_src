@@ -349,16 +349,33 @@ count_map, xedge, yedge, _ = (
 fig, ax = plt.subplots(figsize=(8,6))
 fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
 
-vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
-vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+vmin = 0 # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = 50 # 上限を95パーセンタイルに設定（必要に応じて調整）
 
 plt.pcolormesh(
     xedge,
     yedge,
-    count_map.T,
+    count_map.T,  
     vmin=vmin, vmax=vmax,  # カラーマップの範囲を固定（必要に応じて調整）
     shading="auto",
-    cmap="viridis" # 必要に応じて調整
+    cmap="viridis", # 必要に応じて調整
+)
+
+# x < 0（白四角・黒縁）
+ax.errorbar(
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="white", mfc="None",
+    ecolor="white", color="white",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
+)
+# x >= 0（黒四角）
+ax.errorbar(
+    x[mask_ge], y[mask_ge],
+    yerr=yerr[:, mask_ge],
+    fmt="s", mec="white", mfc="None",
+    ecolor="white", color="white",
+    capsize=3, label=f"x ≥ {thr}"
 )
 
 plt.colorbar()

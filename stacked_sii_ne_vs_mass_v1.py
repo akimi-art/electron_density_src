@@ -98,8 +98,8 @@ current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
 # csv_path = os.path.join(current_dir, "results/Samir16/Samir16in_standard_re_v1.csv")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_bin0.2.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_bin0.2.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_v1.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_v1.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -190,6 +190,7 @@ rng = np.random.default_rng()
 
 rows = []
 
+
 # ==========================================
 # メインstack（完全サンプルのみ）
 # ==========================================
@@ -229,14 +230,10 @@ for lo, hi in zip(edges[:-1], edges[1:]):
         logM_hi=hi,
         logM_cen = 0.5*(lo+hi),
         N = N,
-        # F6717=F1, # 構文が違う
-        # F6717_err=e1,
-        # F6731=F2,
-        # F6731_err=e2,
         R_med = R50,
         R_err_lo = R50 - R16,
         R_err_hi = R84 - R50,
-        N_MC_valid=int(valid.sum())
+        N_MC_valid=int(valid.sum()),
     ))
 
 res = pd.DataFrame(rows)
@@ -335,8 +332,10 @@ count_map, xedge, yedge, _ = (
 fig, ax = plt.subplots(figsize=(8,6))
 fig.subplots_adjust(left=0.15, right=0.85, bottom=0.15, top=0.85)
 
-vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
-vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+# vmin = np.nanpercentile(count_map,5) # 下限を5パーセンタイルに設定（必要に応じて調整）
+# vmax = np.nanpercentile(count_map,95) # 上限を95パーセンタイルに設定（必要に応じて調整）
+vmin = 0 # 下限を5パーセンタイルに設定（必要に応じて調整）
+vmax = 50 # 上限を95パーセンタイルに設定（必要に応じて調整）
 
 plt.pcolormesh(
     xedge,
@@ -349,8 +348,27 @@ plt.pcolormesh(
 
 plt.colorbar()
 
+# x < 10（白四角・黒縁）
+ax.errorbar(
+    x[mask_lt], y[mask_lt],
+    yerr=yerr[:, mask_lt],
+    fmt="s", mec="white", mfc="None",
+    ecolor="white", color="white",  # 誤差線色/線色（同時指定）
+    capsize=3, label=f"x < {thr}"
+)
+
+# x >= 10（黒四角）
+ax.errorbar(
+    x[mask_ge], y[mask_ge],
+    yerr=yerr[:, mask_ge],
+    fmt="s", mec="white", mfc="None",
+    ecolor="white", color="white",
+    capsize=3, label=f"x ≥ {thr}"
+)
+
 ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
 ax.set_ylabel(r"[SII] 6717 / 6731")
+ax.set_xlim(8,12)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)
