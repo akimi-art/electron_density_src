@@ -35,7 +35,7 @@ from astropy.cosmology import Planck18
 # SETTINGS
 # ============================
 
-csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logSFR_with_Reff.csv" # 変更
+csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logsSFR_with_Reff.csv" # 変更
 
 spec_dir = "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
 
@@ -55,7 +55,7 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (-1.0, 0.0),
 #     (0.0, 1.0),
 # ]
-sfr_bins = [
+ssfr_bins = [
     (-1.0, 0.0),
     (0.0, 1.0),
     (1.0, 2.0),
