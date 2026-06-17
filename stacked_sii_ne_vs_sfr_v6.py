@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+logSFR ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -12,7 +12,7 @@ logM* ビンごとに
 → Haで規格化したweighted stackも追加（ただし、HaのS/Nが十分なものに限定する必要あり）
 
 使用方法:
-    stacked_sii_ne_vs_mass_v3.py [オプション]
+    stacked_sii_ne_vs_sfr_v6.py [オプション]
 
 著者: A. M.
 作成日: 2026-06-16
@@ -98,8 +98,8 @@ import astropy.units as u
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_v3.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_v3.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_COMPLETE_v6.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE_v6.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -148,10 +148,14 @@ df["R_SII"] = F6716 / F6731
 # ==========================================
 # マスク定義
 # ==========================================
-def valid_mass(x):
+def valid_sfr(x):
+
     x = np.asarray(x, float)
+
     m = np.isfinite(x)
-    m &= (x > 0) & (x < 13)
+    m &= (x > -5) & (x < 3)
+    m &= (x != -1.0)
+
     return m
 
 m_sii = (
@@ -162,20 +166,20 @@ m_sii = (
     (errHa > 0)
 )
 
-m_sm = valid_mass(df["sm_MEDIAN"])
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
 m_ratio = np.isfinite(df["R_SII"])
 
-mask_all = m_sii & m_sm & m_ratio
-m_complete = mask_all
+mask_all = m_sii & m_sfr & m_ratio
+sfr_complete = mask_all
 
 # ==========================================
 # ビン作成
 # ==========================================
-logM = df.loc[m_complete, "sm_MEDIAN"].values
+logSFR = df.loc[sfr_complete, "sfr_MEDIAN"].values
 
 edges = np.arange(
-    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(logSFR.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logSFR.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
@@ -198,22 +202,22 @@ rows = []
 # ==========================================
 for lo, hi in zip(edges[:-1], edges[1:]):
 
-    m_bin = (
-        m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+    sfr_bin = (
+        sfr_complete &
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
-    N = np.sum(m_bin)
+    N = np.sum(sfr_bin)
     if N < NMIN:
         continue
 
-    f1 = F6716[m_bin]
-    e1 = err6716[m_bin]
-    f2 = F6731[m_bin]
-    e2 = err6731[m_bin]
-    fHa = FHa[m_bin]
-    eHa = errHa[m_bin]
+    f1 = F6716[sfr_bin]
+    e1 = err6716[sfr_bin]
+    f2 = F6731[sfr_bin]
+    e2 = err6731[sfr_bin]
+    fHa = FHa[sfr_bin]
+    eHa = errHa[sfr_bin]
 
     # ===========================
     # simple ratio（各銀河）
@@ -298,9 +302,9 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     R84 = np.nanpercentile(R_mc, 84)
 
     rows.append(dict(
-        logM_lo=lo,
-        logM_hi=hi,
-        logM_cen = 0.5*(lo+hi),
+        logSFR_lo=lo,
+        logSFR_hi=hi,
+        logSFR_cen = 0.5*(lo+hi),
         N = N,
 
         # ----- weighted stack -----
@@ -341,15 +345,15 @@ df["R_SII"] = F6716 / F6731
 
 # 完全（青）
 ax.scatter(
-    df.loc[m_complete, "sm_MEDIAN"],
-    df.loc[m_complete, "R_SII"],
+    df.loc[sfr_complete, "sfr_MEDIAN"],
+    df.loc[sfr_complete, "R_SII"],
     s=0.01,
     marker='.',
     alpha=0.8,
     color="C0",
 )
 
-x = res["logM_cen"].values
+x = res["logSFR_cen"].values
 
 # weighted
 y_w = res["R_wmed"].values
@@ -426,9 +430,9 @@ ax.errorbar(
 
 
 
-ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(9,11)
+ax.set_xlim(-3, 3.0)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
@@ -444,13 +448,13 @@ print("Saved:", out_png)
 # ==========================================
 # countヒートマップを作成
 # ==========================================
-xbins = np.arange(8, 12.1, 0.01)
+xbins = np.arange(-3, 3.1, 0.01)
 ybins = np.arange(0.5, 2.1, 0.01)
 
 count_map, xedge, yedge, _ = (
     binned_statistic_2d(
-        df.loc[m_complete, "sm_MEDIAN"],
-        df.loc[m_complete, "R_SII"],
+        df.loc[sfr_complete, "sfr_MEDIAN"],
+        df.loc[sfr_complete, "R_SII"],
         values=None,
         statistic="count",
         bins=[xbins, ybins]
@@ -506,9 +510,9 @@ ax.errorbar(
     capsize=3, label="[SII]6717 / Hα"
 )
 
-ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(8,12)
+ax.set_xlim(-3,3)
 ax.set_ylim(1.0,1.6)
 
 for spine in ax.spines.values():
@@ -519,7 +523,7 @@ fig_dir = os.path.join(current_dir, "results/figure")
 os.makedirs(fig_dir, exist_ok=True)
 save_path_count = os.path.join(
     fig_dir,
-    "heat_sm_sii_ratio_count_sdss.png"
+    "heat_sfr_sii_ratio_count_sdss.png"
 )
 
 plt.savefig(save_path_count)
@@ -544,20 +548,20 @@ axes = axes.flatten()
 
 for i, row in res.iterrows():
 
-    lo = row["logM_lo"]
-    hi = row["logM_hi"]
+    lo = row["logSFR_lo"]
+    hi = row["logSFR_hi"]
 
     ax = axes[i]
 
     # 同じbinのデータ取り出し
-    m_bin = (
-        m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+    sfr_bin = (
+        sfr_complete &
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
-    f1 = F6716[m_bin]
-    f2 = F6731[m_bin]
+    f1 = F6716[sfr_bin]
+    f2 = F6731[sfr_bin]
 
     valid = (f1 > 0) & (f2 > 0)
     R_ind = f1[valid] / f2[valid]
@@ -611,7 +615,7 @@ for i, row in res.iterrows():
 
     ax.text(
         0.02, 0.95,
-        f"{lo:.1f}–{hi:.1f}\nN={int(row['N'])}",
+        f"{lo:.1f}–{hi:.1f} N={int(row['N'])}",
         transform=ax.transAxes,
         ha="left",
         va="top",
@@ -619,6 +623,18 @@ for i, row in res.iterrows():
     )
 
     ax.set_xlim(1.0, 1.8)
+
+    ax.tick_params(
+        top=False, right=False,   # 上・右を消す
+        bottom=True, left=True    # 下・左を有効
+    )
+    ax.tick_params(
+        axis='both',      # x, y 両方
+        which='major',    # major ticks
+        length=8,         # 長さ
+        width=1.5,        # 線の太さ
+        direction='in'   # 方向（out / in / inout）
+    )
     
     for spine in ax.spines.values():
         spine.set_linewidth(2)
@@ -644,7 +660,7 @@ plt.subplots_adjust(
 # 保存
 hist_path = os.path.join(
     current_dir,
-    "results/figure/stacked_sii_histograms.png"
+    "results/figure/stacked_sii_histograms_sfr.png"
 )
 plt.savefig(hist_path, dpi=200)
 

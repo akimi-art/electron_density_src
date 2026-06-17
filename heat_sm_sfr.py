@@ -122,7 +122,7 @@ mask = (
 )
 
 # 5. ratioヒートマップ
-xbins = np.arange(8.0, 11.6, 0.1)
+xbins = np.arange(8.0, 12.1, 0.1)
 ybins = np.arange(-3.0, 3.1, 0.1)
 
 ratio_map, xedge, yedge, _ = (
