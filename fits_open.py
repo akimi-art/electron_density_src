@@ -65,7 +65,7 @@ plt.rcParams.update({
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "./results/fits/mpajhu_dr7_v5_2_merged_L6717_ge_4pi_dL2_1e-17_L6731_ge_4pi_dL2_1e-17_z0.00-0.40.fits"
+file_galex =  "results/JADES/JADES_DR3/JADES_DR3_full_spectra/JADES_DR3_G395M/hlsp_jades_jwst_nirspec_goods-n-mediumhst-00000777_f290lp-g395m_v1.0_x1d.fits"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
