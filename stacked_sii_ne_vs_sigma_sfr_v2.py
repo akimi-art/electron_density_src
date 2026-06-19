@@ -252,12 +252,24 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     # 平均と中央値
     R_mean_simple = np.nanmean(R_individual)
     R_med_simple  = np.nanmedian(R_individual)
+
+    # ===========================
+    # Hαで正規化した individual ratio
+    # ===========================
+    valid_Ha = (f1 > 0) & (f2 > 0) & (fHa > 0)
+    
+    r1_ind = f1[valid_Ha] / fHa[valid_Ha]
+    r2_ind = f2[valid_Ha] / fHa[valid_Ha]
+    
+    # median (Hα正規化後)
+    R_Ha_med = np.nanmedian(r1_ind / r2_ind)
     
     # ===========================
     # bootstrap誤差
     # ===========================
     bs_mean = []
     bs_med  = []
+    bs_Ha_med = []
     
     for _ in range(N_BS):
         idx = rng.integers(0, len(R_individual), len(R_individual))
@@ -265,13 +277,20 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     
         bs_mean.append(np.nanmean(sample))
         bs_med.append(np.nanmedian(sample))
+        # Hα median bootstrap
+        idx = rng.integers(0, len(r1_ind), len(r1_ind))
+        sample_r1 = r1_ind[idx]
+        sample_r2 = r2_ind[idx]
+
+        bs_Ha_med.append(np.nanmedian(sample_r1 / sample_r2))
     
     bs_mean = np.array(bs_mean)
     bs_med  = np.array(bs_med)
+    bs_Ha_med = np.array(bs_Ha_med)
     
     mean16, mean84 = np.percentile(bs_mean, [16, 84])
     med16,  med84  = np.percentile(bs_med,  [16, 84])
-
+    Ha_med16, Ha_med84 = np.percentile(bs_Ha_med, [16, 84])
 
     F1, e1_stack = weighted_mean(f1, e1)
     F2, e2_stack = weighted_mean(f2, e2)
@@ -351,6 +370,10 @@ for lo, hi in zip(edges[:-1], edges[1:]):
         R_Ha_err_lo = R_Ha_50 - R_Ha_16,
         R_Ha_err_hi = R_Ha_84 - R_Ha_50,
 
+        # --- Hα normalized median ---
+        R_Ha_med = R_Ha_med,
+        R_Ha_med_err_lo = R_Ha_med - Ha_med16,
+        R_Ha_med_err_hi = Ha_med84 - R_Ha_med,
 
         N_MC_valid=int(valid.sum()),
     ))
@@ -391,13 +414,19 @@ yerr_mean = np.vstack([res["R_mean_err_lo"], res["R_mean_err_hi"]])
 y_med = res["R_med"].values
 yerr_med = np.vstack([res["R_med_err_lo"], res["R_med_err_hi"]])
 
-# Hα normalized
+# Hα normalized weighted mean
 y_Ha = res["R_Ha"].values
 yerr_Ha = np.vstack([
     res["R_Ha_err_lo"],
     res["R_Ha_err_hi"]
 ])
 
+# Hα normalized median
+y_Ha_med = res["R_Ha_med"].values
+yerr_Ha_med = np.vstack([
+    res["R_Ha_med_err_lo"],
+    res["R_Ha_med_err_hi"]
+])
 
 # ---------------------------
 # weighted mean（白四角）
@@ -406,7 +435,7 @@ ax.errorbar(
     x, y_w,
     yerr=yerr_w,
     fmt="s",
-    mec="white", mfc="None",
+    mec="white", mfc="none",
     ecolor="white", color="white",
     capsize=3,
     label="Weighted stack"
@@ -432,7 +461,7 @@ ax.errorbar(
     x, y_med,
     yerr=yerr_med,
     fmt="^",
-    mec="white", mfc="None",
+    mec="white", mfc="none",
     ecolor="white", color="white",
     capsize=3,
     label="Median"
@@ -452,6 +481,19 @@ ax.errorbar(
     label="[SII]6717 / Hα"
 )
 
+
+# ---------------------------
+# Hα normalized median（黄色などにすると見やすい）
+# ---------------------------
+ax.errorbar(
+    x, y_Ha_med,
+    yerr=yerr_Ha_med,
+    fmt="v",
+    mec="white", mfc="none",
+    ecolor="white", color="white",
+    capsize=3,
+    label="Median ([SII]/Hα)"
+)
 
 
 ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
@@ -505,7 +547,7 @@ plt.colorbar()
 # weighted
 ax.errorbar(
     x, y_w, yerr=yerr_w,
-    fmt="s", mec="white", mfc="None",
+    fmt="s", mec="white", mfc="none",
     ecolor="white", color="white",
     capsize=3, label="Weighted"
 )
@@ -526,12 +568,21 @@ ax.errorbar(
     capsize=3, label="Median"
 )
 
-# [SII]/Hα
+# [SII]/Hα weighet mean
 ax.errorbar(
     x, y_Ha, yerr=yerr_Ha,
     fmt="D", mec="white", mfc="none",
     ecolor="white", color="white",
     capsize=3, label="[SII]6717 / Hα"
+)
+
+# [SII]/Hα median
+ax.errorbar(
+    x, y_Ha_med, yerr=yerr_Ha_med,
+    fmt="v",
+    mec="white", mfc="none",
+    ecolor="white", color="white",
+    capsize=3
 )
 
 ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
@@ -635,7 +686,8 @@ for i, row in res.iterrows():
     # 縦線
     ax.axvline(row["R_wmed"], color="k", linestyle="-", lw=2, label="Weighted")
     ax.axvline(row["R_med"], color="k", linestyle="--", lw=2, label="Median")
-    ax.axvline(row["R_Ha"], color="k", linestyle=":", lw=2, label="Hα stack")
+    ax.axvline(row["R_Ha"], color="k", linestyle=":", lw=2, label="Weighted (Hα norm)")
+    ax.axvline(row["R_Ha_med"], color="k", linestyle="-.", lw=2, label="Median (Hα norm)")
 
     ax.text(
         0.02, 0.95,
