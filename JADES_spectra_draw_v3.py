@@ -6,12 +6,13 @@
 JADESのカタログを使って
 スペクトル(1d)を描画するものです。
 同じディレクトリに入っている銀河を一挙に描画します。
+フィッティングまでする、v2の強化版です。
 
 使用方法:
-    JADES_spectra_draw_v2.py [オプション]
+    JADES_spectra_draw_v3.py [オプション]
 
 著者: A. M.
-作成日: 2026-06-19
+作成日: 2026-06-20
 
 参考文献:
     - PEP 8: https://peps.python.org/pep-0008/
@@ -25,6 +26,8 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 import glob
 import os
+from scipy.optimize import curve_fit
+
 
 # ========= 設定 =========
 csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logSFR_with_Reff_sii_gn_gs.csv"
@@ -74,6 +77,21 @@ def find_spectrum(nirspec_id, wave_obs):
 
     return None
 
+
+# ========= フィッティング関数 =========
+def double_gaussian(x, A1, A2, sigma, c0, c1):
+    mu1 = line1_center
+    mu2 = line2_center
+
+    g1 = A1 * np.exp(-(x - mu1)**2 / (2 * sigma**2))
+    g2 = A2 * np.exp(-(x - mu2)**2 / (2 * sigma**2))
+
+    continuum = c0 + c1 * (x - (mu1 + mu2)/2)
+
+    return g1 + g2 + continuum
+
+
+
 # ========= 波長カバレッジ =========
 # rough（μm → Å）
 coverage = {
@@ -109,6 +127,10 @@ offsets_6716 = []
 offsets_6731 = []
 z_list = []
 
+sii_results = []
+
+fit_panels = []
+current_fit_batch = []
 
 # ========= メインループ =========
 for i, row in df_valid.iterrows():
@@ -220,7 +242,7 @@ for i, row in df_valid.iterrows():
             if np.max(dw) > 5 * median_dw:
                 continue
 
-            width = 50  # Å（好きに調整）
+            width = 50 * (1 + z)  # Å（好きに調整）
 
             # ④ NEW：SII window 完備条件（修正版）
             if not (
@@ -239,23 +261,146 @@ for i, row in df_valid.iterrows():
             if len(wave_plot) == 0:
                 continue
 
+
+            # =========================
+            # ===== フィッティング =====
+            # =========================
+
+            # SII周辺だけ切り出し（±delta_lambdaでOK）
+            fit_mask = (
+                (wave_plot > wave_obs[0] - delta_lambda) &
+                (wave_plot < wave_obs[1] + delta_lambda)
+            )
+
+            x = wave_plot[fit_mask]
+            y = flux_plot[fit_mask]
+            yerr = flux_err_plot[fit_mask]
+
+            if len(x) < 10:
+                continue
+            
+            # ヤバいケース避ける
+            if np.any(~np.isfinite(y)):
+                continue
+            
+            # グローバル変数として渡す（簡単のため）
+            line1_center = wave_obs[0]
+            line2_center = wave_obs[1]
+
+            # 初期値
+            A1_init = np.max(y)
+            A2_init = np.max(y) * 0.8
+            sigma_init = 3.0
+            c0_init = np.median(y)
+            c1_init = 0
+
+            p0 = [A1_init, A2_init, sigma_init, c0_init, c1_init]
+
+            try:
+                popt, pcov = curve_fit(
+                    double_gaussian,
+                    x,
+                    y,
+                    p0=p0,
+                    sigma=yerr,
+                    absolute_sigma=True,
+                    maxfev=10000
+                )
+            
+            except Exception as e:
+                print(f"error: {filepath}")
+                continue
+            
+            A1, A2, sigma, c0, c1 = popt
+
+            # flux
+            flux1 = A1 * sigma * np.sqrt(2*np.pi)
+            flux2 = A2 * sigma * np.sqrt(2*np.pi)
+
+            # error
+            perr = np.sqrt(np.diag(pcov))
+            A1_err, A2_err, sigma_err, _, _ = perr
+
+            flux1_err = flux1 * np.sqrt(
+                (A1_err/A1)**2 + (sigma_err/sigma)**2
+            )
+
+            flux2_err = flux2 * np.sqrt(
+                (A2_err/A2)**2 + (sigma_err/sigma)**2
+            )
+
+            ratio = flux1 / flux2
+
+            ratio_err = ratio * np.sqrt(
+                (flux1_err/flux1)**2 +
+                (flux2_err/flux2)**2
+            )
+
+            sii_results.append({
+                "ID": nid,
+                "z": z,
+                "flux6716": flux1,
+                "flux6731": flux2,
+                "flux6716_err": flux1_err,
+                "flux6731_err": flux2_err,
+                "ratio": ratio,
+                "ratio_err": ratio_err
+            })
+
+            # ===== フィット用データ作成 =====
+
+            fit_width = 50 * (1 + z)  # Å（SII専用表示）
+
+            fit_mask = (
+                (wave_plot > np.mean(wave_obs) - fit_width) &
+                (wave_plot < np.mean(wave_obs) + fit_width)
+            )
+
+            wave_fitplot = wave_plot[fit_mask]
+            flux_fitplot = flux_plot[fit_mask]
+            flux_err_fitplot = flux_err_plot[fit_mask]
+
+            # ✅ フィットパネルに追加
+            current_fit_batch.append((
+                wave_fitplot,
+                flux_fitplot,
+                flux_err_fitplot,
+                wave_obs,
+                popt
+            ))
+
+
+            # ✅ ここで初めて追加
             current_batch.append((wave_plot, flux_plot, flux_err_plot, wave_obs, Ha_obs))
 
             count += 1
             n_good += 1
-
+    
     except Exception as e:
         print(f"error: {filepath}")
         continue
 
-    # ===== 100個たまったら描画 =====
+
+    # ===== 100個たまったら描画（スペクトル） =====
     if len(current_batch) == batch_size:
         panels.append(current_batch)
         current_batch = []
 
-# 残り
+    # ===== 100個たまったら描画（フィッティングカーブ） =====
+    if len(current_fit_batch) == batch_size:
+        fit_panels.append(current_fit_batch)
+        current_fit_batch = []
+
+# ===== メインループ終わり =====
+
+# 残り（スペクトル）
 if len(current_batch) > 0:
     panels.append(current_batch)
+
+# ✅ 残り（フィット）
+if len(current_fit_batch) > 0:
+    fit_panels.append(current_fit_batch)
+    
 
 print(f"プロット対象スペクトル数: {count}")
 print(f"パネル数: {len(panels)}")
@@ -269,37 +414,37 @@ print("both exists:", n_both)
 print("good spectra:", n_good)
 
 
-# ① offset分布
-plt.figure(figsize=(6,4))
-plt.hist(offsets, bins=50)
-plt.axvline(0, color='r', linestyle='--')
-plt.xlabel("Offset [Å]")
-plt.ylabel("Number")
-plt.title("SII peak offset distribution")
-plt.show()
+# # ① offset分布
+# plt.figure(figsize=(6,4))
+# plt.hist(offsets, bins=50)
+# plt.axvline(0, color='r', linestyle='--')
+# plt.xlabel("Offset [Å]")
+# plt.ylabel("Number")
+# plt.title("SII peak offset distribution")
+# plt.show()
 
-# ② offset vs redshift
-plt.figure(figsize=(6,4))
-plt.scatter(z_list, offsets, s=5)
-plt.axhline(0, color='r', linestyle='--')
-plt.xlabel("z_spec")
-plt.ylabel("Offset [Å]")
-plt.title("Offset vs redshift")
-plt.show()
+# # ② offset vs redshift
+# plt.figure(figsize=(6,4))
+# plt.scatter(z_list, offsets, s=5)
+# plt.axhline(0, color='r', linestyle='--')
+# plt.xlabel("z_spec")
+# plt.ylabel("Offset [Å]")
+# plt.title("Offset vs redshift")
+# plt.show()
 
-# ③ 6716 vs 6731
-plt.figure(figsize=(6,4))
-plt.hist(offsets_6716, bins=50, alpha=0.5, label="6716")
-plt.hist(offsets_6731, bins=50, alpha=0.5, label="6731")
-plt.axvline(0, color='k', linestyle='--')
-plt.xlabel("Offset [Å]")
-plt.ylabel("Number")
-plt.legend()
-plt.title("Line identification")
-plt.show()
+# # ③ 6716 vs 6731
+# plt.figure(figsize=(6,4))
+# plt.hist(offsets_6716, bins=50, alpha=0.5, label="6716")
+# plt.hist(offsets_6731, bins=50, alpha=0.5, label="6731")
+# plt.axvline(0, color='k', linestyle='--')
+# plt.xlabel("Offset [Å]")
+# plt.ylabel("Number")
+# plt.legend()
+# plt.title("Line identification")
+# plt.show()
 
 
-# ========= 描画 =========
+# ========= 描画（スペクトル） =========
 output_dir = "results/JADES/figure"
 os.makedirs(output_dir, exist_ok=True)
 for p, batch in enumerate(panels):
@@ -341,4 +486,89 @@ for p, batch in enumerate(panels):
     filename = f"{output_dir}/sii_panel_{p:03d}.png"
     fig.savefig(filename, dpi=150, bbox_inches="tight")
     print(f"Saved as {filename}")
+    plt.show()
+
+
+# ========= 描画（フィッティングカーブ） =========
+output_dir_fit = "results/JADES/fit_figure"
+os.makedirs(output_dir_fit, exist_ok=True)
+
+for p, batch in enumerate(fit_panels):
+    fig, axes = plt.subplots(10, 10, figsize=(20, 20))
+    axes = axes.flatten()
+
+    fig.subplots_adjust(
+        left=0.05,
+        right=0.95,
+        bottom=0.05,
+        top=0.95,
+        wspace=0.0,
+        hspace=0.0
+    )
+
+    for i, (wave, flux, flux_err, wave_lines, popt) in enumerate(batch):
+        ax = axes[i]
+
+        # ===== データ =====
+        ax.step(wave, flux, where="mid", color="black", lw=1.0)
+        ax.fill_between(
+            wave,
+            flux - flux_err,
+            flux + flux_err,
+            step="mid",
+            color="gray",
+            alpha=0.4
+        )
+
+        # ===== フィット =====
+        try:
+            A1, A2, sigma, c0, c1 = popt
+
+            x_fit = np.linspace(wave.min(), wave.max(), 200)
+
+            mu1 = wave_lines[0]
+            mu2 = wave_lines[1]
+            center = np.mean(wave_lines)
+
+            y_fit = (
+                A1 * np.exp(-(x_fit - mu1)**2 / (2 * sigma**2)) +
+                A2 * np.exp(-(x_fit - mu2)**2 / (2 * sigma**2)) +
+                (c0 + c1 * (x_fit - center))
+            )
+
+
+            ax.plot(
+                x_fit,
+                y_fit,
+                color="red",
+                lw=2
+            )
+
+            # individual lines（見やすい）
+            g1 = A1 * np.exp(-(x_fit - mu1)**2 / (2 * sigma**2)) + (c0 + c1 * (x_fit - center))
+            g2 = A2 * np.exp(-(x_fit - mu2)**2 / (2 * sigma**2)) + (c0 + c1 * (x_fit - center))
+
+            ax.plot(x_fit, g1, color='red', lw=2, linestyle='--', alpha=0.7)
+            ax.plot(x_fit, g2, color='red', lw=2, linestyle='-.', alpha=0.7)
+
+        except:
+            pass
+
+        # ===== SII位置 =====
+        for w in wave_lines:
+            ax.axvline(w, color='red', linestyle='--', alpha=0.5)
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    # 空白消す
+    for j in range(len(batch), 100):
+        axes[j].axis("off")
+
+    fig.suptitle(f"SII fit panels {p}")
+
+    filename = f"{output_dir_fit}/sii_fit_panel_{p:03d}.png"
+    fig.savefig(filename, dpi=150, bbox_inches="tight")
+    print(f"Saved as {filename}")
+
     plt.show()

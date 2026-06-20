@@ -360,7 +360,7 @@ def fit_Ha_center(
 
         p0 = [
             np.nanmax(y),
-            6562.8, # あってる?
+            6562.8, # あってる?→これは空気中のもの。
             2.0,
             np.nanmedian(y)
         ]
