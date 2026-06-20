@@ -35,9 +35,10 @@ gratings = ["JADES_DR3_G140M", "JADES_DR3_G235M", "JADES_DR3_G395M"]
 
 # SII rest wavelength (Å)
 SII_lines = [6716.440, 6730.820]
+Ha_rest = 6564.61  # Å（あってる?）
 
 # プロット範囲（Å）
-delta_lambda = 100
+delta_lambda = 800
 
 # ========= CSV読み込み =========
 df = pd.read_csv(csv_file)
@@ -101,6 +102,14 @@ n_6731 = 0
 n_both = 0
 n_any = 0
 
+n_good = 0
+
+offsets = []
+offsets_6716 = []
+offsets_6731 = []
+z_list = []
+
+
 # ========= メインループ =========
 for i, row in df_valid.iterrows():
     z = row["z_spec"]
@@ -112,6 +121,7 @@ for i, row in df_valid.iterrows():
 
     # 観測波長
     wave_obs = np.array(SII_lines) * (1 + z)
+    Ha_obs = Ha_rest * (1 + z)
 
     # カバレッジ外ならスキップ
     if not any([in_coverage(w) for w in wave_obs]):
@@ -167,12 +177,72 @@ for i, row in df_valid.iterrows():
             flux_plot = flux[mask]
             flux_err_plot = flux_err[mask]
 
+            if len(wave_plot) > 0:
+                peak_wave = wave_plot[np.argmax(flux_plot)]
+
+                offset = peak_wave - np.mean(wave_obs)
+                offset1 = peak_wave - wave_obs[0]
+                offset2 = peak_wave - wave_obs[1]
+
+                offsets.append(offset)
+                offsets_6716.append(offset1)
+                offsets_6731.append(offset2)
+                z_list.append(z)
+
+
+            # ===== 品質マスク =====
+
+            # ① 点数条件
+            if len(wave_plot) < 10:
+                continue
+            
+            # ② NaN除去
+            valid = ~np.isnan(flux_plot)
+            wave_plot = wave_plot[valid]
+            flux_plot = flux_plot[valid]
+            flux_err_plot = flux_err_plot[valid]
+
+            if len(wave_plot) < 10:
+                continue
+
+            # ✅ NEW：wave_plotベースで再マスク
+            mask1_plot = (wave_plot > wave_obs[0] - delta_lambda) & (wave_plot < wave_obs[0] + delta_lambda)
+            mask2_plot = (wave_plot > wave_obs[1] - delta_lambda) & (wave_plot < wave_obs[1] + delta_lambda)
+
+            
+            # ③ ギャップ検出（重要）
+            dw = np.diff(wave_plot)
+
+            # 平均ステップ
+            median_dw = np.median(dw)
+
+            # 大きすぎるギャップを検出
+            if np.max(dw) > 5 * median_dw:
+                continue
+
+            width = 50  # Å（好きに調整）
+
+            # ④ NEW：SII window 完備条件（修正版）
+            if not (
+                (wave_plot.min() < wave_obs[0] - width) and
+                (wave_plot.max() > wave_obs[0] + width) and
+                (wave_plot.min() < wave_obs[1] - width) and
+                (wave_plot.max() > wave_obs[1] + width)
+            ):
+                continue
+
+            # ⑤ SII window内に十分なデータ点があるか    
+            if np.sum(mask1_plot) < 5 or np.sum(mask2_plot) < 5:
+                continue
+
+            # 念のため
             if len(wave_plot) == 0:
                 continue
 
-            current_batch.append((wave_plot, flux_plot, flux_err_plot, wave_obs))
+            current_batch.append((wave_plot, flux_plot, flux_err_plot, wave_obs, Ha_obs))
 
             count += 1
+            n_good += 1
 
     except Exception as e:
         print(f"error: {filepath}")
@@ -196,6 +266,38 @@ print("6716 exists:", n_6716)
 print("6731 exists:", n_6731)
 print("any exists:", n_any)
 print("both exists:", n_both)
+print("good spectra:", n_good)
+
+
+# ① offset分布
+plt.figure(figsize=(6,4))
+plt.hist(offsets, bins=50)
+plt.axvline(0, color='r', linestyle='--')
+plt.xlabel("Offset [Å]")
+plt.ylabel("Number")
+plt.title("SII peak offset distribution")
+plt.show()
+
+# ② offset vs redshift
+plt.figure(figsize=(6,4))
+plt.scatter(z_list, offsets, s=5)
+plt.axhline(0, color='r', linestyle='--')
+plt.xlabel("z_spec")
+plt.ylabel("Offset [Å]")
+plt.title("Offset vs redshift")
+plt.show()
+
+# ③ 6716 vs 6731
+plt.figure(figsize=(6,4))
+plt.hist(offsets_6716, bins=50, alpha=0.5, label="6716")
+plt.hist(offsets_6731, bins=50, alpha=0.5, label="6731")
+plt.axvline(0, color='k', linestyle='--')
+plt.xlabel("Offset [Å]")
+plt.ylabel("Number")
+plt.legend()
+plt.title("Line identification")
+plt.show()
+
 
 # ========= 描画 =========
 output_dir = "results/JADES/figure"
@@ -212,7 +314,7 @@ for p, batch in enumerate(panels):
         hspace=0.0
     )
 
-    for i, (wave, flux, flux_err, wave_lines) in enumerate(batch):
+    for i, (wave, flux, flux_err, wave_lines, Ha_obs) in enumerate(batch):
         ax = axes[i]
 
         ax.step(wave, flux, where="mid", color="black", lw=1.0)
@@ -221,6 +323,9 @@ for p, batch in enumerate(panels):
         # SIIライン
         for w in wave_lines:
             ax.axvline(w, color='r', linestyle='--', alpha=0.5)
+        
+        # Hαライン
+        ax.axvline(Ha_obs, color='r', linestyle=':', alpha=0.7)
 
         ax.set_xticks([])
         ax.set_yticks([])

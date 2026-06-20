@@ -360,7 +360,7 @@ def fit_Ha_center(
 
         p0 = [
             np.nanmax(y),
-            6562.8,
+            6562.8, # あってる?
             2.0,
             np.nanmedian(y)
         ]
