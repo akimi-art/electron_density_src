@@ -37,8 +37,9 @@ spec_base = "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
 gratings = ["JADES_DR3_G140M", "JADES_DR3_G235M", "JADES_DR3_G395M"]
 
 # SII rest wavelength (Å)
-SII_lines = [6716.440, 6730.820]
-Ha_rest = 6564.61  # Å（あってる?）
+# 参考: SDSS wavelength table→https://classic.sdss.org/dr6/algorithms/linestable.php
+SII_lines = [6718.29, 6732.67] # Å（真空中?）
+Ha_rest = 6564.61  # Å（真空中?）
 
 # プロット範囲（Å）
 delta_lambda = 800
@@ -79,17 +80,19 @@ def find_spectrum(nirspec_id, wave_obs):
 
 
 # ========= フィッティング関数 =========
-def double_gaussian(x, A1, A2, sigma, c0, c1):
-    mu1 = line1_center
-    mu2 = line2_center
+def double_gaussian(x, A1, A2, sigma, z_fit, c0, c1):
+
+    mu1 = 6716.440 * (1 + z_fit)
+    mu2 = 6730.820 * (1 + z_fit)
+
+    center = (mu1 + mu2) / 2
 
     g1 = A1 * np.exp(-(x - mu1)**2 / (2 * sigma**2))
     g2 = A2 * np.exp(-(x - mu2)**2 / (2 * sigma**2))
 
-    continuum = c0 + c1 * (x - (mu1 + mu2)/2)
+    continuum = c0 + c1 * (x - center)
 
     return g1 + g2 + continuum
-
 
 
 # ========= 波長カバレッジ =========
@@ -267,9 +270,12 @@ for i, row in df_valid.iterrows():
             # =========================
 
             # SII周辺だけ切り出し（±delta_lambdaでOK）
+            fit_width = 50 * (1 + z)
+            center = np.mean(wave_obs)
+
             fit_mask = (
-                (wave_plot > wave_obs[0] - delta_lambda) &
-                (wave_plot < wave_obs[1] + delta_lambda)
+                (wave_plot > center - fit_width) &
+                (wave_plot < center + fit_width)
             )
 
             x = wave_plot[fit_mask]
@@ -288,13 +294,38 @@ for i, row in df_valid.iterrows():
             line2_center = wave_obs[1]
 
             # 初期値
-            A1_init = np.max(y)
-            A2_init = np.max(y) * 0.8
-            sigma_init = 3.0
+            peak = np.percentile(y, 95) - np.median(y)
+
+            if peak <= 0:
+                continue
+            
+            A1_init = peak
+            A2_init = peak 
+
+            sigma_init = 3.0 * (1 + z) # 適当な数値
             c0_init = np.median(y)
             c1_init = 0
+            z_init = z  # z_spec
 
-            p0 = [A1_init, A2_init, sigma_init, c0_init, c1_init]
+            p0 = [A1_init, A2_init, sigma_init, z_init, c0_init, c1_init]
+
+            lower = [
+                0.0,     # A1 >= 0
+                0.0,     # A2 >= 0
+                0.5,     # sigma > 0（少し余裕）
+                z - 0.005,   # z（軽く制限）
+                -np.inf, # c0
+                -np.inf  # c1
+            ]
+
+            upper = [
+                np.inf,
+                np.inf,
+                np.inf,
+                z + 0.005,
+                np.inf,
+                np.inf
+            ]
 
             try:
                 popt, pcov = curve_fit(
@@ -302,7 +333,8 @@ for i, row in df_valid.iterrows():
                     x,
                     y,
                     p0=p0,
-                    sigma=yerr,
+                    sigma=yerr,    
+                    bounds=(lower, upper),
                     absolute_sigma=True,
                     maxfev=10000
                 )
@@ -311,30 +343,61 @@ for i, row in df_valid.iterrows():
                 print(f"error: {filepath}")
                 continue
             
-            A1, A2, sigma, c0, c1 = popt
+            A1, A2, sigma, z_fit, c0, c1 = popt
 
             # flux
             flux1 = A1 * sigma * np.sqrt(2*np.pi)
             flux2 = A2 * sigma * np.sqrt(2*np.pi)
 
             # error
-            perr = np.sqrt(np.diag(pcov))
-            A1_err, A2_err, sigma_err, _, _ = perr
+            n_mc = 100  # 100回で安定するらしい（理想は300回）
 
-            flux1_err = flux1 * np.sqrt(
-                (A1_err/A1)**2 + (sigma_err/sigma)**2
-            )
+            flux1_mc = []
+            flux2_mc = []
+            ratio_mc = []
 
-            flux2_err = flux2 * np.sqrt(
-                (A2_err/A2)**2 + (sigma_err/sigma)**2
-            )
+            for _ in range(n_mc):
+            
+                # ノイズを付与
+                y_mc = y + np.random.normal(0, yerr)
 
-            ratio = flux1 / flux2
+                try:
+                    popt_mc, _ = curve_fit(
+                        double_gaussian,
+                        x,
+                        y_mc,
+                        p0=popt,  # ←前回のfitを初期値に
+                        bounds=(lower, upper),
+                        maxfev=5000
+                    )
 
-            ratio_err = ratio * np.sqrt(
-                (flux1_err/flux1)**2 +
-                (flux2_err/flux2)**2
-            )
+                    A1_mc, A2_mc, sigma_mc, z_mc, c0_mc, c1_mc = popt_mc
+
+                    if A1_mc <= 0 or A2_mc <= 0 or sigma_mc <= 0:
+                        continue
+                    
+                    f1 = A1_mc * sigma_mc * np.sqrt(2*np.pi)
+                    f2 = A2_mc * sigma_mc * np.sqrt(2*np.pi)
+
+                    flux1_mc.append(f1)
+                    flux2_mc.append(f2)
+                    ratio_mc.append(f1 / f2)
+
+                except:
+                    continue
+
+            # ✅ MCサンプルが少なすぎる場合はスキップ
+            if len(flux1_mc) < 10:
+                continue
+
+            flux1 = np.mean(flux1_mc)
+            flux2 = np.mean(flux2_mc)
+            ratio = np.mean(ratio_mc)
+
+            flux1_err = np.std(flux1_mc)
+            flux2_err = np.std(flux2_mc)
+            ratio_err = np.std(ratio_mc)
+
 
             sii_results.append({
                 "ID": nid,
@@ -351,9 +414,11 @@ for i, row in df_valid.iterrows():
 
             fit_width = 50 * (1 + z)  # Å（SII専用表示）
 
+            center = np.mean(wave_obs)
+
             fit_mask = (
-                (wave_plot > np.mean(wave_obs) - fit_width) &
-                (wave_plot < np.mean(wave_obs) + fit_width)
+                (wave_plot > center - fit_width) &
+                (wave_plot < center + fit_width)
             )
 
             wave_fitplot = wave_plot[fit_mask]
@@ -522,41 +587,35 @@ for p, batch in enumerate(fit_panels):
 
         # ===== フィット =====
         try:
-            A1, A2, sigma, c0, c1 = popt
+            A1, A2, sigma, z_fit, c0, c1 = popt
 
             x_fit = np.linspace(wave.min(), wave.max(), 200)
 
-            mu1 = wave_lines[0]
-            mu2 = wave_lines[1]
-            center = np.mean(wave_lines)
+            # ✅ zから再計算
+            mu1 = 6716.440 * (1 + z_fit)
+            mu2 = 6730.820 * (1 + z_fit)
+            center = (mu1 + mu2) / 2
 
-            y_fit = (
-                A1 * np.exp(-(x_fit - mu1)**2 / (2 * sigma**2)) +
-                A2 * np.exp(-(x_fit - mu2)**2 / (2 * sigma**2)) +
-                (c0 + c1 * (x_fit - center))
-            )
+            continuum = c0 + c1 * (x_fit - center)
 
+            g1 = A1 * np.exp(-(x_fit - mu1)**2 / (2 * sigma**2))
+            g2 = A2 * np.exp(-(x_fit - mu2)**2 / (2 * sigma**2))
 
-            ax.plot(
-                x_fit,
-                y_fit,
-                color="red",
-                lw=2
-            )
+            y_fit = g1 + g2 + continuum
 
-            # individual lines（見やすい）
-            g1 = A1 * np.exp(-(x_fit - mu1)**2 / (2 * sigma**2)) + (c0 + c1 * (x_fit - center))
-            g2 = A2 * np.exp(-(x_fit - mu2)**2 / (2 * sigma**2)) + (c0 + c1 * (x_fit - center))
+            # 全体
+            ax.plot(x_fit, y_fit, color="red", lw=2)
 
-            ax.plot(x_fit, g1, color='red', lw=2, linestyle='--', alpha=0.7)
-            ax.plot(x_fit, g2, color='red', lw=2, linestyle='-.', alpha=0.7)
+            # 個別
+            ax.plot(x_fit, g1 + continuum, color='red', linestyle='--', alpha=0.7)
+            ax.plot(x_fit, g2 + continuum, color='red', linestyle='-.', alpha=0.7)
 
         except:
             pass
 
-        # ===== SII位置 =====
-        for w in wave_lines:
-            ax.axvline(w, color='red', linestyle='--', alpha=0.5)
+        # ===== SII位置（fitベース） =====
+        ax.axvline(mu1, color='red', linestyle='--', alpha=0.5)
+        ax.axvline(mu2, color='red', linestyle='--', alpha=0.5)
 
         ax.set_xticks([])
         ax.set_yticks([])
