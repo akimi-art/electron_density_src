@@ -82,8 +82,8 @@ def find_spectrum(nirspec_id, wave_obs):
 # ========= フィッティング関数 =========
 def double_gaussian(x, A1, A2, sigma, z_fit, c0, c1):
 
-    mu1 = 6716.440 * (1 + z_fit)
-    mu2 = 6730.820 * (1 + z_fit)
+    mu1 = 6718.29 * (1 + z_fit)
+    mu2 = 6732.67 * (1 + z_fit)
 
     center = (mu1 + mu2) / 2
 
@@ -402,6 +402,7 @@ for i, row in df_valid.iterrows():
             sii_results.append({
                 "ID": nid,
                 "z": z,
+                "z_fit": z_fit,
                 "flux6716": flux1,
                 "flux6731": flux2,
                 "flux6716_err": flux1_err,
@@ -466,6 +467,22 @@ if len(current_batch) > 0:
 if len(current_fit_batch) > 0:
     fit_panels.append(current_fit_batch)
     
+# ========= SII結果をDataFrame化 =========
+df_sii = pd.DataFrame(sii_results)
+
+# IDカラム名を合わせる
+df_sii.rename(columns={"ID": "NIRSpec_ID"}, inplace=True)
+
+# ========= 元データと結合 =========
+df_merged = df_valid.merge(df_sii, on="NIRSpec_ID", how="left")
+
+# ========= 保存 =========
+output_csv = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logSFR_with_Reff_sii_gn_gs_fit.csv"
+os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+
+df_merged.to_csv(output_csv, index=False)
+
+print(f"Saved to {output_csv}")
 
 print(f"プロット対象スペクトル数: {count}")
 print(f"パネル数: {len(panels)}")

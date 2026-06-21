@@ -52,7 +52,7 @@ wave_grid = np.arange(6500, 6900, 0.5)
 # ← ここだけ変えればOK
 n_bins = 1 # 一番安定したスタックを得るためには、bin数は少なめ（1-3程度）が良いと思います。
 # ↓追加
-n_phys_bins = 3 # 変更
+n_phys_bins = 1 # 変更
 
 # ============================
 # CSV
@@ -359,7 +359,7 @@ def fit_Ha_center(
 
         p0 = [
             np.nanmax(y),
-            6562.8,
+            6564.61,  # Å（真空中）参考: SDSS wavelength table→https://classic.sdss.org/dr6/algorithms/linestable.php
             2.0,
             np.nanmedian(y)
         ]
@@ -628,7 +628,7 @@ else:
             if np.isfinite(center):
             
                 ha_offsets.append(
-                    center - 6562.8
+                    center - 6564.61
                 )
 
         ha_offsets = np.array(
@@ -649,7 +649,7 @@ else:
 
         plt.hist(
             ha_offsets,
-            bins=20,
+            bins=60,
             color="0.7",
             edgecolor="black"
         )
@@ -661,7 +661,7 @@ else:
         )
 
         plt.xlabel(
-            r"$\lambda_{H\alpha}-6562.8$ (Å)"
+            r"$\lambda_{H\alpha}-6564.61$ (Å)"
         )
 
         plt.ylabel("count")
@@ -700,7 +700,7 @@ else:
                 color="black"
             )
 
-        plt.axvline(6562.8, color="red", ls="--")
+        plt.axvline(6564.61, color="red", ls="--")
 
         plt.xlabel("Rest wavelength (A)")
         plt.ylabel("Flux")
@@ -725,26 +725,26 @@ else:
                 &
                 (wave < 6745)
             )
-            # 確認用のプロット（必要に応じてコメントアウト）
-            plt.figure(figsize=(6,6))
+            # # 確認用のプロット（必要に応じてコメントアウト）
+            # plt.figure(figsize=(6,6))
 
-            plt.plot(
-                wave[mask],
-                flux[mask]
-            )
-
-            # plt.axvline(
-            #     6562.8,
-            #     color="red",
-            #     ls="--"
+            # plt.plot(
+            #     wave[mask],
+            #     flux[mask]
             # )
+
+            # # plt.axvline(
+            # #     6562.8,
+            # #     color="red",
+            # #     ls="--"
+            # # )
             
-            plt.axvline(6716.44,color="red",ls="--")
-            plt.axvline(6730.82,color="red",ls="-.")
+            # plt.axvline(6718.29,color="red",ls="--") # 真空中
+            # plt.axvline(6732.67,color="red",ls="-.")
 
-            plt.title(it["id"])
+            # plt.title(it["id"])
 
-            plt.show()
+            # plt.show()
 
 
         sigma_vals = np.array([
