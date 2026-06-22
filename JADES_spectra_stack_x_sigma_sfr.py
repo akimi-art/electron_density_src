@@ -379,6 +379,28 @@ def fit_Ha_center(
         return np.nan
 
 
+# =====================================
+# bootstrap median error
+# =====================================
+
+def bootstrap_median(x, nboot=1000):
+    x = np.array(x)
+    x = x[np.isfinite(x)]
+
+    if len(x) == 0:
+        return np.nan, np.nan, np.nan
+
+    samples = []
+
+    for _ in range(nboot):
+        idx = np.random.randint(0, len(x), len(x))
+        samples.append(np.nanmedian(x[idx]))
+
+    samples = np.array(samples)
+
+    p16, p50, p84 = np.percentile(samples, [16, 50, 84])
+
+    return p50, p50 - p16, p84 - p50
 
 # ============================
 # MAIN
@@ -734,7 +756,7 @@ else:
             # )
 
             # # plt.axvline(
-            # #     6562.8,
+            # #     6564.61,
             # #     color="red",
             # #     ls="--"
             # # )
@@ -781,25 +803,68 @@ else:
             sigma_err_lo,
             sigma_err_hi
         )
+        # =====================================
+        # additional physical quantities
+        # =====================================
 
-        print(
-            f"\nSigma_SFR bin {b+1}"
+        # --- logM ---
+        logM_vals = np.array([it["logM"] for it in selected])
+        logM_err_lo = np.array([it["logM_err_lo"] for it in selected])
+        logM_err_hi = np.array([it["logM_err_hi"] for it in selected])
+
+        logM_mean, logM_err = weighted_mean_sfr(
+            logM_vals,
+            logM_err_lo,
+            logM_err_hi
         )
 
-        print(
-            f"N = {len(selected)}"
+        # --- logSFR ---
+        logSFR_vals = np.array([it["sfr"] for it in selected])
+        logSFR_err_lo = np.array([it["sfr_err_lo"] for it in selected])
+        logSFR_err_hi = np.array([it["sfr_err_hi"] for it in selected])
+
+        logSFR_mean, logSFR_err = weighted_mean_sfr(
+            logSFR_vals,
+            logSFR_err_lo,
+            logSFR_err_hi
         )
 
-        print(
-            f"logSigmaSFR = "
-            f"{sigma_mean:.3f} ± {sigma_err:.3f}"
+        # --- log sSFR ---
+        ssfr_vals = np.array([it["ssfr"] for it in selected])
+        ssfr_err_lo = np.array([it["ssfr_err_lo"] for it in selected])
+        ssfr_err_hi = np.array([it["ssfr_err_hi"] for it in selected])
+
+        ssfr_mean, ssfr_err = weighted_mean_sfr(
+            ssfr_vals,
+            ssfr_err_lo,
+            ssfr_err_hi
         )
 
+        # =====================================
+        # median values
+        # =====================================
+        logM_med, logM_med_lo, logM_med_hi = bootstrap_median(logM_vals)
+        logSFR_med, logSFR_med_lo, logSFR_med_hi = bootstrap_median(logSFR_vals)
+        ssfr_med, ssfr_med_lo, ssfr_med_hi = bootstrap_median(ssfr_vals)
+        sigma_med, sigma_med_lo, sigma_med_hi = bootstrap_median(sigma_vals)
+
+        print(f"\nSigma_SFR bin {b+1}")
+        print(f"logSigmaSFR = {sigma_mean:.3f} ± {sigma_err:.3f}")
         print(
             f"range = "
             f"[{np.min(sigma_vals):.3f}, "
             f"{np.max(sigma_vals):.3f}]"
         )
+        print(f"logM = {logM_mean:.3f} ± {logM_err:.3f}")
+        print(f"logSFR = {logSFR_mean:.3f} ± {logSFR_err:.3f}")
+        print(f"log sSFR = {ssfr_mean:.3f} ± {ssfr_err:.3f}")
+
+        print(f"N = {len(selected)}")
+        print(f"logSigmaSFR (median) = {sigma_med:.3f} +{sigma_med_hi:.3f}/-{sigma_med_lo:.3f}")
+
+        print(f"logM (median) = {logM_med:.3f} +{logM_med_hi:.3f}/-{logM_med_lo:.3f}")
+        print(f"logSFR (median) = {logSFR_med:.3f} +{logSFR_med_hi:.3f}/-{logSFR_med_lo:.3f}")
+        print(f"log sSFR (median) = {ssfr_med:.3f} +{ssfr_med_hi:.3f}/-{ssfr_med_lo:.3f}")
 
         # =====================================
         # stack
@@ -850,6 +915,10 @@ else:
                 f"N={len(selected)} | "
                 f"logSigmaSFR="
                 f"{sigma_mean:.5f}+/-{sigma_err:.5f}"
+                f"logM={logM_mean:.5f}+/-{logM_err:.5f} | "
+                f"logSFR={logSFR_mean:.5f}+/-{logSFR_err:.5f} | "
+                f"log_sSFR={ssfr_mean:.5f}+/-{ssfr_err:.5f}"
+
             )
         )
 
@@ -861,9 +930,14 @@ else:
                 err_stack_m
             ]),
             header=(
-                f"wave flux err | "
-                f"median stack | "
-                f"Sigma_SFR bin {b+1}/{n_phys_bins}"
+                f"wave flux err | weighted stack | "
+                f"Sigma_SFR bin {b+1}/{n_phys_bins} | "
+                f"N={len(selected)} | "
+                f"logSigmaSFR_mean={sigma_mean:.5f}±{sigma_err:.5f} | "
+                f"logSigmaSFR_med={sigma_med:.5f}+{sigma_med_hi:.5f}/-{sigma_med_lo:.5f} | "
+                f"logM_med={logM_med:.5f} | "
+                f"logSFR_med={logSFR_med:.5f} | "
+                f"log_sSFR_med={ssfr_med:.5f}"
             )
         )
 

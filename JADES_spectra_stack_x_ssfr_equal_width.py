@@ -10,7 +10,7 @@ z, 物理量（例: SFR, Mstar, sSFR, Sigma_SFR）を基に、スペクトルを
 
 著者: A. M.
 作成日: 2026-06-03
-最終更新日: 2026-06-03
+最終更新日: 2026-06-22
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -35,7 +35,7 @@ from astropy.cosmology import Planck18
 # SETTINGS
 # ============================
 
-csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logsSFR_with_Reff.csv" # 変更
+csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logSFR_with_Reff.csv" # 変更
 
 spec_dir = "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
 
@@ -56,9 +56,8 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (0.0, 1.0),
 # ]
 ssfr_bins = [
-    (-1.0, 0.0),
-    (0.0, 1.0),
-    (1.0, 2.0),
+    (-9, -8.5),
+    (-8.5, -8.0),
 ]
 
 
@@ -257,8 +256,22 @@ for gr in gratings:
             logSFR_err_lo = row["log10_SFR_hb_err_lower"]
             logSFR_err_hi = row["log10_SFR_hb_err_upper"]
 
-            used_items_all.append({
+            logM = row["logM"]
+            
+            logM_err_lo = row["err1_logM"]
+            logM_err_hi = row["err2_logM"]
+            
+            # sSFR
+            log_sSFR = logSFR - logM
+            
+            # 誤差（対称化）
+            sfr_sigma  = 0.5 * (logSFR_err_lo + logSFR_err_hi)
+            mass_sigma = 0.5 * (logM_err_lo + logM_err_hi)
+            
+            ssfr_sigma = np.sqrt(sfr_sigma**2 + mass_sigma**2)
 
+            used_items_all.append({
+            
                 "id": sid,
 
                 "flux": flux_i,
@@ -268,6 +281,15 @@ for gr in gratings:
                 "logSFR_err_lo": logSFR_err_lo,
                 "logSFR_err_hi": logSFR_err_hi,
 
+                # 追加
+                "logM": logM,
+                "logM_err_lo": logM_err_lo,
+                "logM_err_hi": logM_err_hi,
+
+                # 追加（これが主役）
+                "ssfr": log_sSFR,
+                "ssfr_err_lo": ssfr_sigma,
+                "ssfr_err_hi": ssfr_sigma,
             })
 
         except Exception:
@@ -283,17 +305,17 @@ if len(used_items_all) == 0:
 else:
 
     # =====================================
-    # use Sigma_SFR as binning variable
+    # use sSFR as binning variable
     # =====================================
 
-    used_sfr_all = np.array([
-        it["logSFR"]
+    used_ssfr_all = np.array([
+        it["ssfr"]
         for it in used_items_all
     ])
 
-    valid_mask = np.isfinite(used_sfr_all)
+    valid_mask = np.isfinite(used_ssfr_all)
 
-    used_sfr_all = used_sfr_all[valid_mask]
+    used_ssfr_all = used_ssfr_all[valid_mask]
 
     used_items_valid = [
         used_items_all[i]
@@ -301,7 +323,7 @@ else:
         if valid_mask[i]
     ]
 
-    N = len(used_sfr_all)
+    N = len(used_ssfr_all)
 
     print("\nTotal usable spectra:", N)
 
@@ -312,26 +334,29 @@ else:
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        used_sfr_all,
-        bins=30,
+        used_ssfr_all,
+        bins=60,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log {\rm SFR}$')
+    plt.xlabel(r'$\log {\rm sSFR}$')
     plt.ylabel("count")
 
     plt.tight_layout()
+    save_hist_path = "results/JADES/figure/hist_sSFR_JADES.png"
+    plt.savefig(f"{save_hist_path}")
+    print(f"Saved as {save_hist_path}.")
     plt.show()
 
-    print("median =", np.nanmedian(used_sfr_all))
-    print("std =", np.nanstd(used_sfr_all))
+    print("median =", np.nanmedian(used_ssfr_all))
+    print("std =", np.nanstd(used_ssfr_all))
 
     # =====================================
-    # stack each SFR bin
+    # stack each sSFR bin
     # =====================================
 
-    for b, (lo, hi) in enumerate(sfr_bins):
+    for b, (lo, hi) in enumerate(ssfr_bins):
 
         # outlierを除去するために、以下のIDを除外します。
         # 確実に弾いてよいもの
@@ -353,15 +378,12 @@ else:
         ]
 
         selected = [
-        
             it
-
             for it in used_items_valid
-
             if (
-                (it["logSFR"] >= lo)
+                (it["ssfr"] >= lo)
                 and
-                (it["logSFR"] < hi)
+                (it["ssfr"] < hi)
                 and
                 (it["id"] not in bad_ids)
             )
@@ -370,14 +392,14 @@ else:
         if len(selected) == 0:
 
             print(
-                f"logSFR [{lo},{hi}) : empty"
+                f"logsSFR [{lo},{hi}) : empty"
             )
 
             continue
 
 
-        sfr_vals = np.array([
-            it["logSFR"]
+        ssfr_vals = np.array([
+            it["ssfr"]
             for it in selected
         ])
 
@@ -392,42 +414,37 @@ else:
         ]
 
         # =====================================
-        # weighted mean Sigma_SFR
+        # weighted mean sSFR
         # =====================================
 
-        sfr_err_lo = [
-            it["logSFR_err_lo"]
+        ssfr_err_lo = [
+            it["ssfr_err_lo"]
             for it in selected
         ]
 
-        sfr_err_hi = [
-            it["logSFR_err_hi"]
+        ssfr_err_hi = [
+            it["ssfr_err_hi"]
             for it in selected
         ]
 
-        sfr_mean, sfr_err = weighted_mean(
-            sfr_vals,
-            sfr_err_lo,
-            sfr_err_hi
+        ssfr_mean, ssfr_err = weighted_mean(
+            ssfr_vals,
+            ssfr_err_lo,
+            ssfr_err_hi
         )
 
-        print(
-            f"\nlogSFR [{lo},{hi})"
-        )
+        print(f"\nlog sSFR [{lo},{hi})")
 
         print(
             f"N = {len(selected)}"
         )
 
-        print(
-            f"logSFR = "
-            f"{sfr_mean:.3f} ± {sfr_err:.3f}"
-        )
+        print(f"log sSFR = {ssfr_mean:.3f} ± {ssfr_err:.3f}")
 
         print(
             f"range = "
-            f"[{np.min(sfr_vals):.3f}, "
-            f"{np.max(sfr_vals):.3f}]"
+            f"[{np.min(ssfr_vals):.3f}, "
+            f"{np.max(ssfr_vals):.3f}]"
         )
 
         # =====================================
@@ -445,7 +462,7 @@ else:
 
         outname_w = (
             "results/JADES/JADES_DR3/spectra/"
-            f"stack_sfr_{lo:+.1f}_{hi:+.1f}.txt"
+            f"stack_ssfr_{lo:+.1f}_{hi:+.1f}.txt"
         )
 
         # =====================================
@@ -462,10 +479,10 @@ else:
             header=(
                 f"wave flux err | "
                 f"weighted stack | "
-                f"logSFR=[{lo},{hi}) | "
+                f"logsSFR=[{lo},{hi}) | "
                 f"N={len(selected)} | "
-                f"logSFR="
-                f"{sfr_mean:.5f}+/-{sfr_err:.5f}"
+                f"logsSFR="
+                f"{ssfr_mean:.5f}+/-{ssfr_err:.5f}"
             )
         )
 
