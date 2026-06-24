@@ -344,7 +344,7 @@ else:
     plt.ylabel("count")
 
     plt.tight_layout()
-    save_hist_path = "results/JADES/figure/hist_sSFR_JADES.png"
+    save_hist_path = "results/JADES/figure/hist_ssfr_JADES.png"
     plt.savefig(f"{save_hist_path}")
     print(f"Saved as {save_hist_path}.")
     plt.show()

@@ -52,7 +52,7 @@ wave_grid = np.arange(6500, 6900, 0.5)
 # ← ここだけ変えればOK
 n_bins = 1 # 一番安定したスタックを得るためには、bin数は少なめ（1-3程度）が良いと思います。
 # ↓追加
-n_phys_bins = 3 # 変更
+n_phys_bins = 1 # 変更
 
 # ============================
 # CSV
@@ -360,7 +360,7 @@ def fit_Ha_center(
 
         p0 = [
             np.nanmax(y),
-            6562.8, # あってる?→これは空気中のもの。
+            6564.61, # 真空中
             2.0,
             np.nanmedian(y)
         ]
@@ -543,7 +543,7 @@ else:
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        used_sfr_all,
+        used_mass_all,
         bins=30,
         color="0.7",
         edgecolor="black"
@@ -621,7 +621,7 @@ else:
             if np.isfinite(center):
             
                 ha_offsets.append(
-                    center - 6562.8
+                    center - 6564.61 # 真空中
                 )
 
         ha_offsets = np.array(
@@ -654,7 +654,7 @@ else:
         )
 
         plt.xlabel(
-            r"$\lambda_{H\alpha}-6562.8$ (Å)"
+            r"$\lambda_{H\alpha}-6564.61$ (Å)"
         )
 
         plt.ylabel("count")
@@ -693,7 +693,7 @@ else:
                 color="black"
             )
 
-        plt.axvline(6562.8, color="red", ls="--")
+        plt.axvline(6564.61, color="red", ls="--")
 
         plt.xlabel("Rest wavelength (A)")
         plt.ylabel("Flux")

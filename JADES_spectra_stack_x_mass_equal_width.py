@@ -317,7 +317,7 @@ else:
 
     plt.hist(
         used_mass_all,
-        bins=30,
+        bins=60,
         color="0.7",
         edgecolor="black"
     )
@@ -326,6 +326,9 @@ else:
     plt.ylabel("count")
 
     plt.tight_layout()
+    save_hist_path = "results/JADES/figure/hist_mass_JADES.png"
+    plt.savefig(f"{save_hist_path}")
+    print(f"Saved as {save_hist_path}.")
     plt.show()
 
     print("median =", np.nanmedian(used_mass_all))

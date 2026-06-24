@@ -52,7 +52,7 @@ wave_grid = np.arange(6500, 6900, 0.5)
 # ← ここだけ変えればOK
 n_bins = 1 # 一番安定したスタックを得るためには、bin数は少なめ（1-3程度）が良いと思います。
 # ↓追加
-n_phys_bins = 3 # 変更
+n_phys_bins = 1 # 変更
 
 # ============================
 # CSV
@@ -359,7 +359,7 @@ def fit_Ha_center(
 
         p0 = [
             np.nanmax(y),
-            6562.8,
+            6564.61, # 真空中
             2.0,
             np.nanmedian(y)
         ]
@@ -620,7 +620,7 @@ else:
             if np.isfinite(center):
             
                 ha_offsets.append(
-                    center - 6562.8
+                    center - 6564.61 # 真空中
                 )
 
         ha_offsets = np.array(
@@ -653,7 +653,7 @@ else:
         )
 
         plt.xlabel(
-            r"$\lambda_{H\alpha}-6562.8$ (Å)"
+            r"$\lambda_{H\alpha}-6564.61$ (Å)"
         )
 
         plt.ylabel("count")
@@ -666,13 +666,18 @@ else:
 
 
 
-        # ↓ 追加
+        # ↓ 追加（Haのスペクトル）
         plt.figure(figsize=(6,6))
 
         for it in selected:
         
             wave = it["wave_rest"]
             flux = it["flux_rest"]
+            wave_center_ha = 6564.61 / 2
+            mask = (
+                (wave > (wave_center_ha - 50))
+                & (wave < (wave_center_ha + 50))
+            )
 
             mask = (
                 (wave > 6540)
@@ -689,13 +694,48 @@ else:
                 wave_sel,
                 flux_smooth,
                 alpha=0.3,
-                color="black"
             )
 
-        plt.axvline(6562.8, color="red", ls="--")
+        plt.axvline(6564.61, color="red", ls="--")
 
         plt.xlabel("Rest wavelength (A)")
         plt.ylabel("Flux")
+        plt.show()
+
+
+        # ↓ 追加(SIIのスペクトル)
+        plt.figure(figsize=(6,6))
+
+        for it in selected:
+        
+            wave = it["wave_rest"]
+            flux = it["flux_rest"]
+
+            wave_center_sii = (6718.29 + 6732.67) / 2
+            mask = (
+                (wave > (wave_center_sii - 50))
+                & (wave < (wave_center_sii + 50))
+            )
+
+            wave_sel = wave[mask]
+            flux_sel = flux[mask]
+
+            # ★ここで平滑化
+            flux_smooth = gaussian_filter1d(flux_sel, sigma=2)
+
+            plt.plot(
+                wave_sel,
+                flux_smooth,
+                alpha=0.3
+            )
+
+        plt.axvline(6718.29, color="red", ls="--") # 真空中
+        plt.axvline(6732.67, color="red", ls="--")
+        plt.xlabel("Rest wavelength (A)")
+        plt.ylabel("Flux")
+        save_path_sii_spectra = "results/JADES/figure/sii_spectra_sfr.png"
+        plt.savefig(f"{save_path_sii_spectra}")
+        print(f"Saved as {save_path_sii_spectra}.")
         plt.show()
 
         # ↓追加
@@ -719,7 +759,7 @@ else:
             # )
 
             # plt.axvline(
-            #     6562.8,
+            #     6564.61,
             #     color="red",
             #     ls="--"
             # )

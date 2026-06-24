@@ -696,7 +696,7 @@ else:
 
 
 
-        # ↓ 追加
+        # ↓ 追加（Haのスペクトル）
         plt.figure(figsize=(6,6))
 
         for it in selected:
@@ -726,6 +726,41 @@ else:
 
         plt.xlabel("Rest wavelength (A)")
         plt.ylabel("Flux")
+        plt.show()
+
+        # ↓ 追加(SIIのスペクトル)
+        plt.figure(figsize=(6,6))
+
+        for it in selected:
+        
+            wave = it["wave_rest"]
+            flux = it["flux_rest"]
+
+            wave_center_sii = (6718.29 + 6732.67) / 2
+            mask = (
+                (wave > (wave_center_sii - 50))
+                & (wave < (wave_center_sii + 50))
+            )
+
+            wave_sel = wave[mask]
+            flux_sel = flux[mask]
+
+            # ★ここで平滑化
+            flux_smooth = gaussian_filter1d(flux_sel, sigma=2)
+
+            plt.plot(
+                wave_sel,
+                flux_smooth,
+                alpha=0.3
+            )
+
+        plt.axvline(6718.29, color="red", ls="--") # 真空中
+        plt.axvline(6732.67, color="red", ls="--")
+        plt.xlabel("Rest wavelength (A)")
+        plt.ylabel("Flux")
+        save_path_sii_spectra = "results/JADES/figure/sii_spectra_sigma_sfr.png"
+        plt.savefig(f"{save_path_sii_spectra}")
+        print(f"Saved as {save_path_sii_spectra}.")
         plt.show()
 
         # ↓追加
