@@ -3,15 +3,15 @@
 """
 スクリプトの概要:
 JADESスペクトルスタックを作成します。
-z, M*を基に、スペクトルを複数のビンに分割してスタックします。
+z, SFRを基に、スペクトルを複数のビンに分割してスタックします。
 スタック方法を新たに3つ（median, median (Ha norm), weighted mean)
 追加しました。
 
 使用方法:
-    JADES_spectra_stack_x_mass_equal_width_v1.py [オプション]
+    JADES_spectra_stack_x_sfr_equal_width_v1.py [オプション]
 
 著者: A. M.
-作成日: 2026-06-24
+作成日: 2026-06-26
 最終更新日: 2026-06-26
 
 参考文献:
@@ -57,11 +57,10 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (-1.0, 0.0),
 #     (0.0, 1.0),
 # ]
-mass_bins = [
-    (9.0, 9.3),
-    (9.3, 10.0),
-    # (10.0, 11.0), # complete
-
+# 2ビンでも可
+sfr_bins = [
+    (0.0, 1.0),
+    (1.0, 2.0),
 ]
 
 
@@ -73,8 +72,8 @@ df = pd.read_csv(csv_file)
 
 df = df[df["z_spec"].notna()]
 df = df[df["HA_6563_flux"].notna()]
-df = df[df["log10_SFR_hb"].notna()]
-# df = df[df["log10_SFR_hb"] >= 0] # なぜ入っている?
+df = df[df["logSFR_hb"].notna()]
+# df = df[df["logSFR_hb"] >= 0] # なぜ入っている?
 
 print("usable rows after CSV filtering:", len(df))
 
@@ -292,10 +291,10 @@ for gr in gratings:
 
 
             # ↓ 追加
-            logM = row["logM"]
+            logSFR_hb = row["logSFR_hb"]
 
-            logM_err_lo = row["err1_logM"]
-            logM_err_hi = row["err2_logM"]
+            logSFR_hb_err_lo = row["err1_logSFR_hb"]
+            logSFR_hb_err_hi = row["err2_logSFR_hb"]
 
             used_items_all.append({
             
@@ -309,9 +308,9 @@ for gr in gratings:
                 "flux_norm": flux_i_norm,
                 "err_norm": err_i_norm,
 
-                "logM": logM,
-                "logM_err_lo": logM_err_lo,
-                "logM_err_hi": logM_err_hi,
+                "logSFR_hb":        logSFR_hb,
+                "logSFR_hb_err_lo": logSFR_hb_err_lo,
+                "logSFR_hb_err_hi": logSFR_hb_err_hi,
             })
 
         # try ブロック内で発生したほぼすべてのエラー（例外）をキャッチ, 
@@ -322,7 +321,7 @@ for gr in gratings:
 
 
 # ============================
-# Sigma_SFR-bin split
+# SFR-bin split
 # ============================
 if len(used_items_all) == 0:
 
@@ -331,17 +330,17 @@ if len(used_items_all) == 0:
 else:
 
     # =====================================
-    # use Sigma_SFR as binning variable
+    # use SFR as binning variable
     # =====================================
 
-    used_mass_all = np.array([
-        it["logM"]
+    used_sfr_all = np.array([
+        it["logSFR_hb"]
         for it in used_items_all
     ])
 
-    valid_mask = np.isfinite(used_mass_all)
+    valid_mask = np.isfinite(used_sfr_all)
 
-    used_mass_all = used_mass_all[valid_mask]
+    used_sfr_all = used_sfr_all[valid_mask]
 
     used_items_valid = [
         used_items_all[i]
@@ -349,7 +348,7 @@ else:
         if valid_mask[i]
     ]
 
-    N = len(used_mass_all)
+    N = len(used_sfr_all)
 
     print("\nTotal usable spectra:", N)
 
@@ -360,29 +359,29 @@ else:
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        used_mass_all,
+        used_sfr_all,
         bins=60,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log M_\star$')
+    plt.xlabel(r'$\log SFR$')
     plt.ylabel("count")
 
     plt.tight_layout()
-    save_hist_path = "results/JADES/figure/hist_mass_JADES.png"
+    save_hist_path = "results/JADES/figure/hist_sfr_JADES.png"
     plt.savefig(f"{save_hist_path}")
     print(f"Saved as {save_hist_path}.")
     plt.show()
 
-    print("median =", np.nanmedian(used_mass_all))
-    print("std =", np.nanstd(used_mass_all))
+    print("median =", np.nanmedian(used_sfr_all))
+    print("std =",       np.nanstd(used_sfr_all))
 
     # =====================================
-    # stack each Mass bin
+    # stack each SFR bin
     # =====================================
 
-    for b, (lo, hi) in enumerate(mass_bins):
+    for b, (lo, hi) in enumerate(sfr_bins):
 
         # outlierを除去するために、以下のIDを除外します。
         # 確実に弾いてよいもの
@@ -410,9 +409,9 @@ else:
             for it in used_items_valid
 
             if (
-                (it["logM"] >= lo)
+                (it["logSFR_hb"] >= lo)
                 and
-                (it["logM"] < hi)
+                (it["logSFR_hb"] < hi)
                 and
                 (it["id"] not in bad_ids)
             )
@@ -421,14 +420,14 @@ else:
         if len(selected) == 0:
 
             print(
-                f"logM [{lo},{hi}) : empty"
+                f"logSFR_hb [{lo},{hi}) : empty"
             )
 
             continue
 
 
-        mass_vals = np.array([
-            it["logM"]
+        sfr_vals = np.array([
+            it["logSFR_hb"]
             for it in selected
         ])
 
@@ -443,27 +442,27 @@ else:
 
 
         # =====================================
-        # weighted mean Mass
+        # weighted mean SFR
         # =====================================
 
-        mass_err_lo = [
-            it["logM_err_lo"]
+        sfr_err_lo = [
+            it["logSFR_hb_err_lo"]
             for it in selected
         ]
 
-        mass_err_hi = [
-            it["logM_err_hi"]
+        sfr_err_hi = [
+            it["logSFR_hb_err_hi"]
             for it in selected
         ]
 
-        mass_mean, mass_err = weighted_mean(
-            mass_vals,
-            mass_err_lo,
-            mass_err_hi
+        sfr_mean, sfr_err = weighted_mean(
+            sfr_vals,
+            sfr_err_lo,
+            sfr_err_hi
         )
 
         print(
-            f"\nlogM [{lo},{hi})"
+            f"\nlogSFR_hb [{lo},{hi})"
         )
 
         print(
@@ -471,14 +470,14 @@ else:
         )
 
         print(
-            f"logM = "
-            f"{mass_mean:.3f} ± {mass_err:.3f}"
+            f"logSFR_hb = "
+            f"{sfr_mean:.3f} ± {sfr_err:.3f}"
         )
 
         print(
             f"range = "
-            f"[{np.min(mass_vals):.3f}, "
-            f"{np.max(mass_vals):.3f}]"
+            f"[{np.min(sfr_vals):.3f}, "
+             f"{np.max(sfr_vals):.3f}]"
         )
 
         # =========================
@@ -502,10 +501,10 @@ else:
         # =========================
 
         # raw, normalized
-        flux_stack_m_raw = np.nanmedian(np.array(flux_list_raw), axis=0)
+        flux_stack_m_raw  = np.nanmedian(np.array(flux_list_raw), axis=0)
         flux_stack_m_norm = np.nanmedian(np.array(flux_list_norm), axis=0)
-        err_stack_m_raw = bootstrap_median_error(flux_list_raw)
-        err_stack_m_norm = bootstrap_median_error(flux_list_norm)
+        err_stack_m_raw   = bootstrap_median_error(flux_list_raw)
+        err_stack_m_norm  = bootstrap_median_error(flux_list_norm)
 
 
         # =========================
@@ -514,7 +513,7 @@ else:
 
         outname_base = (
             "results/JADES/JADES_DR3/spectra/"
-            f"stack_mass_{lo:+.1f}_{hi:+.1f}"
+            f"stack_sfr_{lo:+.1f}_{hi:+.1f}"
         )
 
         # =========================
@@ -525,28 +524,28 @@ else:
         np.savetxt(
             outname_base + "_w_raw.txt",
             np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
-            header=f"weighted raw | logM=[{lo},{hi}) | N={len(selected)}"
+            header=f"weighted raw | logSFR_hb=[{lo},{hi}) | N={len(selected)}"
         )
 
         # --- weighted normalized ---
         np.savetxt(
             outname_base + "_w_norm.txt",
             np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
-            header=f"weighted normalized | logM=[{lo},{hi}) | N={len(selected)}"
+            header=f"weighted normalized | logSFR_hb=[{lo},{hi}) | N={len(selected)}"
         )
 
         # --- median raw ---
         np.savetxt(
             outname_base + "_m_raw.txt",
             np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
-            header=f"median raw | logM=[{lo},{hi}) | N={len(selected)}"
+            header=f"median raw | logSFR_hb=[{lo},{hi}) | N={len(selected)}"
         )
 
         # --- median normalized ---
         np.savetxt(
             outname_base + "_m_norm.txt",
             np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
-            header=f"median normalized | logM=[{lo},{hi}) | N={len(selected)}"
+            header=f"median normalized | logSFR_hb=[{lo},{hi}) | N={len(selected)}"
         )
 
         print("saved:", outname_base)
