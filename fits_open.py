@@ -65,7 +65,7 @@ plt.rcParams.update({
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
 current_dir = os.getcwd()
-file_galex =  "results/JADES/JADES_DR3/JADES_DR3_full_spectra/JADES_DR3_G395M/hlsp_jades_jwst_nirspec_goods-n-mediumhst-00000777_f290lp-g395m_v1.0_x1d.fits"
+file_galex =  "results/JADES/JADES_DR3/catalog/jades_dr3_medium_gratings_public_gn_v1.1.fits"
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
@@ -87,7 +87,7 @@ with fits.open(file_galex) as hdul:
 
     # データの最初の5行を表示
     print("最初の5行のデータ:")
-    for row in ext_hdu.data[:5]:
+    for row in ext_hdu.data[:1]:
         print(row)
 
 # fits_path = file_galex  # ← ここをあなたのファイル名に

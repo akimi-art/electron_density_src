@@ -1,0 +1,641 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+スクリプトの概要:
+JADESスペクトルスタックを作成します。
+z, M*を基に、スペクトルを複数のビンに分割してスタックします。
+スタック方法を新たに3つ（median, median (Ha norm), weighted mean)
+追加しました。
+
+v1との変更点: 
+* mean, Ha normalized meanの結果を追加
+* 誤差の評価をMCで統一（重要）
+
+
+使用方法:
+    JADES_spectra_stack_x_mass_equal_width_v2.py [オプション]
+
+著者: A. M.
+作成日: 2026-07-03
+最終更新日: 2026-07-03
+
+参考文献:
+    - PEP 8:                  https://peps.python.org/pep-0008/
+    - PEP 257 (Docstring規約): https://peps.python.org/pep-0257/
+    - Python公式ドキュメント:    https://docs.python.org/ja/3/
+"""
+
+# ============================
+# z-bin stacking only version
+# （機能は維持しつつ、後半の z-bin 制御部分のみ残した版）
+# ============================
+
+import glob
+import numpy as np
+import pandas as pd
+from astropy.io import fits
+from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
+from astropy.cosmology import Planck18
+
+# ============================
+# SETTINGS
+# ============================
+
+csv_file = "results/JADES/JADES_DR3/data_from_Nishigaki/jades_info_with_HA_plus_logSFR_with_Reff.csv" # 変更
+
+spec_dir = "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
+
+gratings = {
+    "G140M": f"{spec_dir}/JADES_DR3_G140M",
+    "G235M": f"{spec_dir}/JADES_DR3_G235M",
+    "G395M": f"{spec_dir}/JADES_DR3_G395M"
+}
+
+wave_grid = np.arange(6500, 6900, 0.5)
+
+# ← ここだけ変えればOK
+# 試金石
+# sigma_bins = [
+#     (-3.0, -2.0),
+#     (-2.0, -1.0),
+#     (-1.0, 0.0),
+#     (0.0, 1.0),
+# ]
+mass_bins = [
+    (9.0, 9.3),
+    (9.3, 10.0),
+    # (10.0, 11.0), # complete
+
+]
+
+
+# ============================
+# CSV
+# ============================
+
+df = pd.read_csv(csv_file)
+
+df = df[df["z_spec"].notna()]
+df = df[df["HA_6563_flux"].notna()]
+df = df[df["logSFR_hb"].notna()]
+
+print("usable rows after CSV filtering:", len(df))
+
+# ============================
+# FUNCTIONS
+# ============================
+N_MC = 500
+rng = np.random.default_rng()
+
+def read_spectrum(file):
+
+    with fits.open(file) as h:
+
+        data = h["EXTRACT1D"].data
+
+        wave = data["WAVELENGTH"] * 1e4
+        flux = data["FLUX"] 
+        err  = data["FLUX_ERR"] 
+
+    return wave, flux, err
+
+
+def restframe(wave, flux, err, z):
+
+    wave = wave / (1 + z)
+
+    return wave, flux, err
+
+
+def resample(wave, flux, err):
+
+    f = interp1d(wave, flux, bounds_error=False, fill_value=np.nan)
+    e = interp1d(wave, err , bounds_error=False, fill_value=np.nan)
+
+    return f(wave_grid), e(wave_grid)
+
+
+def coverage_ok(wave, flux):
+
+    ha_region  = (wave > 6550) & (wave < 6575)
+    sii_region = (wave > 6705) & (wave < 6740)
+    cont_region = (wave > 6600) & (wave < 6650)
+
+    if np.sum(np.isfinite(flux[ha_region])) < 2:
+        return False
+
+    if np.sum(np.isfinite(flux[sii_region])) < 2:
+        return False
+
+    if np.sum(np.isfinite(flux[cont_region])) < 3:
+        return False
+
+    return True
+
+
+def mask_artifact(flux):
+
+    med = np.nanmedian(flux)
+    std = np.nanstd(flux)
+
+    mask = flux < med - 5 * std
+
+    flux = flux.copy()
+    flux[mask] = np.nan
+
+    return flux
+
+
+def weighted_mean(values, err_lo, err_hi):
+
+    values = np.array(values)
+
+    err_lo = np.array(err_lo)
+    err_hi = np.array(err_hi)
+
+    # 非対称誤差 → 対称化
+    sigma = 0.5 * (err_lo + err_hi)
+
+    mask = (
+        np.isfinite(values)
+        &
+        np.isfinite(sigma)
+        &
+        (sigma > 0)
+    )
+
+    values = values[mask]
+    sigma = sigma[mask]
+
+    w = 1 / sigma**2
+
+    mean = np.sum(w * values) / np.sum(w)
+
+    err = np.sqrt(1 / np.sum(w))
+
+    return mean, err
+
+def median_stack(fluxes):
+    fluxes = np.array(fluxes)
+    return np.nanmedian(fluxes, axis=0)
+
+# 追加
+def mean_stack(fluxes):
+    fluxes = np.array(fluxes)
+    return np.nanmean(fluxes, axis=0)
+
+
+# ============================
+# MAIN
+# ============================
+
+used_items_all = []
+
+for gr in gratings:
+
+    print("\nGRATING:", gr)
+
+    spec_path = gratings[gr]
+
+    if gr == "G140M":
+        df_gr = df[(df["z_spec"] > 0.5) & (df["z_spec"] < 1.7)]
+
+    elif gr == "G235M":
+        df_gr = df[(df["z_spec"] > 1.5) & (df["z_spec"] < 3.6)]
+
+    elif gr == "G395M":
+        df_gr = df[(df["z_spec"] > 3.3) & (df["z_spec"] < 6.7)]
+
+    print("candidates:", len(df_gr))
+
+    ha_vals = df_gr["HA_6563_flux"].values
+    ha_vals = ha_vals[np.isfinite(ha_vals) & (ha_vals > 0)]
+
+    ha_p995 = np.nanpercentile(ha_vals, 99.5)
+
+    for _, row in df_gr.iterrows():
+
+        nid = int(row["NIRSpec_ID"])
+        z   = row["z_spec"]
+        ha  = row["HA_6563_flux"]
+
+        if (not np.isfinite(ha)) or (ha <= 0) or (ha > ha_p995):
+            continue
+
+        sid = f"{nid:08d}"
+
+        pattern = f"{spec_path}/*{sid}*_x1d.fits"
+
+        files = glob.glob(pattern)
+
+        if len(files) == 0:
+            continue
+
+        try:
+
+            wave, flux, err = read_spectrum(files[0])
+
+            wave, flux, err = restframe(wave, flux, err, z)
+
+            if not coverage_ok(wave, flux):
+                continue
+
+            flux = mask_artifact(flux)
+
+            # 元のまま保存
+            flux_raw = flux.copy()
+            err_raw  = err.copy()
+
+            # Hα正規化版も作る
+            flux_norm = flux / ha
+            err_norm  = err  / ha
+
+            # resampleは両方やる
+            flux_i_raw,  err_i_raw  = resample(wave, flux_raw,  err_raw)
+            flux_i_norm, err_i_norm = resample(wave, flux_norm, err_norm)
+
+
+            if (
+                not np.isfinite(flux_i_raw).any()
+                or
+                not np.isfinite(flux_i_norm).any()
+            ):
+                continue
+
+
+            # ↓ 追加
+            logM = row["logM"]
+
+            logM_err_lo = row["err1_logM"]
+            logM_err_hi = row["err2_logM"]
+
+            used_items_all.append({
+            
+                "id": sid,
+
+                # --- raw（非normalize） ---
+                "flux_raw": flux_i_raw,
+                "err_raw": err_i_raw,
+
+                # --- normalized ---
+                "flux_norm": flux_i_norm,
+                "err_norm": err_i_norm,
+
+                "logM": logM,
+                "logM_err_lo": logM_err_lo,
+                "logM_err_hi": logM_err_hi,
+            })
+
+        # try ブロック内で発生したほぼすべてのエラー（例外）をキャッチ, 
+        # 発生したエラーの具体的な内容（メッセージなど）が変数 e に代入される
+        except Exception as e:
+            print("ERROR:", e)
+            continue
+
+
+# ============================
+# Sigma_SFR-bin split
+# ============================
+if len(used_items_all) == 0:
+
+    print("No usable spectra.")
+
+else:
+
+    # =====================================
+    # use Sigma_SFR as binning variable
+    # =====================================
+
+    used_mass_all = np.array([
+        it["logM"]
+        for it in used_items_all
+    ])
+
+    valid_mask = np.isfinite(used_mass_all)
+
+    used_mass_all = used_mass_all[valid_mask]
+
+    used_items_valid = [
+        used_items_all[i]
+        for i in range(len(used_items_all))
+        if valid_mask[i]
+    ]
+
+    N = len(used_mass_all)
+
+    print("\nTotal usable spectra:", N)
+
+    # =====================================
+    # histogram
+    # =====================================
+
+    plt.figure(figsize=(6,4))
+
+    plt.hist(
+        used_mass_all,
+        bins=60,
+        color="0.7",
+        edgecolor="black"
+    )
+
+    plt.xlabel(r'$\log M_\star$')
+    plt.ylabel("count")
+
+    plt.tight_layout()
+    save_hist_path = "results/JADES/figure/hist_mass_JADES.png"
+    plt.savefig(f"{save_hist_path}")
+    print(f"Saved as {save_hist_path}.")
+    plt.show()
+
+    print("median =", np.nanmedian(used_mass_all))
+    print("std =", np.nanstd(used_mass_all))
+
+    # =====================================
+    # stack each Mass bin
+    # =====================================
+
+    for b, (lo, hi) in enumerate(mass_bins):
+
+        # outlierを除去するために、以下のIDを除外します。
+        # 確実に弾いてよいもの
+        # Ha, SII領域に欠損(NaN)がある
+        # 明らかなデータ落ち
+        # SII波長域がスペクトル端にかかる
+        # 極端な単一ピクセルスパイク
+        bad_ids = [
+            "00024958", 
+            "00025356", 
+            "00051209", 
+            "00082961",
+
+            "00004504", 
+            "00028139", 
+
+            "00045967", 
+
+        ]
+
+        selected = [
+        
+            it
+
+            for it in used_items_valid
+
+            if (
+                (it["logM"] >= lo)
+                and
+                (it["logM"] < hi)
+                and
+                (it["id"] not in bad_ids)
+            )
+        ]
+
+        if len(selected) == 0:
+
+            print(
+                f"logM [{lo},{hi}) : empty"
+            )
+
+            continue
+
+
+        mass_vals = np.array([
+            it["logM"]
+            for it in selected
+        ])
+
+        # raw
+        flux_list_raw = [it["flux_raw"] for it in selected]
+        err_list_raw  = [it["err_raw"]  for it in selected]
+
+        # normalized
+        flux_list_norm = [it["flux_norm"] for it in selected]
+        err_list_norm  = [it["err_norm"]  for it in selected]
+
+        # 追加
+        flux_raw = np.array(flux_list_raw)
+        err_raw  = np.array(err_list_raw)
+
+        flux_norm = np.array(flux_list_norm)
+        err_norm  = np.array(err_list_norm)
+
+
+        # 追加
+        flux_raw_mc = rng.normal(
+            flux_raw[:, :, None],
+            err_raw[:, :, None],
+            size=(
+                flux_raw.shape[0],
+                flux_raw.shape[1],
+                N_MC
+            )
+        )
+
+        # 追加
+        flux_norm_mc = rng.normal(
+            flux_norm[:, :, None],
+            err_norm[:, :, None],
+            size=(
+                flux_norm.shape[0],
+                flux_norm.shape[1],
+                N_MC
+            )
+        )
+
+
+        # =====================================
+        # weighted mean Mass
+        # =====================================
+
+        mass_err_lo = [
+            it["logM_err_lo"]
+            for it in selected
+        ]
+
+        mass_err_hi = [
+            it["logM_err_hi"]
+            for it in selected
+        ]
+
+        mass_mean, mass_err = weighted_mean(
+            mass_vals,
+            mass_err_lo,
+            mass_err_hi
+        )
+
+        print(
+            f"\nlogM [{lo},{hi})"
+        )
+
+        print(
+            f"N = {len(selected)}"
+        )
+
+        print(
+            f"logM = "
+            f"{mass_mean:.3f} ± {mass_err:.3f}"
+        )
+
+        print(
+            f"range = "
+            f"[{np.min(mass_vals):.3f}, "
+            f"{np.max(mass_vals):.3f}]"
+        )
+
+        # =========================
+        # weighted stack
+        # =========================
+        floor_raw = 0.05*np.nanmedian(err_raw)
+
+        err_raw_eff = np.sqrt(
+            err_raw**2 + floor_raw**2
+        )
+
+        w_raw = 1.0/err_raw_eff[:,:,None]**2
+
+        weighted_raw_mc = (
+            np.nansum(
+                w_raw * flux_raw_mc,
+                axis=0
+            )
+            /
+            np.nansum(
+                w_raw,
+                axis=0
+            )
+        )
+
+        flux_stack_w_raw = np.nanmedian(
+            weighted_raw_mc,
+            axis=1
+        )
+
+        err_stack_w_raw = (
+            np.nanpercentile(weighted_raw_mc,84,axis=1)
+            -
+            np.nanpercentile(weighted_raw_mc,16,axis=1)
+        )/2
+
+        floor_norm = 0.05*np.nanmedian(err_norm)
+
+        err_norm_eff = np.sqrt(
+            err_norm**2 + floor_norm**2
+        )
+
+        w_norm = 1.0 / err_norm_eff[:, :, None]**2
+
+        weighted_norm_mc = (
+            np.nansum(
+                w_norm * flux_norm_mc,
+                axis=0
+            )
+            /
+            np.nansum(
+                w_norm,
+                axis=0
+            )
+        )
+
+        flux_stack_w_norm = np.nanmedian(
+            weighted_norm_mc,
+            axis=1
+        )
+
+        err_stack_w_norm = (
+            np.nanpercentile(weighted_norm_mc,84,axis=1)
+            -
+            np.nanpercentile(weighted_norm_mc,16,axis=1)
+        )/2
+        
+        # =========================
+        # median stack
+        # =========================
+
+        # raw, normalized
+        median_raw_mc = np.nanmedian(flux_raw_mc, axis=0)
+        median_norm_mc = np.nanmedian(flux_norm_mc, axis=0)
+        flux_stack_m_raw = np.nanmedian(median_raw_mc, axis=1)
+        flux_stack_m_norm = np.nanmedian(median_norm_mc, axis=1)
+        err_stack_m_raw = (np.nanpercentile(median_raw_mc,84,axis=1) - np.nanpercentile(median_raw_mc,16,axis=1))/2
+        err_stack_m_norm = (np.nanpercentile(median_norm_mc,84,axis=1) - np.nanpercentile(median_norm_mc,16,axis=1))/2
+
+        # =========================
+        # mean stack
+        # =========================
+        mean_raw_mc = np.nanmean(flux_raw_mc, axis=0)
+        mean_norm_mc = np.nanmean(flux_norm_mc, axis=0)
+        flux_stack_mean_raw = np.nanmedian(mean_raw_mc, axis=1)
+        flux_stack_mean_norm = np.nanmedian(mean_norm_mc, axis=1)
+        err_stack_mean_raw = (np.nanpercentile(mean_raw_mc,84,axis=1) - np.nanpercentile(mean_raw_mc,16,axis=1))/2
+        err_stack_mean_norm = (np.nanpercentile(mean_norm_mc,84,axis=1) - np.nanpercentile(mean_norm_mc,16,axis=1))/2
+
+
+        # =========================
+        # output names
+        # =========================
+
+        outname_base = (
+            "results/JADES/JADES_DR3/spectra/"
+            f"stack_mass_{lo:+.1f}_{hi:+.1f}"
+        )
+
+        # =========================
+        # save
+        # =========================
+
+        # --- mean raw ---
+
+        np.savetxt(
+            outname_base + "_mean_raw.txt",
+            np.column_stack([
+                wave_grid,
+                flux_stack_mean_raw,
+                err_stack_mean_raw
+            ]),
+            header=f"mean raw | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+
+        # --- mean normalized ---
+
+        np.savetxt(
+            outname_base + "_mean_norm.txt",
+            np.column_stack([
+                wave_grid,
+                flux_stack_mean_norm,
+                err_stack_mean_norm
+            ]),
+            header=f"mean normalized | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+        # --- weighted raw ---
+        np.savetxt(
+            outname_base + "_weighted_mean_raw.txt",
+            np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
+            header=f"weighted raw | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+
+        # --- weighted normalized ---
+        np.savetxt(
+            outname_base + "_weighted_mean_norm.txt",
+            np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
+            header=f"weighted normalized | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+
+        # --- median raw ---
+        np.savetxt(
+            outname_base + "_median_raw.txt",
+            np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
+            header=f"median raw | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+
+        # --- median normalized ---
+        np.savetxt(
+            outname_base + "_median_norm.txt",
+            np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
+            header=f"median normalized | logM=[{lo},{hi}) | N={len(selected)}"
+        )
+
+        print("saved:", outname_base)
+
+
+print("\nDone.")
