@@ -87,17 +87,6 @@ plt.rcParams.update({
 
 
 # ==========================================
-# Imports
-# ==========================================
-import os
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from astropy.table import Table
-from astropy.cosmology import Planck18 as cosmo
-import astropy.units as u
-
-# ==========================================
 # 入出力
 # ==========================================
 current_dir = os.getcwd()
@@ -243,13 +232,66 @@ for lo, hi in zip(edges[:-1], edges[1:]):
     if N < NMIN:
         continue
 
+
+
     f1 = F6716[m_bin]
     e1 = err6716[m_bin]
     f2 = F6731[m_bin]
     e2 = err6731[m_bin]
     fHa = FHa[m_bin]
     eHa = errHa[m_bin]
-    
+
+    # ==========================================
+    # percentile cut（追加）
+    # ==========================================
+
+    f1_lo, f1_hi = np.percentile(
+        f1,
+        [2, 98] # 1, 99でも可
+    )
+
+    f2_lo, f2_hi = np.percentile(
+        f2,
+        [2, 98]
+    )
+
+    fHa_lo, fHa_hi = np.percentile(
+        fHa,
+        [2, 98]
+    )
+
+    good = (
+        (f1 >= f1_lo)
+        &
+        (f1 <= f1_hi)
+        &
+        (f2 >= f2_lo)
+        &
+        (f2 <= f2_hi)
+        &
+        (fHa >= fHa_lo)
+        &
+        (fHa <= fHa_hi)
+    )
+
+
+    print(
+        f"before cut : {len(f1)}"
+    )
+
+    print(
+        f"after cut  : {np.sum(good)}"
+    )
+
+    f1 = f1[good]
+    e1 = e1[good]
+
+    f2 = f2[good]
+    e2 = e2[good]
+
+    fHa = fHa[good]
+    eHa = eHa[good]
+
     # MCで各銀河を揺らす
 
     f1_mc = rng.normal(
