@@ -544,8 +544,9 @@ ax.errorbar(
     x,
     y_mean,
     yerr=yerr_mean,
-    fmt="o",
+    fmt="s",
     color="red",
+    mfc="red",
     capsize=3,
     label="Mean"
 )
@@ -559,7 +560,8 @@ ax.errorbar(
     y_med,
     yerr=yerr_med,
     fmt="^",
-    color="cyan",
+    color="red",
+    mfc="red",
     capsize=3,
     label="Median"
 )
@@ -571,8 +573,9 @@ ax.errorbar(
     x,
     y_w,
     yerr=yerr_w,
-    fmt="s",
-    color="white",
+    fmt="D",
+    color="red",
+    mfc="red",
     capsize=3,
     label="Weighted"
 )
@@ -584,8 +587,9 @@ ax.errorbar(
     x,
     y_Ha_mean,
     yerr=yerr_Ha_mean,
-    fmt="o",
-    color="orange",
+    fmt="s",
+    color="red",
+    mfc="white",
     capsize=3,
     label="Mean (Hα norm)"
 )
@@ -597,8 +601,9 @@ ax.errorbar(
     x,
     y_Ha_med,
     yerr=yerr_Ha_med,
-    fmt="v",
-    color="yellow",
+    fmt="^",
+    color="red",
+    mfc="white",
     capsize=3,
     label="Median (Hα norm)"
 )
@@ -611,7 +616,8 @@ ax.errorbar(
     y_Ha_w,
     yerr=yerr_Ha_w,
     fmt="D",
-    color="lime",
+    color="red",
+    mfc="white",
     capsize=3,
     label="Weighted (Hα norm)"
 )
@@ -668,8 +674,9 @@ plt.colorbar()
 ax.errorbar(
     x, y_mean,
     yerr=yerr_mean,
-    fmt="o",
-    color="red",
+    fmt="s",
+    color="#ff5eaa", # ローズピンク:#ff5eaa, マゼンタピンク:#ff3399
+    mfc="#ff5eaa",
     capsize=3,
     label="Mean"
 )
@@ -679,7 +686,8 @@ ax.errorbar(
     x, y_med,
     yerr=yerr_med,
     fmt="^",
-    color="cyan",
+    color="#ffa500", # ライトオレンジ:#ffa500, 鮮やかなオレンジ:#ff9900
+    mfc="#ffa500",
     capsize=3,
     label="Median"
 )
@@ -688,8 +696,9 @@ ax.errorbar(
 ax.errorbar(
     x, y_w,
     yerr=yerr_w,
-    fmt="s",
-    color="white",
+    fmt="D",
+    color="#33ffcc", # ミントシアン:#33ffcc, 明るいシアン:00e5ff
+    mfc="#33ffcc",
     capsize=3,
     label="Weighted"
 )
@@ -698,8 +707,9 @@ ax.errorbar(
 ax.errorbar(
     x, y_Ha_mean,
     yerr=yerr_Ha_mean,
-    fmt="o",
-    color="orange",
+    fmt="s",
+    color="#ff5eaa",
+    mfc="white",
     capsize=3,
     label="Mean (Hα)"
 )
@@ -708,8 +718,9 @@ ax.errorbar(
 ax.errorbar(
     x, y_Ha_med,
     yerr=yerr_Ha_med,
-    fmt="v",
-    color="yellow",
+    fmt="^",
+    color="#ff9900",
+    mfc="white",
     capsize=3,
     label="Median (Hα)"
 )
@@ -719,10 +730,77 @@ ax.errorbar(
     x, y_Ha_w,
     yerr=yerr_Ha_w,
     fmt="D",
-    color="lime",
+    color="#33ffcc",
+    mfc="white",
     capsize=3,
     label="Weighted (Hα)"
 )
+
+# # mean
+# ax.errorbar(
+#     x, y_mean,
+#     yerr=yerr_mean,
+#     fmt="s",
+#     color="red",
+#     mfc="red",
+#     capsize=3,
+#     label="Mean"
+# )
+
+# # median
+# ax.errorbar(
+#     x, y_med,
+#     yerr=yerr_med,
+#     fmt="^",
+#     color="red",
+#     mfc="red",
+#     capsize=3,
+#     label="Median"
+# )
+
+# # weighted mean
+# ax.errorbar(
+#     x, y_w,
+#     yerr=yerr_w,
+#     fmt="D",
+#     color="red",
+#     mfc="red",
+#     capsize=3,
+#     label="Weighted"
+# )
+
+# # Ha normalized mean
+# ax.errorbar(
+#     x, y_Ha_mean,
+#     yerr=yerr_Ha_mean,
+#     fmt="s",
+#     color="red",
+#     mfc="white",
+#     capsize=3,
+#     label="Mean (Hα)"
+# )
+
+# # Ha normalized median
+# ax.errorbar(
+#     x, y_Ha_med,
+#     yerr=yerr_Ha_med,
+#     fmt="^",
+#     color="red",
+#     mfc="white",
+#     capsize=3,
+#     label="Median (Hα)"
+# )
+
+# # Ha normalized weighted mean
+# ax.errorbar(
+#     x, y_Ha_w,
+#     yerr=yerr_Ha_w,
+#     fmt="D",
+#     color="red",
+#     mfc="white",
+#     capsize=3,
+#     label="Weighted (Hα)"
+# )
 
 ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
 ax.set_ylabel(r"[SII] 6717 / 6731")
@@ -823,13 +901,13 @@ for i, row in res.iterrows():
 
 
     # 縦線
-    ax.axvline(row["R_mean"])
-    ax.axvline(row["R_med"])
-    ax.axvline(row["R_w"])
+    ax.axvline(row["R_mean"], c="#d0116a", ls="--", lw="1") # チェリーピンク
+    ax.axvline(row["R_med"],  c="#d96b00", ls="--", lw="1") # ディープオレンジ
+    ax.axvline(row["R_w"],    c="#008b8b", ls="--", lw="1") # 深みのあるティール
 
-    ax.axvline(row["R_Ha_mean"])
-    ax.axvline(row["R_Ha_med"])
-    ax.axvline(row["R_Ha_w"])
+    ax.axvline(row["R_Ha_mean"], c="#d0116a", ls=":", lw="1")
+    ax.axvline(row["R_Ha_med"],  c="#d96b00", ls=":", lw="1")
+    ax.axvline(row["R_Ha_w"],    c="#008b8b", ls=":", lw="1")
 
     ax.text(
         0.02, 0.95,

@@ -373,8 +373,10 @@ for gr in gratings:
                     row["logSFR_hb"],
                     row["err1_logSFR_hb"],
                     row["err2_logSFR_hb"],
-                    row["ReffOpt"],
-                    row["e_ReffOpt"],
+                    # row["ReffOpt"], # 必要に応じて変更
+                    # row["e_ReffOpt"],
+                    row["ReffUV"], # 必要に応じて変更
+                    row["e_ReffUV"],
                     z
                 )
             )
@@ -597,7 +599,7 @@ else:
 
         outname_base = (
             "results/JADES/JADES_DR3/spectra/"
-            f"stack_sigma_sfr_{lo:+.1f}_{hi:+.1f}"
+            f"stack_sigma_sfr_uv_{lo:+.1f}_{hi:+.1f}"
         )
 
         # =========================
