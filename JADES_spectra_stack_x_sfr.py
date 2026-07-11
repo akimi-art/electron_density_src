@@ -62,8 +62,8 @@ df = pd.read_csv(csv_file)
 
 df = df[df["z_spec"].notna()]
 df = df[df["HA_6563_flux"].notna()]
-df = df[df["log10_SFR_hb"].notna()]
-# df = df[df["log10_SFR_hb"] >= 0] # なぜ入っている?
+df = df[df["logSFR_hb"].notna()]
+# df = df[df["logSFR_hb"] >= 0] # なぜ入っている?
 
 print("usable rows after CSV filtering:", len(df))
 
@@ -448,9 +448,9 @@ for gr in gratings:
             # ↓ 追加
             logSigma, logSigma_err_lo, logSigma_err_hi = (
                 compute_log_sigma_sfr(
-                    row["log10_SFR_hb"],
-                    row["log10_SFR_hb_err_lower"],
-                    row["log10_SFR_hb_err_upper"],
+                    row["logSFR_hb"],
+                    row["logSFR_hb_err_lower"],
+                    row["logSFR_hb_err_upper"],
                     row["ReffOpt"],
                     row["e_ReffOpt"],
                     z
@@ -460,9 +460,9 @@ for gr in gratings:
             # ↓ 追加
             log_sSFR, log_sSFR_err_lo, log_sSFR_err_hi = (
                 compute_log_ssfr(
-                    row["log10_SFR_hb"],
-                    row["log10_SFR_hb_err_lower"],
-                    row["log10_SFR_hb_err_upper"],
+                    row["logSFR_hb"],
+                    row["logSFR_hb_err_lower"],
+                    row["logSFR_hb_err_upper"],
 
                     row["logM"],
                     row["err1_logM"],
@@ -480,9 +480,9 @@ for gr in gratings:
                 "wave_rest": wave,
                 "flux_rest": flux,
 
-                "sfr": row["log10_SFR_hb"],
-                "sfr_err_lo": row["log10_SFR_hb_err_lower"],
-                "sfr_err_hi": row["log10_SFR_hb_err_upper"],
+                "sfr": row["logSFR_hb"],
+                "sfr_err_lo": row["logSFR_hb_err_lower"],
+                "sfr_err_hi": row["logSFR_hb_err_upper"],
 
                 # ↓ 追加
                 "sigma_sfr": logSigma,

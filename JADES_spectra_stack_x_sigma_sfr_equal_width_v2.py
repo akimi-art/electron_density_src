@@ -59,13 +59,16 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (0.0, 1.0),
 # ]
 sigma_sfr_bins = [
-    (-5.0, 5.0), # 全て
+    # (-1.0, -0.5), 
+    # (-0.5, 0.0), 
+    (0.0, 0.5), 
 ]
 
 
 z_bins = [
-    (0.5, 3.0),
-    (3.0, 8.0),
+    # (0.5, 3.0),
+    # (3.0, 8.0),
+    (0.5, 8.0)
 ]
 
 
@@ -75,6 +78,12 @@ z_bins = [
 # ============================
 
 df = pd.read_csv(csv_file)
+
+# 重複を消す
+df = df.drop_duplicates(
+    subset="NIRSpec_ID",
+    keep="first"
+)
 
 df = df[df["z_spec"].notna()]
 df = df[df["HA_6563_flux"].notna()]
@@ -264,6 +273,8 @@ def compute_log_sigma_sfr(
 
 used_items_all = []
 
+used_ids = set()   # ←追加(二重防御)
+
 for gr in gratings:
 
     print("\nGRATING:", gr)
@@ -291,6 +302,17 @@ for gr in gratings:
         nid = int(row["NIRSpec_ID"])
         z   = row["z_spec"]
         ha  = row["HA_6563_flux"]
+
+        if (not np.isfinite(ha)) or (ha <= 0) or (ha > ha_p995):
+            continue
+
+        sid = f"{nid:08d}"
+
+        # 同じNIRSpec_IDは1回だけ使う
+        if sid in used_ids:
+            continue
+        
+        used_ids.add(sid)
 
         if (not np.isfinite(ha)) or (ha <= 0) or (ha > ha_p995):
             continue
@@ -447,7 +469,7 @@ else:
 
     plt.hist(
         used_z_all,
-        bins=40,
+        bins=20,
         color="0.7",
         edgecolor="black"
     )
@@ -499,6 +521,7 @@ else:
                 "00028139", 
 
                 "00045967", 
+                "10020038", # 追加, スパイク
 
             ]
 
@@ -548,6 +571,120 @@ else:
             # raw
             flux_list_raw = [it["flux_raw"] for it in selected]
             err_list_raw  = [it["err_raw"]  for it in selected]
+
+            # =====================================
+            # visualize SII region
+            # =====================================
+
+            plt.figure(figsize=(8,5))
+
+            sii_mask = (
+                (wave_grid > 6718.29-100)
+                &
+                (wave_grid < 6732.67+100)
+            )
+
+            # -------------------------
+            # individual spectra
+            # -------------------------
+
+            for spec in flux_list_raw:
+            
+                plt.plot(
+                    wave_grid[sii_mask],
+                    spec[sii_mask],
+                    color="0.75",
+                    lw=0.7,
+                    alpha=0.4,
+                    zorder=1
+                )
+
+            # -------------------------
+            # simple mean stack
+            # -------------------------
+
+            mean_spec = np.nanmean(
+                np.array(flux_list_raw),
+                axis=0
+            )
+
+            plt.plot(
+                wave_grid[sii_mask],
+                mean_spec[sii_mask],
+                color="black",
+                lw=2.5,
+                label=f"Mean stack (N={len(selected)})",
+                zorder=10
+            )
+
+            plt.axvline(
+                6718.29,
+                ls="--",
+                color="tab:red",
+                alpha=0.7
+            )
+
+            plt.axvline(
+                6732.67,
+                ls="-.",
+                color="tab:red",
+                alpha=0.7
+            )
+
+            plt.xlabel(r"Rest wavelength [$\AA$]")
+            plt.ylabel("Flux")
+
+            # plt.title(
+            #     f"logSFR=[{m_lo},{m_hi}) "
+            #     f" z=[{z_lo},{z_hi})"
+            # )
+
+            plt.legend()
+            plt.tight_layout()
+
+            savefig = (
+                "results/JADES/figure/"
+                f"SII_individual_stack_"
+                f"sigma_sfr_{m_lo:.1f}_{m_hi:.1f}"
+                f"_z_{z_lo:.1f}_{z_hi:.1f}.png"
+            )
+
+            plt.savefig(savefig, dpi=200)
+            plt.show()
+
+            print("saved:", savefig)
+
+
+            for it in selected:
+            
+                flux = it["flux_raw"]
+
+                peak = np.nanmax(
+                    flux[(wave_grid>6795)&(wave_grid<6810)]
+                )
+
+                if peak > 5e-19: # 閾値次第でバイアスが生じうるので注意
+                
+                    print(it["id"], peak)
+
+            for it in selected:
+            
+                flux = it["flux_raw"]
+
+                m = (
+                    (wave_grid > 6718.29-100)
+                    &
+                    (wave_grid < 6732.67+100)
+                )
+
+                if np.any(np.isfinite(flux[m])):
+                
+                    peak = np.nanmax(flux[m])
+
+                    # print(
+                    #     peak,
+                    #     it["id"]
+                    # )
 
             # normalized
             flux_list_norm = [it["flux_norm"] for it in selected]
@@ -753,71 +890,102 @@ else:
                 )
             )
 
-            # --- mean normalized ---
+            # # --- mean normalized ---
 
-            np.savetxt(
-                outname_base + "_mean_norm.txt",
-                np.column_stack([
-                    wave_grid,
-                    flux_stack_mean_norm,
-                    err_stack_mean_norm
-                ]),
-                header=(
-                    f"mean normalized | "
-                    f"logSigma=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
-            # --- weighted raw ---
-            np.savetxt(
-                outname_base + "_weighted_mean_raw.txt",
-                np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
-                header=(
-                    f"weighted raw  | "
-                    f"logSigma=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # np.savetxt(
+            #     outname_base + "_mean_norm.txt",
+            #     np.column_stack([
+            #         wave_grid,
+            #         flux_stack_mean_norm,
+            #         err_stack_mean_norm
+            #     ]),
+            #     header=(
+            #         f"mean normalized | "
+            #         f"logSigma=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
+            # # --- weighted raw ---
+            # np.savetxt(
+            #     outname_base + "_weighted_mean_raw.txt",
+            #     np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
+            #     header=(
+            #         f"weighted raw  | "
+            #         f"logSigma=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- weighted normalized ---
-            np.savetxt(
-                outname_base + "_weighted_mean_norm.txt",
-                np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
-                header=(
-                    f"weighted normalized  | "
-                    f"logSigma=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- weighted normalized ---
+            # np.savetxt(
+            #     outname_base + "_weighted_mean_norm.txt",
+            #     np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
+            #     header=(
+            #         f"weighted normalized  | "
+            #         f"logSigma=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- median raw ---
-            np.savetxt(
-                outname_base + "_median_raw.txt",
-                np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
-                header=(
-                    f"median raw  | "
-                    f"logSigma=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- median raw ---
+            # np.savetxt(
+            #     outname_base + "_median_raw.txt",
+            #     np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
+            #     header=(
+            #         f"median raw  | "
+            #         f"logSigma=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- median normalized ---
-            np.savetxt(
-                outname_base + "_median_norm.txt",
-                np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
-                header=(
-                    f"median normalized  | "
-                    f"logSigma=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- median normalized ---
+            # np.savetxt(
+            #     outname_base + "_median_norm.txt",
+            #     np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
+            #     header=(
+            #         f"median normalized  | "
+            #         f"logSigma=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
             print("saved:", outname_base)
 
 
 print("\nDone.")
+
+print("CSV rows =", len(df))
+
+print(
+    "unique NIRSpec_ID =",
+    df["NIRSpec_ID"].nunique()
+)
+
+print(
+    "duplicate rows =",
+    len(df) - df["NIRSpec_ID"].nunique()
+)
+
+dup_ids = df["NIRSpec_ID"].value_counts()
+dup_ids = dup_ids[dup_ids > 1].index
+
+print(
+    df[df["NIRSpec_ID"].isin(dup_ids)]
+    .sort_values("NIRSpec_ID")
+)
+
+from collections import Counter
+
+ids = [it["id"] for it in used_items_all]
+
+c = Counter(ids)
+
+for k,v in c.items():
+
+    if v > 1:
+        print(k,v)

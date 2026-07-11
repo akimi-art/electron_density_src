@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 スクリプトの概要:
-logM* ビンごとに
+logSFR ビンごとに
   [SII]6717,6731 フラックスをスタック
 → MCで ratio 分布
 → PyNebで ne 分布
@@ -11,16 +11,15 @@ logM* ビンごとに
 → mean, medianの結果も追加
 → Haで規格化したweighted stackも追加（ただし、HaのS/Nが十分なものに限定する必要あり）
 
-* v3との変更点: 
+* v6との変更点: 
 1. フラックスの平均をとった後にratioをだす
-2. Mass, SFRのmaskの範囲（廃止）
-3. meanスタックを追加
+2. meanスタックを追加
 
 使用方法:
-    stacked_sii_ne_vs_mass_v4.py [オプション]
+    stacked_sii_ne_vs_sfr_v7.py [オプション]
 
 著者: A. M.
-作成日: 2026-07-02
+作成日: 2026-07-09
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -92,8 +91,8 @@ plt.rcParams.update({
 current_dir = os.getcwd()
 fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
 
-out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_mass_COMPLETE_v4.csv")
-out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_mass_COMPLETE_v4.png")
+out_csv = os.path.join(current_dir, "results/csv/stacked_sii_ratio_vs_sfr_COMPLETE_v7.csv")
+out_png = os.path.join(current_dir, "results/figure/stacked_sii_ratio_vs_sfr_COMPLETE_v7.png")
 
 os.makedirs(os.path.dirname(out_csv), exist_ok=True)
 os.makedirs(os.path.dirname(out_png), exist_ok=True)
@@ -189,11 +188,11 @@ m_complete = mask_all
 # ==========================================
 # ビン作成
 # ==========================================
-logM = df.loc[m_complete, "sm_MEDIAN"].values
+logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
 
 edges = np.arange(
-    np.floor(logM.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logM.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(logSFR.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logSFR.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
@@ -224,8 +223,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -436,9 +435,9 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
 
     rows.append(dict(
-        logM_lo=lo,
-        logM_hi=hi,
-        logM_cen=0.5*(lo+hi),
+        logSFR_lo=lo,
+        logSFR_hi=hi,
+        logSFR_cen = 0.5*(lo+hi),
         N=N,
 
         R_mean=R_mean_50,
@@ -480,7 +479,7 @@ df["R_SII"] = F6716 / F6731
 
 # 完全（青）
 ax.scatter(
-    df.loc[m_complete, "sm_MEDIAN"],
+    df.loc[m_complete, "sfr_MEDIAN"],
     df.loc[m_complete, "R_SII"],
     s=0.01,
     marker='.',
@@ -488,7 +487,7 @@ ax.scatter(
     color="C0",
 )
 
-x = res["logM_cen"].values
+x = res["logSFR_cen"].values
 
 
 # mean
@@ -622,9 +621,9 @@ ax.errorbar(
     label="Weighted (Hα norm)"
 )
 
-ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(9,11)
+ax.set_xlim(-3, 3.0)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
@@ -640,12 +639,12 @@ print("Saved:", out_png)
 # ==========================================
 # countヒートマップを作成
 # ==========================================
-xbins = np.arange(8, 12.1, 0.01)
+xbins = np.arange(-3, 3.1, 0.01)
 ybins = np.arange(0.5, 2.1, 0.01)
 
 count_map, xedge, yedge, _ = (
     binned_statistic_2d(
-        df.loc[m_complete, "sm_MEDIAN"],
+        df.loc[m_complete, "sfr_MEDIAN"],
         df.loc[m_complete, "R_SII"],
         values=None,
         statistic="count",
@@ -802,9 +801,9 @@ ax.errorbar(
 #     label="Weighted (Hα)"
 # )
 
-ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+ax.set_xlabel(r"$\log(SFR)\ [M_{\odot}\mathrm{yr^{-1}}]$")
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(8,12)
+ax.set_xlim(-3, 3.0)
 ax.set_ylim(1.0,1.6)
 
 for spine in ax.spines.values():
@@ -815,7 +814,7 @@ fig_dir = os.path.join(current_dir, "results/figure")
 os.makedirs(fig_dir, exist_ok=True)
 save_path_count = os.path.join(
     fig_dir,
-    "heat_sm_sii_ratio_count_sdss_v4.png"
+    "heat_sfr_sii_ratio_count_sdss_v7.png"
 )
 
 plt.savefig(save_path_count)
@@ -840,16 +839,16 @@ axes = axes.flatten()
 
 for i, row in res.iterrows():
 
-    lo = row["logM_lo"]
-    hi = row["logM_hi"]
+    lo = row["logSFR_lo"]
+    hi = row["logSFR_hi"]
 
     ax = axes[i]
 
     # 同じbinのデータ取り出し
     m_bin = (
         m_complete &
-        (df["sm_MEDIAN"] >= lo) &
-        (df["sm_MEDIAN"] < hi)
+        (df["sfr_MEDIAN"] >= lo) &
+        (df["sfr_MEDIAN"] < hi)
     )
 
     f1 = F6716[m_bin]
@@ -944,7 +943,7 @@ plt.subplots_adjust(
 # 保存
 hist_path = os.path.join(
     current_dir,
-    "results/figure/stacked_sii_histograms_v4.png"
+    "results/figure/stacked_sii_histograms_v7.png"
 )
 plt.savefig(hist_path, dpi=200)
 

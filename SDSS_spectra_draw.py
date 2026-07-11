@@ -64,7 +64,7 @@ plt.rcParams.update({
 })
 
 current_dir = os.getcwd()
-fits_dir = os.path.join(current_dir, "results/SDSS/spectra/sdss_spectro_0329-52056-0141/spec-0329-52056-0141.fits")
+fits_dir = os.path.join(current_dir, "data/data_SDSS/DR7/spectra/fit/spSpec-51609-0292-084.fit")
 
 def load_sdss_spectrum(fits_path):
     with fits.open(fits_path, memmap=True) as hdul:

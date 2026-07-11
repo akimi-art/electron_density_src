@@ -155,7 +155,7 @@ Re_kpc = df["Re"].values * arcsec_to_kpc
 
 df["Re_kpc"] = Re_kpc
 logRe = np.log10(Re_kpc)
-df["logRe"] = logRe
+df["logRe"] = logRe 
 
 # ==========================================
 # マスク定義

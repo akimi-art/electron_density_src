@@ -73,7 +73,7 @@ from scipy.optimize import curve_fit
 # ===============================
 # 入力
 # ===============================
-filename = "./results/SDSS/spectra/sdss_spectro_0275-51910-0141/spec-0275-51910-0141.fits"
+filename = "data/data_SDSS/DR7/spectra/fit/spSpec-51609-0292-084.fit"
 z = 0.0818
 hb_vac = 4862.683  # vacuum Å
 

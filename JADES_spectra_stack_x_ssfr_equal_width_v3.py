@@ -3,7 +3,7 @@
 """
 スクリプトの概要:
 JADESスペクトルスタックを作成します。
-z, M*を基に、スペクトルを複数のビンに分割してスタックします。
+z, sSFRを基に、スペクトルを複数のビンに分割してスタックします。
 スタック方法を新たに3つ（median, median (Ha norm), weighted mean)
 追加しました。
 
@@ -13,11 +13,11 @@ v1との変更点:
 
 
 使用方法:
-    JADES_spectra_stack_x_mass_equal_width_v2.py [オプション]
+    JADES_spectra_stack_x_ssfr_equal_width_v3.py [オプション]
 
 著者: A. M.
-作成日: 2026-07-03
-最終更新日: 2026-07-03
+作成日: 2026-07-11
+最終更新日: 2026-07-11
 
 参考文献:
     - PEP 8:                  https://peps.python.org/pep-0008/
@@ -58,17 +58,28 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (-1.0, 0.0),
 #     (0.0, 1.0),
 # ]
-mass_bins = [
-    (8.7, 9.3),
-    (9.3, 10.0),
-    # (10.0, 11.0), # complete
 
+# 試験
+# sfr_bins = [
+#     (0.0, 0.5),
+#     (0.5, 0.7), # 危険
+#     (0.7, 0.9), # OK?
+#     (0.9, 1.1), # 危険
+#     (1.1, 1.5),
+# ]
+sfr_bins = [
+    (0.3, 0.5), # OK?
+    # (0.5, 0.7), # 危険
+    (0.7, 0.9), # OK?
+    # (0.9, 1.1), # 危険
+    (1.1, 1.3),
+    (1.3, 1.5)
 ]
 
-
 z_bins = [
-    (0.5, 3.0),
-    (3.0, 8.0),
+    (0.5, 8.0), #わけない
+    # (0.5, 3.0), 
+    # (3.0, 8.0),
 ]
 
 
@@ -83,8 +94,8 @@ df = pd.read_csv(csv_file)
 df = df.drop_duplicates(
     subset="NIRSpec_ID",
     keep="first"
-)
-
+) 
+ 
 df = df[df["z_spec"].notna()]
 df = df[df["HA_6563_flux"].notna()]
 df = df[df["logSFR_hb"].notna()]
@@ -231,9 +242,6 @@ for gr in gratings:
         z   = row["z_spec"]
         ha  = row["HA_6563_flux"]
 
-        if (not np.isfinite(ha)) or (ha <= 0) or (ha > ha_p995):
-            continue
-
         sid = f"{nid:08d}"
 
         # 同じNIRSpec_IDは1回だけ使う
@@ -287,10 +295,10 @@ for gr in gratings:
 
 
             # ↓ 追加
-            logM = row["logM"]
+            logSFR_hb = row["logSFR_hb"]
 
-            logM_err_lo = row["err1_logM"]
-            logM_err_hi = row["err2_logM"]
+            logSFR_hb_err_lo = row["err1_logSFR_hb"]
+            logSFR_hb_err_hi = row["err2_logSFR_hb"]
 
             used_items_all.append({
             
@@ -304,9 +312,9 @@ for gr in gratings:
                 "flux_norm": flux_i_norm,
                 "err_norm": err_i_norm,
 
-                "logM": logM,
-                "logM_err_lo": logM_err_lo,
-                "logM_err_hi": logM_err_hi,
+                "logSFR_hb": logSFR_hb,
+                "logSFR_hb_err_lo": logSFR_hb_err_lo,
+                "logSFR_hb_err_hi": logSFR_hb_err_hi,
             })
 
         # try ブロック内で発生したほぼすべてのエラー（例外）をキャッチ, 
@@ -317,7 +325,7 @@ for gr in gratings:
 
 
 # ============================
-# Sigma_SFR-bin split
+# SFR-bin split
 # ============================
 if len(used_items_all) == 0:
 
@@ -326,17 +334,17 @@ if len(used_items_all) == 0:
 else:
 
     # =====================================
-    # use Sigma_SFR as binning variable
+    # use SFR as binning variable
     # =====================================
 
-    used_mass_all = np.array([
-        it["logM"]
+    used_sfr_all = np.array([
+        it["logSFR_hb"]
         for it in used_items_all
     ])
 
-    valid_mask = np.isfinite(used_mass_all)
+    valid_mask = np.isfinite(used_sfr_all)
 
-    used_mass_all = used_mass_all[valid_mask]
+    used_sfr_all = used_sfr_all[valid_mask]
 
     used_items_valid = [
         used_items_all[i]
@@ -344,7 +352,7 @@ else:
         if valid_mask[i]
     ]
 
-    N = len(used_mass_all)
+    N = len(used_sfr_all)
 
     print("\nTotal usable spectra:", N)
 
@@ -355,23 +363,23 @@ else:
     plt.figure(figsize=(6,4))
 
     plt.hist(
-        used_mass_all,
+        used_sfr_all,
         bins=60,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log M_\star$')
+    plt.xlabel(r'$\log SFR$')
     plt.ylabel("count")
 
     plt.tight_layout()
-    save_hist_path_mass = "results/JADES/figure/hist_mass_JADES.png"
-    plt.savefig(f"{save_hist_path_mass}")
-    print(f"Saved as {save_hist_path_mass}.")
+    save_hist_path_sfr = "results/JADES/figure/hist_sfr_JADES.png"
+    plt.savefig(f"{save_hist_path_sfr}")
+    print(f"Saved as {save_hist_path_sfr}.")
     plt.show()
 
-    print("median =", np.nanmedian(used_mass_all))
-    print("std =", np.nanstd(used_mass_all))
+    print("median =", np.nanmedian(used_sfr_all))
+    print("std =", np.nanstd(used_sfr_all))
 
     used_z_all = np.array([
         it["z"]
@@ -382,7 +390,7 @@ else:
 
     plt.hist(
         used_z_all,
-        bins=40,
+        bins=20,
         color="0.7",
         edgecolor="black"
     )
@@ -411,10 +419,10 @@ else:
     )
 
     # =====================================
-    # stack each Mass bin
+    # stack each sfr bin
     # =====================================
 
-    for b_mass, (m_lo, m_hi) in enumerate(mass_bins):
+    for b_sfr, (m_lo, m_hi) in enumerate(sfr_bins):
 
         for b_z, (z_lo, z_hi) in enumerate(z_bins):
 
@@ -435,6 +443,10 @@ else:
 
                 "00045967", 
                 "10020038", # 追加, スパイク
+
+                # # continuumデカすぎ
+                # "00049733",
+
             ]
 
             selected = [
@@ -444,9 +456,9 @@ else:
                 for it in used_items_valid
 
                 if (
-                    (it["logM"] >= m_lo)
+                    (it["logSFR_hb"] >= m_lo)
                     and
-                    (it["logM"] < m_hi)
+                    (it["logSFR_hb"] < m_hi)
 
                     and
 
@@ -463,15 +475,15 @@ else:
             if len(selected) == 0:
 
                 print(
-                    f"\nlogM [{m_lo},{m_hi}) "
+                    f"\nlogSFR_hb [{m_lo},{m_hi}) "
                     f"z [{z_lo},{z_hi})"
                 )
 
                 continue
 
 
-            mass_vals = np.array([
-                it["logM"]
+            sfr_vals = np.array([
+                it["logSFR_hb"]
                 for it in selected
             ])
 
@@ -557,7 +569,7 @@ else:
             savefig = (
                 "results/JADES/figure/"
                 f"SII_individual_stack_"
-                f"mass_{m_lo:.1f}_{m_hi:.1f}"
+                f"sfr_{m_lo:.1f}_{m_hi:.1f}"
                 f"_z_{z_lo:.1f}_{z_hi:.1f}.png"
             )
 
@@ -575,7 +587,7 @@ else:
                     flux[(wave_grid>6795)&(wave_grid<6810)]
                 )
 
-                if peak > 5e-19:
+                if peak > 5e-19: # 閾値次第でバイアスが生じうるので注意
                 
                     print(it["id"], peak)
 
@@ -593,10 +605,10 @@ else:
                 
                     peak = np.nanmax(flux[m])
 
-                    print(
-                        peak,
-                        it["id"]
-                    )
+                    # print(
+                    #     peak,
+                    #     it["id"]
+                    # )
 
 
             # normalized
@@ -634,13 +646,13 @@ else:
             )
 
             # 各ビンの代表値を計算する
-            mass_mean = np.mean(mass_vals)
-            mass_std = np.std(mass_vals)
+            sfr_mean = np.mean(sfr_vals)
+            sfr_std = np.std(sfr_vals)
             z_mean = np.mean(z_vals)
             z_std = np.std(z_vals)
 
             print(
-                f"\nlogM [{m_lo},{m_hi}) "
+                f"\nlogSFR_hb [{m_lo},{m_hi}) "
             )
 
             print(
@@ -652,8 +664,8 @@ else:
             )
 
             print(
-                f"logM = "
-                f"{mass_mean:.3f}"
+                f"logSFR_hb = "
+                f"{sfr_mean:.3f}"
             )
 
             print(
@@ -663,8 +675,8 @@ else:
 
 
             print(
-                f"logM_std = "
-                f"{mass_std:.3f}"
+                f"logSFR_hb_std = "
+                f"{sfr_std:.3f}"
             )
 
             print(
@@ -673,9 +685,9 @@ else:
             )
 
             print(
-                f"mass_range = "
-                f"[{np.min(mass_vals):.3f}, "
-                f"{np.max(mass_vals):.3f}]"
+                f"sfr_range = "
+                f"[{np.min(sfr_vals):.3f}, "
+                f"{np.max(sfr_vals):.3f}]"
             )
 
             print(
@@ -778,7 +790,7 @@ else:
 
             outname_base = (
                 "results/JADES/JADES_DR3/spectra/"
-                f"stack_mass_{m_lo:.1f}_{m_hi:.1f}"
+                f"stack_sfr_{m_lo:.1f}_{m_hi:.1f}"
                 f"_z_{z_lo:.1f}_{z_hi:.1f}"
             )
 
@@ -797,75 +809,75 @@ else:
                 ]),
                 header=(
                     f"mean raw | "
-                    f"logM=[{m_lo},{m_hi}) | "
+                    f"logSFR_hb=[{m_lo},{m_hi}) | "
                     f"z=[{z_lo},{z_hi}) | "
                     f"N={len(selected)}"
                 )
             )
 
-            # --- mean normalized ---
+            # # --- mean normalized ---
 
-            np.savetxt(
-                outname_base + "_mean_norm.txt",
-                np.column_stack([
-                    wave_grid,
-                    flux_stack_mean_norm,
-                    err_stack_mean_norm
-                ]),
-                header=(
-                    f"mean normalized | "
-                    f"logM=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
-            # --- weighted raw ---
-            np.savetxt(
-                outname_base + "_weighted_mean_raw.txt",
-                np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
-                header=(
-                    f"weighted raw  | "
-                    f"logM=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # np.savetxt(
+            #     outname_base + "_mean_norm.txt",
+            #     np.column_stack([
+            #         wave_grid,
+            #         flux_stack_mean_norm,
+            #         err_stack_mean_norm
+            #     ]),
+            #     header=(
+            #         f"mean normalized | "
+            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
+            # # --- weighted raw ---
+            # np.savetxt(
+            #     outname_base + "_weighted_mean_raw.txt",
+            #     np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
+            #     header=(
+            #         f"weighted raw  | "
+            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- weighted normalized ---
-            np.savetxt(
-                outname_base + "_weighted_mean_norm.txt",
-                np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
-                header=(
-                    f"weighted normalized  | "
-                    f"logM=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- weighted normalized ---
+            # np.savetxt(
+            #     outname_base + "_weighted_mean_norm.txt",
+            #     np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
+            #     header=(
+            #         f"weighted normalized  | "
+            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- median raw ---
-            np.savetxt(
-                outname_base + "_median_raw.txt",
-                np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
-                header=(
-                    f"median raw  | "
-                    f"logM=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- median raw ---
+            # np.savetxt(
+            #     outname_base + "_median_raw.txt",
+            #     np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
+            #     header=(
+            #         f"median raw  | "
+            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
-            # --- median normalized ---
-            np.savetxt(
-                outname_base + "_median_norm.txt",
-                np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
-                header=(
-                    f"median normalized  | "
-                    f"logM=[{m_lo},{m_hi}) | "
-                    f"z=[{z_lo},{z_hi}) | "
-                    f"N={len(selected)}"
-                )
-            )
+            # # --- median normalized ---
+            # np.savetxt(
+            #     outname_base + "_median_norm.txt",
+            #     np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
+            #     header=(
+            #         f"median normalized  | "
+            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"z=[{z_lo},{z_hi}) | "
+            #         f"N={len(selected)}"
+            #     )
+            # )
 
             print("saved:", outname_base)
 
@@ -903,3 +915,17 @@ for k,v in c.items():
 
     if v > 1:
         print(k,v)
+
+
+# 一連の騒動
+# CSV中に同一NIRSpec_IDの重複行が存在
+# ↓
+# 同じFITSを複数回読む
+# ↓
+# used_items_allにも重複して入るz
+# ↓
+# Counterで2回・4回出る
+# ↓
+# CSV重複除去
+# ↓
+# Counterでも重複が消える
