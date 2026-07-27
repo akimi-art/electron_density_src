@@ -12,6 +12,7 @@ SDSSのスペクトルをフィットする
 
 著者: A. M.
 作成日: 2026-02-26
+最終更新日: 2026-07-26
 
 参考文献:
     - PEP 8: https://peps.python.org/pep-0008/
@@ -174,7 +175,17 @@ ratio = F1 / F2
 # 4) 図：上=2D（Å）/ 下=1D（Å, フィット重ね）
 # ===============================
 fig = plt.figure(figsize=(12, 6))
-gs = fig.add_gridspec(2, 1, height_ratios=[1, 3], hspace=0.0)
+
+# 引数に left, right, top, bottom を追加して全体の位置を固定する
+gs = fig.add_gridspec(
+    2, 1, 
+    height_ratios=[1, 5], 
+    hspace=0.0,
+    left=0.15,   # 左側に少し広めの余白を作る（y軸ラベル用など）
+    right=0.95,  # 右側の余白を狭くする
+    top=1.00,    # 上側にタイトル用の余白を作らない
+    bottom=0.20  # 下側にx軸ラベル用の余白を作る
+)
 
 # --- 上：2D ---
 ax2d = fig.add_subplot(gs[0])
@@ -185,6 +196,7 @@ ax2d.imshow(
     extent=[lam2d_win.min(), lam2d_win.max(), fiber-0.5, fiber+0.5],
     interpolation="none",
 )
+
 # フィット中心（z_fit）に縦線
 lam1_fit = sii_6716_vac * (1 + z_fit)
 lam2_fit = sii_6731_vac * (1 + z_fit)
@@ -194,6 +206,9 @@ ax2d.tick_params(axis="both", which="both",
                  bottom=False, top=False, left=False, right=False,
                  labelbottom=False, labelleft=False)
 
+for spine in ax2d.spines.values():
+    spine.set_linewidth(2)
+
 # --- 下：1D ---
 ax1d = fig.add_subplot(gs[1], sharex=ax2d)
 ax1d.step(lam_fit, flux_fit, where="mid", color="black", lw=0.9)
@@ -201,14 +216,32 @@ ax1d.fill_between(lam_fit, flux_fit - sigma_fit, flux_fit + sigma_fit,
                   step="mid", color="gray", alpha=0.35)
 
 x_dense = np.linspace(lam_fit.min(), lam_fit.max(), 1200)
-ax1d.plot(x_dense, sii_model(x_dense, *popt), color="red", lw=1.6, label=f"fit (z={z_fit:.5f})")
-ax1d.plot(x_dense, sii_model_6716(x_dense, *popt), color="red", lw=1.1, ls="--")
-ax1d.plot(x_dense, sii_model_6731(x_dense, *popt), color="red", lw=1.1, ls="-.")
-ax1d.axvline(lam1_fit, color="red",  ls="--", lw=0.8, alpha=0.8)
-ax1d.axvline(lam2_fit, color="red",  ls="-.", lw=0.8, alpha=0.8)
+# ax1d.plot(x_dense, sii_model(x_dense, *popt), color="red", lw=1.6, label=f"fit (z={z_fit:.5f})")
+# ax1d.plot(x_dense, sii_model_6716(x_dense, *popt), color="red", lw=1.1, ls="--")
+# ax1d.plot(x_dense, sii_model_6731(x_dense, *popt), color="red", lw=1.1, ls="-.")
+# ax1d.axvline(lam1_fit, color="red",  ls="--", lw=0.8, alpha=0.8)
+# ax1d.axvline(lam2_fit, color="red",  ls="-.", lw=0.8, alpha=0.8)
 
-ax1d.set_xlabel(r"$\lambda$ (Å)")
-ax1d.set_ylabel(r"$F_{\lambda}$ (10$^{-17}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)")
+ax1d.set_xlabel(r"$\lambda$ (Å)", fontsize=32)
+ax1d.set_ylabel(r"$F_{\lambda}$ (10$^{-17}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)", fontsize=32)
+
+# 左上に文字を配置する
+ax1d.text(
+    0.05, 0.95,                # x, y の相対座標 (左端から2%, 下端から95%の位置)
+    "$z=0.18$",                 # 表示したい文字列
+    transform=ax1d.transAxes,     # グラフ枠を基準にする設定
+    verticalalignment='top',    # 指定座標をテキストの上端にする
+    horizontalalignment='left', # 指定座標をテキストの左端にする
+    fontsize=32
+
+)
+
+for spine in ax1d.spines.values():
+    spine.set_linewidth(2)
+
+for ax1d in plt.gcf().axes:
+    for label in ax1d.get_xticklabels() + ax1d.get_yticklabels():
+        label.set_fontweight('bold')
 
 save_dir = "./results/SDSS/figure/SDSS_0694-52209-0134_SII_fit.png"
 plt.savefig(save_dir, dpi=300)

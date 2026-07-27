@@ -34,6 +34,47 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from astropy.cosmology import Planck18
 
+# -----------------------
+# 軸の設定
+# -----------------------
+# 軸の設定
+plt.rcParams.update({
+    # --- 図全体 ---
+    "figure.figsize": (12, 6),       # 図サイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 24,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
+    "axes.grid": False,              # グリッドOFF
+
+    # --- 目盛り設定 (ticks) ---
+    "xtick.direction": "in",         # x軸目盛りの向き
+    "ytick.direction": "in",         # y軸目盛りの向き
+    "xtick.top": True,               # 上にも目盛り
+    "ytick.right": True,             # 右にも目盛り
+
+    # 主目盛り（major ticks）
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
+    "xtick.major.width": 2,          # 太さ
+    "ytick.major.width": 2,
+
+    # 補助目盛り（minor ticks）
+    "xtick.minor.visible": True,     # 補助目盛りON
+    "ytick.minor.visible": True,
+    "xtick.minor.size": 8,           # 長さ
+    "ytick.minor.size": 8,
+    "xtick.minor.width": 1.5,        # 太さ
+    "ytick.minor.width": 1.5,
+
+    # --- 目盛りラベル ---
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
+
+    # --- フォント ---
+    "font.family": "STIXGeneral",
+    "mathtext.fontset": "stix",
+})
+
 # ============================
 # SETTINGS
 # ============================
@@ -67,13 +108,12 @@ wave_grid = np.arange(6500, 6900, 0.5)
 #     (0.9, 1.1), # 危険
 #     (1.1, 1.5),
 # ]
-sfr_bins = [
-    (0.3, 0.5), # OK?
-    # (0.5, 0.7), # 危険
-    (0.7, 0.9), # OK?
-    # (0.9, 1.1), # 危険
-    (1.1, 1.3),
-    (1.3, 1.5)
+ssfr_bins = [
+    # (-9, -8.6), # NG?
+    # (-8.6, -8.4), # NG?
+    # (-8.4, -8.2),
+    # (-8.2, -8.0)
+    (-9, -8.4)
 ]
 
 z_bins = [
@@ -300,6 +340,21 @@ for gr in gratings:
             logSFR_hb_err_lo = row["err1_logSFR_hb"]
             logSFR_hb_err_hi = row["err2_logSFR_hb"]
 
+            logM = row["logM"]
+            
+            logM_err_lo = row["err1_logM"]
+            logM_err_hi = row["err2_logM"]
+            
+            # sSFR
+            logsSFR = logSFR_hb - logM
+            
+            # 誤差（対称化）
+            sfr_sigma  = 0.5 * (logSFR_hb_err_lo + logSFR_hb_err_hi)
+            mass_sigma = 0.5 * (logM_err_lo + logM_err_hi)
+
+            logsSFR_err_lo = np.sqrt(sfr_sigma**2 + mass_sigma**2)
+            logsSFR_err_hi = np.sqrt(sfr_sigma**2 + mass_sigma**2)
+
             used_items_all.append({
             
                 "id": sid,
@@ -312,9 +367,9 @@ for gr in gratings:
                 "flux_norm": flux_i_norm,
                 "err_norm": err_i_norm,
 
-                "logSFR_hb": logSFR_hb,
-                "logSFR_hb_err_lo": logSFR_hb_err_lo,
-                "logSFR_hb_err_hi": logSFR_hb_err_hi,
+                "logsSFR": logsSFR,
+                "logsSFR_err_lo": logsSFR_err_lo,
+                "logsSFR_err_hi": logsSFR_err_hi,
             })
 
         # try ブロック内で発生したほぼすべてのエラー（例外）をキャッチ, 
@@ -325,7 +380,7 @@ for gr in gratings:
 
 
 # ============================
-# SFR-bin split
+# sSFR-bin split
 # ============================
 if len(used_items_all) == 0:
 
@@ -334,17 +389,17 @@ if len(used_items_all) == 0:
 else:
 
     # =====================================
-    # use SFR as binning variable
+    # use sSFR as binning variable
     # =====================================
 
-    used_sfr_all = np.array([
-        it["logSFR_hb"]
+    used_ssfr_all = np.array([
+        it["logsSFR"]
         for it in used_items_all
     ])
 
-    valid_mask = np.isfinite(used_sfr_all)
+    valid_mask = np.isfinite(used_ssfr_all)
 
-    used_sfr_all = used_sfr_all[valid_mask]
+    used_ssfr_all = used_ssfr_all[valid_mask]
 
     used_items_valid = [
         used_items_all[i]
@@ -352,7 +407,7 @@ else:
         if valid_mask[i]
     ]
 
-    N = len(used_sfr_all)
+    N = len(used_ssfr_all)
 
     print("\nTotal usable spectra:", N)
 
@@ -360,26 +415,28 @@ else:
     # histogram
     # =====================================
 
-    plt.figure(figsize=(6,4))
+    fig, ax = plt.subplots(figsize=(6,4))
 
-    plt.hist(
-        used_sfr_all,
-        bins=60,
+    ax.hist(
+        used_ssfr_all,
+        bins=30,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log SFR$')
-    plt.ylabel("count")
+    ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$") 
+    ax.set_ylabel("count")
 
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
     plt.tight_layout()
-    save_hist_path_sfr = "results/JADES/figure/hist_sfr_JADES.png"
-    plt.savefig(f"{save_hist_path_sfr}")
-    print(f"Saved as {save_hist_path_sfr}.")
+    save_hist_path_ssfr = "results/JADES/figure/hist_ssfr_JADES.png"
+    plt.savefig(f"{save_hist_path_ssfr}")
+    print(f"Saved as {save_hist_path_ssfr}.")
     plt.show()
 
-    print("median =", np.nanmedian(used_sfr_all))
-    print("std =", np.nanstd(used_sfr_all))
+    print("median =", np.nanmedian(used_ssfr_all))
+    print("std =", np.nanstd(used_ssfr_all))
 
     used_z_all = np.array([
         it["z"]
@@ -419,10 +476,10 @@ else:
     )
 
     # =====================================
-    # stack each sfr bin
+    # stack each ssfr bin
     # =====================================
 
-    for b_sfr, (m_lo, m_hi) in enumerate(sfr_bins):
+    for b_ssfr, (m_lo, m_hi) in enumerate(ssfr_bins):
 
         for b_z, (z_lo, z_hi) in enumerate(z_bins):
 
@@ -456,9 +513,9 @@ else:
                 for it in used_items_valid
 
                 if (
-                    (it["logSFR_hb"] >= m_lo)
+                    (it["logsSFR"] >= m_lo)
                     and
-                    (it["logSFR_hb"] < m_hi)
+                    (it["logsSFR"] < m_hi)
 
                     and
 
@@ -475,15 +532,15 @@ else:
             if len(selected) == 0:
 
                 print(
-                    f"\nlogSFR_hb [{m_lo},{m_hi}) "
+                    f"\nlogsSFR [{m_lo},{m_hi}) "
                     f"z [{z_lo},{z_hi})"
                 )
 
                 continue
 
 
-            sfr_vals = np.array([
-                it["logSFR_hb"]
+            ssfr_vals = np.array([
+                it["logsSFR"]
                 for it in selected
             ])
 
@@ -559,7 +616,7 @@ else:
             plt.ylabel("Flux")
 
             # plt.title(
-            #     f"logSFR=[{m_lo},{m_hi}) "
+            #     f"logsSFR=[{m_lo},{m_hi}) "
             #     f" z=[{z_lo},{z_hi})"
             # )
 
@@ -569,7 +626,7 @@ else:
             savefig = (
                 "results/JADES/figure/"
                 f"SII_individual_stack_"
-                f"sfr_{m_lo:.1f}_{m_hi:.1f}"
+                f"ssfr_{m_lo:.1f}_{m_hi:.1f}"
                 f"_z_{z_lo:.1f}_{z_hi:.1f}.png"
             )
 
@@ -646,13 +703,13 @@ else:
             )
 
             # 各ビンの代表値を計算する
-            sfr_mean = np.mean(sfr_vals)
-            sfr_std = np.std(sfr_vals)
+            ssfr_mean = np.mean(ssfr_vals)
+            ssfr_std = np.std(ssfr_vals)
             z_mean = np.mean(z_vals)
             z_std = np.std(z_vals)
 
             print(
-                f"\nlogSFR_hb [{m_lo},{m_hi}) "
+                f"\nlogsSFR [{m_lo},{m_hi}) "
             )
 
             print(
@@ -664,8 +721,8 @@ else:
             )
 
             print(
-                f"logSFR_hb = "
-                f"{sfr_mean:.3f}"
+                f"logsSFR = "
+                f"{ssfr_mean:.3f}"
             )
 
             print(
@@ -675,8 +732,8 @@ else:
 
 
             print(
-                f"logSFR_hb_std = "
-                f"{sfr_std:.3f}"
+                f"logsSFR_std = "
+                f"{ssfr_std:.3f}"
             )
 
             print(
@@ -685,9 +742,9 @@ else:
             )
 
             print(
-                f"sfr_range = "
-                f"[{np.min(sfr_vals):.3f}, "
-                f"{np.max(sfr_vals):.3f}]"
+                f"ssfr_range = "
+                f"[{np.min(ssfr_vals):.3f}, "
+                f"{np.max(ssfr_vals):.3f}]"
             )
 
             print(
@@ -790,7 +847,7 @@ else:
 
             outname_base = (
                 "results/JADES/JADES_DR3/spectra/"
-                f"stack_sfr_{m_lo:.1f}_{m_hi:.1f}"
+                f"stack_ssfr_{m_lo:.1f}_{m_hi:.1f}"
                 f"_z_{z_lo:.1f}_{z_hi:.1f}"
             )
 
@@ -809,7 +866,7 @@ else:
                 ]),
                 header=(
                     f"mean raw | "
-                    f"logSFR_hb=[{m_lo},{m_hi}) | "
+                    f"logsSFR=[{m_lo},{m_hi}) | "
                     f"z=[{z_lo},{z_hi}) | "
                     f"N={len(selected)}"
                 )
@@ -826,7 +883,7 @@ else:
             #     ]),
             #     header=(
             #         f"mean normalized | "
-            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"logsSFR=[{m_lo},{m_hi}) | "
             #         f"z=[{z_lo},{z_hi}) | "
             #         f"N={len(selected)}"
             #     )
@@ -837,7 +894,7 @@ else:
             #     np.column_stack([wave_grid, flux_stack_w_raw, err_stack_w_raw]),
             #     header=(
             #         f"weighted raw  | "
-            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"logsSFR=[{m_lo},{m_hi}) | "
             #         f"z=[{z_lo},{z_hi}) | "
             #         f"N={len(selected)}"
             #     )
@@ -849,7 +906,7 @@ else:
             #     np.column_stack([wave_grid, flux_stack_w_norm, err_stack_w_norm]),
             #     header=(
             #         f"weighted normalized  | "
-            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"logsSFR=[{m_lo},{m_hi}) | "
             #         f"z=[{z_lo},{z_hi}) | "
             #         f"N={len(selected)}"
             #     )
@@ -861,7 +918,7 @@ else:
             #     np.column_stack([wave_grid, flux_stack_m_raw, err_stack_m_raw]),
             #     header=(
             #         f"median raw  | "
-            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"logsSFR=[{m_lo},{m_hi}) | "
             #         f"z=[{z_lo},{z_hi}) | "
             #         f"N={len(selected)}"
             #     )
@@ -873,7 +930,7 @@ else:
             #     np.column_stack([wave_grid, flux_stack_m_norm, err_stack_m_norm]),
             #     header=(
             #         f"median normalized  | "
-            #         f"logSFR_hb=[{m_lo},{m_hi}) | "
+            #         f"logsSFR=[{m_lo},{m_hi}) | "
             #         f"z=[{z_lo},{z_hi}) | "
             #         f"N={len(selected)}"
             #     )

@@ -681,60 +681,60 @@ ax.errorbar(
     label="Mean"
 )
 
-# median
-ax.errorbar(
-    x, y_med,
-    yerr=yerr_med,
-    fmt="^",
-    color="#ffa500", # ライトオレンジ:#ffa500, 鮮やかなオレンジ:#ff9900
-    mfc="#ffa500",
-    capsize=3,
-    label="Median"
-)
+# # median
+# ax.errorbar(
+#     x, y_med,
+#     yerr=yerr_med,
+#     fmt="^",
+#     color="#ffa500", # ライトオレンジ:#ffa500, 鮮やかなオレンジ:#ff9900
+#     mfc="#ffa500",
+#     capsize=3,
+#     label="Median"
+# )
 
-# weighted mean
-ax.errorbar(
-    x, y_w,
-    yerr=yerr_w,
-    fmt="D",
-    color="#33ffcc", # ミントシアン:#33ffcc, 明るいシアン:00e5ff
-    mfc="#33ffcc",
-    capsize=3,
-    label="Weighted"
-)
+# # weighted mean
+# ax.errorbar(
+#     x, y_w,
+#     yerr=yerr_w,
+#     fmt="D",
+#     color="#33ffcc", # ミントシアン:#33ffcc, 明るいシアン:00e5ff
+#     mfc="#33ffcc",
+#     capsize=3,
+#     label="Weighted"
+# )
 
-# Ha normalized mean
-ax.errorbar(
-    x, y_Ha_mean,
-    yerr=yerr_Ha_mean,
-    fmt="s",
-    color="#ff5eaa",
-    mfc="white",
-    capsize=3,
-    label="Mean (Hα)"
-)
+# # Ha normalized mean
+# ax.errorbar(
+#     x, y_Ha_mean,
+#     yerr=yerr_Ha_mean,
+#     fmt="s",
+#     color="#ff5eaa",
+#     mfc="white",
+#     capsize=3,
+#     label="Mean (Hα)"
+# )
 
-# Ha normalized median
-ax.errorbar(
-    x, y_Ha_med,
-    yerr=yerr_Ha_med,
-    fmt="^",
-    color="#ff9900",
-    mfc="white",
-    capsize=3,
-    label="Median (Hα)"
-)
+# # Ha normalized median
+# ax.errorbar(
+#     x, y_Ha_med,
+#     yerr=yerr_Ha_med,
+#     fmt="^",
+#     color="#ff9900",
+#     mfc="white",
+#     capsize=3,
+#     label="Median (Hα)"
+# )
 
-# Ha normalized weighted mean
-ax.errorbar(
-    x, y_Ha_w,
-    yerr=yerr_Ha_w,
-    fmt="D",
-    color="#33ffcc",
-    mfc="white",
-    capsize=3,
-    label="Weighted (Hα)"
-)
+# # Ha normalized weighted mean
+# ax.errorbar(
+#     x, y_Ha_w,
+#     yerr=yerr_Ha_w,
+#     fmt="D",
+#     color="#33ffcc",
+#     mfc="white",
+#     capsize=3,
+#     label="Weighted (Hα)"
+# )
 
 # # mean
 # ax.errorbar(

@@ -34,6 +34,45 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from astropy.cosmology import Planck18
 
+# 軸の設定
+plt.rcParams.update({
+    # --- 図全体 ---
+    "figure.figsize": (12, 6),       # 図サイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 24,            # 軸ラベルのサイズ
+    "axes.titlesize": 20,            # タイトルのサイズ
+    "axes.grid": False,              # グリッドOFF
+
+    # --- 目盛り設定 (ticks) ---
+    "xtick.direction": "in",         # x軸目盛りの向き
+    "ytick.direction": "in",         # y軸目盛りの向き
+    "xtick.top": True,               # 上にも目盛り
+    "ytick.right": True,             # 右にも目盛り
+
+    # 主目盛り（major ticks）
+    "xtick.major.size": 20,          # 長さ
+    "ytick.major.size": 20,
+    "xtick.major.width": 2,          # 太さ
+    "ytick.major.width": 2,
+
+    # 補助目盛り（minor ticks）
+    "xtick.minor.visible": True,     # 補助目盛りON
+    "ytick.minor.visible": True,
+    "xtick.minor.size": 8,           # 長さ
+    "ytick.minor.size": 8,
+    "xtick.minor.width": 1.5,        # 太さ
+    "ytick.minor.width": 1.5,
+
+    # --- 目盛りラベル ---
+    "xtick.labelsize": 20,           # x軸ラベルサイズ
+    "ytick.labelsize": 20,           # y軸ラベルサイズ
+
+    # --- フォント ---
+    "font.family": "STIXGeneral",
+    "mathtext.fontset": "stix",
+})
+
+
 # ============================
 # SETTINGS
 # ============================
@@ -352,17 +391,20 @@ else:
     # histogram
     # =====================================
 
-    plt.figure(figsize=(6,4))
+    fig, ax = plt.subplots(figsize=(6,4))
 
-    plt.hist(
+    ax.hist(
         used_mass_all,
-        bins=60,
+        bins=20,
         color="0.7",
         edgecolor="black"
     )
 
-    plt.xlabel(r'$\log M_\star$')
-    plt.ylabel("count")
+    ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
+    ax.set_ylabel("count")
+
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
 
     plt.tight_layout()
     save_hist_path_mass = "results/JADES/figure/hist_mass_JADES.png"

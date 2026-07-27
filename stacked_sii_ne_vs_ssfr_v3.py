@@ -138,38 +138,23 @@ L6731 = 4 * np.pi * d_L**2 * F6731
 
 df["R_SII"] = F6716 / F6731
 
-# Re（arcsec → kpc）
-arcsec_to_kpc = cosmo.kpc_proper_per_arcmin(z).value / 60.0
-Re_kpc = df["Re"].values * arcsec_to_kpc
-
-df["Re_kpc"] = Re_kpc
-logRe = np.log10(Re_kpc)
-df["logRe"] = logRe
-
 
 # ==========================================
 # マスク定義
 # ==========================================
 def valid_mass(x):
     x = np.asarray(x, float)
-
     m = np.isfinite(x)
-
-    # 変更
-    m &= (x >= 6.0)
-    m &= (x <= 12.0) 
-
+    m &= (x > 0) & (x < 13)
     return m
-
-# 追加
+    
 def valid_sfr(x):
 
     x = np.asarray(x, float)
 
     m = np.isfinite(x)
-
-    m &= (x > -3)
-    m &= (x < 3)
+    m &= (x > -5) & (x < 3)
+    m &= (x != -1.0)
 
     return m
 
@@ -182,13 +167,8 @@ m_sii = (
 )
 
 m_sm = valid_mass(df["sm_MEDIAN"])
-m_sfr = valid_sfr(df["sfr_MEDIAN"]) # 追加
+m_sfr = valid_sfr(df["sfr_MEDIAN"])
 m_ratio = np.isfinite(df["R_SII"])
-
-# logΣSFRの計算(logSFRから計算)
-logSFR = df["sfr_MEDIAN"].values
-logSigma_SFR = logSFR - np.log10(2*np.pi*Re_kpc**2)
-df["logSigma_SFR"] = logSigma_SFR
 
 mask_all = m_sii & m_sfr & m_ratio
 m_complete = mask_all
@@ -196,15 +176,16 @@ m_complete = mask_all
 # ==========================================
 # ビン作成
 # ==========================================
-df["sigma_sfr_MEDIAN"] = np.nan  # 先に列を作る
+logM = df.loc[m_complete, "sm_MEDIAN"].values
+logSFR = df.loc[m_complete, "sfr_MEDIAN"].values
+logsSFR = logSFR - logM
+df["ssfr_MEDIAN"] = np.nan  # 先に列を作る
 
-df.loc[m_complete, "sigma_sfr_MEDIAN"] = df.loc[m_complete, "logSigma_SFR"] # 新しい列をmask付きで追加
-
-logSigma_SFR_all = df.loc[m_complete, "sigma_sfr_MEDIAN"].values
+df.loc[m_complete, "ssfr_MEDIAN"] = logsSFR # 新しい列をmask付きで追加
 
 edges = np.arange(
-    np.floor(logSigma_SFR_all.min()/BIN_WIDTH)*BIN_WIDTH,
-    np.ceil(logSigma_SFR_all.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
+    np.floor(logsSFR.min()/BIN_WIDTH)*BIN_WIDTH,
+    np.ceil(logsSFR.max()/BIN_WIDTH)*BIN_WIDTH + BIN_WIDTH,
     BIN_WIDTH
 )
 
@@ -235,8 +216,8 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
     m_bin = (
         m_complete &
-        (df["sigma_sfr_MEDIAN"] >= lo) &
-        (df["sigma_sfr_MEDIAN"] < hi)
+        (df["ssfr_MEDIAN"] >= lo) &
+        (df["ssfr_MEDIAN"] < hi)
     )
 
     N = np.sum(m_bin)
@@ -445,9 +426,9 @@ for lo, hi in zip(edges[:-1], edges[1:]):
 
 
     rows.append(dict(
-        logSigma_SFR_lo=lo,
-        logSigma_SFR_hi=hi,
-        logSigma_SFR_cen = 0.5*(lo+hi),
+        logsSFR_lo=lo,
+        logsSFR_hi=hi,
+        logsSFR_cen = 0.5*(lo+hi),
         N=N,
 
         R_mean=R_mean_50,
@@ -489,7 +470,7 @@ df["R_SII"] = F6716 / F6731
 
 # 完全（青）
 ax.scatter(
-    df.loc[m_complete, "sigma_sfr_MEDIAN"],
+    df.loc[m_complete, "ssfr_MEDIAN"],
     df.loc[m_complete, "R_SII"],
     s=0.01,
     marker='.',
@@ -497,7 +478,7 @@ ax.scatter(
     color="C0",
 )
 
-x = res["logSigma_SFR_cen"].values
+x = res["logsSFR_cen"].values
 
 
 # mean
@@ -631,9 +612,9 @@ ax.errorbar(
     label="Weighted (Hα norm)"
 )
 
-ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
+ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-5, 1)
+ax.set_xlim(-14, -7)
 ax.set_ylim(0.5,2.0)
 
 for spine in ax.spines.values():
@@ -649,12 +630,12 @@ print("Saved:", out_png)
 # ==========================================
 # countヒートマップを作成
 # ==========================================
-xbins = np.arange(-5, 1.1, 0.02)
+xbins = np.arange(-14, -6.9, 0.02)
 ybins = np.arange(0.5, 2.1, 0.01)
 
 count_map, xedge, yedge, _ = (
     binned_statistic_2d(
-        df.loc[m_complete, "sigma_sfr_MEDIAN"],
+        df.loc[m_complete, "ssfr_MEDIAN"],
         df.loc[m_complete, "R_SII"],
         values=None,
         statistic="count",
@@ -811,9 +792,9 @@ ax.errorbar(
 #     label="Weighted (Hα)"
 # )
 
-ax.set_xlabel(r"$\log(\Sigma_{\rm SFR})\ [{\rm M_\odot\ yr^{-1}\ kpc^{-2}}]$")
+ax.set_xlabel(r"$\log(sSFR) [\mathrm{yr^{-1}}]$") 
 ax.set_ylabel(r"[SII] 6717 / 6731")
-ax.set_xlim(-5, 1.1)
+ax.set_xlim(-14, -7.0)
 ax.set_ylim(1.0,1.6)
 
 for spine in ax.spines.values():
@@ -824,7 +805,7 @@ fig_dir = os.path.join(current_dir, "results/figure")
 os.makedirs(fig_dir, exist_ok=True)
 save_path_count = os.path.join(
     fig_dir,
-    "heat_sigma_sfr_sii_ratio_count_sdss_v3.png"
+    "heat_ssfr_sii_ratio_count_sdss_v3.png"
 )
 
 plt.savefig(save_path_count)
@@ -849,16 +830,16 @@ axes = axes.flatten()
 
 for i, row in res.iterrows():
 
-    lo = row["logSigma_SFR_lo"]
-    hi = row["logSigma_SFR_hi"]
+    lo = row["logsSFR_lo"]
+    hi = row["logsSFR_hi"]
 
     ax = axes[i]
 
     # 同じbinのデータ取り出し
     m_bin = (
         m_complete &
-        (df["sigma_sfr_MEDIAN"] >= lo) &
-        (df["sigma_sfr_MEDIAN"] < hi)
+        (df["ssfr_MEDIAN"] >= lo) &
+        (df["ssfr_MEDIAN"] < hi)
     )
 
     f1 = F6716[m_bin]
@@ -953,7 +934,7 @@ plt.subplots_adjust(
 # 保存
 hist_path = os.path.join(
     current_dir,
-    "results/figure/stacked_sii_sigma_sfr_histograms_v3.png"
+    "results/figure/stacked_sii_ssfr_histograms_v3.png"
 )
 plt.savefig(hist_path, dpi=200)
 

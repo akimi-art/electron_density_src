@@ -901,7 +901,7 @@ for i, row in res.iterrows():
         bin_width = 2 * iqr / (len(R_plot) ** (1/3))
         bins = int((hi_cut - lo_cut) / bin_width)
     else:
-        bins = 30
+        bins = 20
 
     # 安定化
     bins = max(20, min(bins, 120))
