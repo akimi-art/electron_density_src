@@ -33,9 +33,9 @@ from scipy.optimize import curve_fit
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 20,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
+    "font.size": 32,                 # 全体フォントサイズ
+    "axes.labelsize": 32,            # 軸ラベルのサイズ
+    "axes.titlesize": 32,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -45,8 +45,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 32,          # 長さ
+    "ytick.major.size": 32,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -59,8 +59,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 28,           # x軸ラベルサイズ
+    "ytick.labelsize": 28,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -180,11 +180,14 @@ fig = plt.figure(figsize=(12, 6))
 gs = fig.add_gridspec(
     2, 1, 
     height_ratios=[1, 5], 
-    hspace=0.0,
-    left=0.15,   # 左側に少し広めの余白を作る（y軸ラベル用など）
-    right=0.95,  # 右側の余白を狭くする
-    top=1.00,    # 上側にタイトル用の余白を作らない
-    bottom=0.20  # 下側にx軸ラベル用の余白を作る
+    bottom=0.15, # 下余白
+    top=0.85,    # 上余白
+    wspace=0.3, # サブプロット間の横スペース
+    hspace=0.0  # サブプロット間の縦スペース
+    # left=0.15,   # 左側に少し広めの余白を作る（y軸ラベル用など）
+    # right=0.95,  # 右側の余白を狭くする
+    # top=1.00,    # 上側にタイトル用の余白を作らない
+    # bottom=0.20  # 下側にx軸ラベル用の余白を作る
 )
 
 # --- 上：2D ---
@@ -239,14 +242,11 @@ ax1d.text(
 for spine in ax1d.spines.values():
     spine.set_linewidth(2)
 
-for ax1d in plt.gcf().axes:
-    for label in ax1d.get_xticklabels() + ax1d.get_yticklabels():
-        label.set_fontweight('bold')
 
 save_dir = "./results/SDSS/figure/SDSS_0694-52209-0134_SII_fit.png"
 plt.savefig(save_dir, dpi=300)
 print(f"Saved as {save_dir}")
-plt.tight_layout()
+# plt.tight_layout()
 plt.show()
 
 # --- 数値出力（任意） ---

@@ -38,9 +38,9 @@ from astropy.cosmology import Planck18
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
-    "axes.titlesize": 20,            # タイトルのサイズ
+    "font.size": 32,                 # 全体フォントサイズ
+    "axes.labelsize": 32,            # 軸ラベルのサイズ
+    "axes.titlesize": 32,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -50,8 +50,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 32,          # 長さ
+    "ytick.major.size": 32,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -64,8 +64,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 28,           # x軸ラベルサイズ
+    "ytick.labelsize": 28,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -391,7 +391,7 @@ else:
     # histogram
     # =====================================
 
-    fig, ax = plt.subplots(figsize=(6,4))
+    fig, ax = plt.subplots(figsize=(12,6))
 
     ax.hist(
         used_mass_all,
@@ -401,7 +401,7 @@ else:
     )
 
     ax.set_xlabel(r"log ($M_\star$/M$_\odot$)")
-    ax.set_ylabel("count")
+    ax.set_ylabel("Number of galaxies")
 
     for spine in ax.spines.values():
         spine.set_linewidth(2)
@@ -420,17 +420,27 @@ else:
         for it in used_items_valid
     ])
 
-    plt.figure(figsize=(6,4))
+    fig, ax = plt.subplots(figsize=(12,6))
 
     plt.hist(
         used_z_all,
-        bins=40,
+        bins=15,
         color="0.7",
         edgecolor="black"
     )
 
+    z_median = np.nanmedian(used_z_all)
+    plt.axvline(
+        z_median,
+        color="k",
+        linestyle="--",
+        linewidth=2,
+    )
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
+
     plt.xlabel("z")
-    plt.ylabel("count")
+    plt.ylabel("Number of galaxies")
 
     plt.tight_layout()
 

@@ -35,8 +35,8 @@ from matplotlib.gridspec import GridSpec
 plt.rcParams.update({
     # --- 図全体 ---
     "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 20,                 # 全体フォントサイズ
-    "axes.labelsize": 24,            # 軸ラベルのサイズ
+    "font.size": 32,                 # 全体フォントサイズ
+    "axes.labelsize": 32,            # 軸ラベルのサイズ
     "axes.titlesize": 20,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
@@ -47,8 +47,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 20,          # 長さ
-    "ytick.major.size": 20,
+    "xtick.major.size": 32,          # 長さ
+    "ytick.major.size": 32,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -61,8 +61,8 @@ plt.rcParams.update({
     "ytick.minor.width": 1.5,
 
     # --- 目盛りラベル ---
-    "xtick.labelsize": 20,           # x軸ラベルサイズ
-    "ytick.labelsize": 20,           # y軸ラベルサイズ
+    "xtick.labelsize": 28,           # x軸ラベルサイズ
+    "ytick.labelsize": 28,           # y軸ラベルサイズ
 
     # --- フォント ---
     "font.family": "STIXGeneral",
@@ -281,16 +281,30 @@ ax1d.fill_between(
 )
 
 x_model = np.linspace(x_fit.min(), x_fit.max(), 1000)
-ax1d.plot(x_model, s2_doublet_model(x_model, *popt), color="red", lw=2)
-ax1d.plot(x_model, s2_doublet_model_6716(x_model, *popt), color="red", lw=2, ls="--", label="SII 6716")
-ax1d.plot(x_model, s2_doublet_model_6730(x_model, *popt), color="red", lw=2, ls="-.", label="SII 6730")
+# ax1d.plot(x_model, s2_doublet_model(x_model, *popt), color="red", lw=2)
+# ax1d.plot(x_model, s2_doublet_model_6716(x_model, *popt), color="red", lw=2, ls="--", label="SII 6716")
+# ax1d.plot(x_model, s2_doublet_model_6730(x_model, *popt), color="red", lw=2, ls="-.", label="SII 6730")
 # ax1d.legend(fontsize=16)
 mu_6716 = wave_length_6716 * (1 + z)
 mu_6730 = wave_length_6730 * (1 + z)
-ax1d.axvline(mu_6716, color="red", ls="--")
-ax1d.axvline(mu_6730, color="red", ls="-.")
+# ax1d.axvline(mu_6716, color="red", ls="--")
+# ax1d.axvline(mu_6730, color="red", ls="-.")
 ax1d.set_xlabel(r'$\lambda (Å)$')
 ax1d.set_ylabel(r'F$_{\lambda}$ ($10^{-19}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$)')
+
+
+# 左上に文字を配置する
+ax1d.text(
+    0.05, 0.95,                # x, y の相対座標 (左端から2%, 下端から95%の位置)
+    "$z=2.8$",                 # 表示したい文字列
+    transform=ax1d.transAxes,     # グラフ枠を基準にする設定
+    verticalalignment='top',    # 指定座標をテキストの上端にする
+    horizontalalignment='left', # 指定座標をテキストの左端にする
+    fontsize=32
+
+)
+
+
 # === 枠線 (spines) の設定 ===
 # 線の太さ・色・表示非表示などを個別に制御
 for spine in ax1d.spines.values():
