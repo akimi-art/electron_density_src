@@ -10,6 +10,7 @@ v0との変更点
 ・フラックス一定の曲線とSDSSの観測装置の特性をつなげる
 ・フラックス一定の曲線とLuminosity一定の曲線の交点をサンプル選択に使用
 ・使用するファイル(merged)にReの情報をあらかじめ入れておく
+・BPT分類を行い、SF領域のみに絞る
 
 使用方法:
     sii_luminoisity_vs_z_SDSS_v2.py [オプション]
@@ -92,7 +93,11 @@ UNIT_FLUX = 1e-17     # MPA-JHU flux unit
 # =====================================
 current_dir = os.getcwd()
 # 先にfitsファイルにReの情報を入れておく
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_radius.fits")
+
+# 保存
+fig_dir = os.path.join(current_dir, "results/figure")
+os.makedirs(fig_dir, exist_ok=True)
 
 t = Table.read(fits_path, format="fits")
 df = t.to_pandas()
@@ -132,6 +137,13 @@ err6731 = df["SII_6731_FLUX_ERR"].values * UNIT_FLUX
 sn6716 = F6716 / err6716
 sn6731 = F6731 / err6731
 
+# BPT分類のための輝線フラックスを取得
+NII = df["NII_6584_FLUX"].values
+HA  = df["H_ALPHA_FLUX"].values
+
+OIII = df["OIII_5007_FLUX"].values
+HB   = df["H_BETA_FLUX"].values
+
 # =====================================
 # Luminosity 計算
 # =====================================
@@ -151,16 +163,130 @@ mask_finite = (
 )
 
 # =====================================
+# BPT
+# =====================================
+
+mask_bpt = (
+    (NII > 0) &
+    (HA  > 0) &
+    (OIII > 0) &
+    (HB > 0)
+)
+
+log_NII_HA = np.log10(NII / HA)
+log_OIII_HB = np.log10(OIII / HB)
+
+# Kauffmann+03
+kauff = (
+    0.61 / (log_NII_HA - 0.05)
+    + 1.3
+)
+
+mask_sf = (
+    mask_bpt &
+    (log_NII_HA < 0.0) &
+    (log_OIII_HB < kauff)
+)
+
+# =====================================
 # 完全サンプル条件
 # =====================================
 # ここを変更する
 mask_complete = (
     mask_finite &
     (z < Z_MAX) &
-    (L6731 > L_MIN)  
+    (L6731 > L_MIN) &
+    mask_sf
 )
 
 print(f"[INFO] 抽出件数: {mask_complete.sum()} / {len(mask_complete)}")
+
+# S/Nカットによりサンプルの銀河がどの程度減るかを確認する
+mask_bpt_sn = (
+    (df["SN_HA"].values > 3) &
+    (df["SN_HB"].values > 3) &
+    (df["SN_OIII5007"].values > 3) &
+    (df["SN_NII6584"].values > 3)
+)
+
+n_before = mask_complete.sum()
+
+n_after = np.sum(
+    mask_complete &
+    mask_bpt_sn
+)
+
+print("\n===== BPT S/N test =====")
+print(f"N(before) = {n_before:,}")
+print(f"N(after)  = {n_after:,}")
+print(f"Remain    = {n_after/n_before:.3f}")
+print(f"Removed   = {(n_before-n_after)/n_before:.3f}")
+print("========================\n")
+
+mask_complete = (
+    mask_complete &
+    mask_bpt_sn
+)
+
+# =====================================
+# BPT diagram
+# =====================================
+
+fig, ax = plt.subplots(figsize=(12,12))
+
+ax.scatter(
+    log_NII_HA,
+    log_OIII_HB,
+    s=1,
+    alpha=0.1,
+    color="gray"
+)
+
+ax.scatter(
+    log_NII_HA[mask_sf],
+    log_OIII_HB[mask_sf],
+    s=1,
+    alpha=0.2,
+    color="firebrick"
+)
+
+x = np.linspace(-2.0, 0.0, 1000)
+
+y_kauff = 0.61/(x-0.05)+1.3
+
+ax.plot(
+    x,
+    y_kauff,
+    color="black",
+    lw=2,
+)
+
+ax.set_xlim(-2.0, 0.5)
+ax.set_ylim(-1.5, 1.5)
+
+ax.set_xlabel(r'log([NII]6584/H$\alpha$)')
+ax.set_ylabel(r'log([OIII]5007/H$\beta$)')
+
+x0 = -0.7
+y0 = 0.61/(x0-0.05)+1.3
+
+ax.text(
+    x0,
+    y0+0.1,
+    "Kauffmann+03",
+    fontsize=32,
+    color="black"
+)
+
+# 枠線強調
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+
+save_path = os.path.join(fig_dir, "bpt_diagram_SDSS.png")
+plt.savefig(save_path, dpi=200, bbox_inches="tight")
+plt.show()
+
+print(f"[DONE] 図を保存: {save_path}")
 
 # =====================================
 # 基本統計量
@@ -216,10 +342,16 @@ fig.subplots_adjust(left=0.10, right=0.95, bottom=0.15, top=0.95)
 # 全体
 ax.scatter(z, L6731, s=6, alpha=0.3, color="gray")
 
+mask_sii = (
+    mask_finite &
+    (z < Z_MAX) &
+    (L6731 > L_MIN) 
+)
+
 # 完全サンプル
 ax.scatter(
-    z[mask_complete],
-    L6731[mask_complete],
+    z[mask_sii],
+    L6731[mask_sii],
     s=0.2,
     alpha=1,
     color="firebrick",
@@ -238,7 +370,7 @@ ax.plot(z_grid, L_const, color="black", linestyle="-", linewidth=2.0)
 # 軸設定
 ax.set_yscale("log")
 ax.set_xlim(0, 0.4)
-ax.set_ylim(1e37, 1e42)
+ax.set_ylim(1e36, 1e42)
 
 ax.set_xlabel("z")
 ax.set_ylabel(r"L([S II] 6731) [erg s$^{-1}$]")
@@ -247,10 +379,6 @@ ax.set_ylabel(r"L([S II] 6731) [erg s$^{-1}$]")
 # 枠線強調
 for spine in ax.spines.values():
     spine.set_linewidth(2)
-
-# 保存
-fig_dir = os.path.join(current_dir, "results/figure")
-os.makedirs(fig_dir, exist_ok=True)
 
 save_path = os.path.join(fig_dir, "sii6731_luminosity_vs_z_v2.png")
 plt.savefig(save_path, dpi=200, bbox_inches="tight")
@@ -269,7 +397,7 @@ os.makedirs(out_dir, exist_ok=True)
 
 out_path = os.path.join(
     out_dir,
-    f"mpajhu_dr7_v5_2_merged_zlt{Z_MAX:.3f}_Lgt{L_MIN:.0e}.fits"
+    f"mpajhu_dr7_v5_2_merged_radius_zlt{Z_MAX:.3f}_Lgt{L_MIN:.0e}.fits"
 )
 
 t_sel.write(out_path, format="fits", overwrite=True)

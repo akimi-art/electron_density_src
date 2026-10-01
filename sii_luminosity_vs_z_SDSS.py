@@ -230,13 +230,13 @@ UNIT_FLUX = 1e-17  # 必要に応じてヘッダで確認
 
 # データ抽出
 z = df["Z"].values
-F6716 = df["SII_6717_FLUX"].values * UNIT_FLUX
-err6716 = df["SII_6717_FLUX_ERR"].values * UNIT_FLUX
-sn6716 = F6716 / err6716
+F6731 = df["SII_6731_FLUX"].values * UNIT_FLUX
+err6731 = df["SII_6731_FLUX_ERR"].values * UNIT_FLUX
+sn6731 = F6731 / err6731
 
 # === Luminosity 計算 ===
 d_L = cosmo.luminosity_distance(z).to(u.cm).value  # [cm]
-L6716 = 4 * np.pi * d_L**2 * F6716                # [erg s^-1]
+L6731 = 4 * np.pi * d_L**2 * F6731                # [erg s^-1]
 
 # === 描画 ===
 fig, ax = plt.subplots(1, 1, figsize=(12, 6))
@@ -255,11 +255,11 @@ from matplotlib.colors import Normalize
 
 sc = ax.scatter(
     z,
-    L6716,
-    c=sn6716,
+    L6731,
+    c=sn6731,
     cmap="coolwarm", # viridis
-    norm=Normalize(vmin=0, vmax=5),
-    s=15,
+    norm=Normalize(vmin=0, vmax=3),
+    s=0.5,
     alpha=0.8,
 )
 
@@ -268,7 +268,7 @@ sc = ax.scatter(
 # 軸スケール・範囲（元コード準拠）
 ax.set_yscale("log")
 ax.set_xlim(0, 0.4)
-ax.set_ylim(1e37, 1e42)  # 必要なら 1e50 まで暫定拡大可
+ax.set_ylim(1e36, 1e42)  # 必要なら 1e50 まで暫定拡大可
 # plt.axhline(y=1e42, color='blue', linestyle='-', linewidth=5)
 # plt.axvline(x=0.0, color='blue', linestyle='-', linewidth=5)
 # plt.axvline(x=0.4, color='blue', linestyle='-', linewidth=5)
@@ -287,10 +287,15 @@ d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value
 # ):
 #     L_const = 4 * np.pi * d_L_grid**2 * flux
 #     ax.plot(z_grid, L_const, color=color, linestyle=ls, linewidth=lw)
-L_const = 4 * np.pi * d_L_grid**2 * 1e-17
-ax.plot(z_grid, L_const, color="black", linestyle="-", linewidth=2.0)
+L_const_1 = 4 * np.pi * d_L_grid**2 * 1e-16
+ax.plot(z_grid, L_const_1, color="black", linestyle="-", linewidth=2.0)
+L_const_2 = 4 * np.pi * d_L_grid**2 * 1e-17
+ax.plot(z_grid, L_const_2, color="black", linestyle="-", linewidth=2.0)
+L_const_3 = 4 * np.pi * d_L_grid**2 * 1e-18
+ax.plot(z_grid, L_const_3, color="black", linestyle="-", linewidth=2.0)
+
 # カット線
-ax.axvline(0.2, color="k", linestyle="-", linewidth=2.0)
+ax.axvline(0.1825, color="k", linestyle="-", linewidth=2.0)
 ax.axhline(1e39, color="k", linestyle="-", linewidth=2.0)
 
 
@@ -325,12 +330,12 @@ for spine in ax.spines.values():
     spine.set_color("black")
 
 # ラベル・カラーバー
-ax.set_ylabel(r"L([S II] 6716 [erg s$^{-1}$]")
+ax.set_ylabel(r"L([S II] 6731 [erg s$^{-1}$]")
 ax.set_xlabel("z")
 cbar = fig.colorbar(sc, ax=ax, label="S/N")
 
 # 保存
-save_path = os.path.join(current_dir, "results/figure/sii6716_luminosity_vs_z_SDSS_data.png")
+save_path = os.path.join(current_dir, "results/figure/sii6731_luminosity_vs_z_SDSS_data.png")
 plt.savefig(save_path, bbox_inches="tight", dpi=200)
 print(f"Saved as {save_path}.")
 plt.show()
