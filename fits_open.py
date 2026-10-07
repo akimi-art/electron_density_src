@@ -65,31 +65,31 @@ plt.rcParams.update({
 
 
 # === ファイルパスを取得する === #file_path = os.path.join(current_dir, "results/JADES/JADES_NIRSpec_Gratings_Line_Fluxes_GOODS_S_DeepHST_v1.0/hlsp_jades_jwst_nirspec_goods-s-deephst_gratings_line-fluxes_v1.0_catalog.fits")
-# current_dir = os.getcwd()
-# file_galex =  "results/fits/mpajhu_dr7_v5_2_merged_radius.fits" 
+current_dir = os.getcwd()
+file_galex =  "results/JADES/sample/jades_all_with_flags.fits" 
 
-# # === FITSファイルを開く === #
-# # 重要な情報はhdul[1]の方にのっている
-# with fits.open(file_galex) as hdul:
-#     # HDUの構造を表示
-#     hdul.info()
+# === FITSファイルを開く === #
+# 重要な情報はhdul[1]の方にのっている
+with fits.open(file_galex) as hdul:
+    # HDUの構造を表示
+    hdul.info()
 
-#     # 0番目のHDU（通常はプライマリHDU）を取得
-#     primary_hdu = hdul[0]
-#     # 拡張HDU（通常 index 1）を取得
-#     ext_hdu = hdul[1]
+    # 0番目のHDU（通常はプライマリHDU）を取得
+    primary_hdu = hdul[0]
+    # 拡張HDU（通常 index 1）を取得
+    ext_hdu = hdul[1]
 
-#    # プライマリHDUの情報を表示
-#     print("\n=== プライマリHDU ===")
-#     print("データの形状:", primary_hdu.data.shape if primary_hdu.data is not None else "None")
-#     # # 列名とデータ型を表示
-#     print("列名:", ext_hdu.columns.names)
-#     print("データ型:", ext_hdu.columns.formats)
+   # プライマリHDUの情報を表示
+    print("\n=== プライマリHDU ===")
+    print("データの形状:", primary_hdu.data.shape if primary_hdu.data is not None else "None")
+    # # 列名とデータ型を表示
+    print("列名:", ext_hdu.columns.names)
+    print("データ型:", ext_hdu.columns.formats)
 
-#     # データの最初の5行を表示
-#     print("最初の5行のデータ:")
-#     for row in ext_hdu.data[:1]:
-#         print(row)
+    # データの最初の5行を表示
+    print("最初の5行のデータ:")
+    for row in ext_hdu.data[:1]:
+        print(row)
 
 # fits_path = file_galex  # ← ここをあなたのファイル名に
 
@@ -533,104 +533,151 @@ plt.rcParams.update({
 
 
 
-# =====================================================================
-# fig_mass_v52b.py
-#   質量カタログ v5_2 → v5_2b の差し替えが妥当であることを示す図
-#   (a) 既存の値は変わっていない
-#   (b) 新しく値が入った行の大半は z > Z_MAX（解析の体積の外）
-#   (c) 体積内で値が入った銀河は、もとからある銀河と同じ M*–SFR 関係に乗る
-# =====================================================================
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from astropy.table import Table
-from astropy.cosmology import FlatLambdaCDM
-import astropy.units as u
-from scipy.optimize import brentq
+# # =====================================================================
+# # fig_mass_v52b.py
+# #   質量カタログ v5_2 → v5_2b の差し替えが妥当であることを示す図
+# #   (a) 既存の値は変わっていない
+# #   (b) 新しく値が入った行の大半は z > Z_MAX（解析の体積の外）
+# #   (c) 体積内で値が入った銀河は、もとからある銀河と同じ M*–SFR 関係に乗る
+# # =====================================================================
+# import os
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from astropy.table import Table
+# from astropy.cosmology import FlatLambdaCDM
+# import astropy.units as u
+# from scipy.optimize import brentq
 
-cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
-L_MIN, FLUX_LIMIT = 1e39, 1e-17
+# cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
+# L_MIN, FLUX_LIMIT = 1e39, 1e-17
 
-current_dir = os.getcwd()
-path    = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_lgm2b.fits")
-fig_dir = os.path.join(current_dir, "results/figure/sample")
-os.makedirs(fig_dir, exist_ok=True)
+# current_dir = os.getcwd()
+# path    = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_lgm2b.fits")
+# fig_dir = os.path.join(current_dir, "results/figure/sample")
+# os.makedirs(fig_dir, exist_ok=True)
 
-def f64(a):
-    return np.ma.filled(np.ma.asarray(a).astype(float), np.nan)
+# def f64(a):
+#     return np.ma.filled(np.ma.asarray(a).astype(float), np.nan)
 
-t = Table.read(path)
-old    = f64(t["sm_MEDIAN_v5_2"])
-new    = f64(t["sm_MEDIAN"])
-z      = f64(t["Z"])
-logSFR = f64(t["sfr_MEDIAN"])
+# t = Table.read(path)
+# old    = f64(t["sm_MEDIAN_v5_2"])
+# new    = f64(t["sm_MEDIAN"])
+# z      = f64(t["Z"])
+# logSFR = f64(t["sfr_MEDIAN"])
 
-Z_MAX = brentq(lambda zz: 4*np.pi*cosmo.luminosity_distance(zz).to(u.cm).value**2*FLUX_LIMIT - L_MIN,
-               1e-4, 1.0)
+# Z_MAX = brentq(lambda zz: 4*np.pi*cosmo.luminosity_distance(zz).to(u.cm).value**2*FLUX_LIMIT - L_MIN,
+#                1e-4, 1.0)
 
-valid_old = np.isfinite(old) & (old > 6) & (old < 13)
-valid_new = np.isfinite(new) & (new > 6) & (new < 13)
-both      = valid_old & valid_new
-rescued   = ~valid_old & valid_new
-original  = valid_old
-zok       = np.isfinite(z) & (z > 0)
-sfr_ok    = np.isfinite(logSFR) & (logSFR > -10) & (logSFR < 3) & (logSFR != -1.0)
+# valid_old = np.isfinite(old) & (old > 6) & (old < 13)
+# valid_new = np.isfinite(new) & (new > 6) & (new < 13)
+# both      = valid_old & valid_new
+# rescued   = ~valid_old & valid_new
+# original  = valid_old
+# zok       = np.isfinite(z) & (z > 0)
+# sfr_ok    = np.isfinite(logSFR) & (logSFR > -10) & (logSFR < 3) & (logSFR != -1.0)
 
-fig, axes = plt.subplots(1, 3, figsize=(30, 8.5))
-TXT = dict(fontsize=22, va="top", transform=None)
+# fig, axes = plt.subplots(1, 3, figsize=(30, 8.5))
+# TXT = dict(fontsize=22, va="top", transform=None)
 
-# ---------------- (a) 既存の値は変わらない ----------------
-ax = axes[0]
-d = new[both] - old[both]
-ax.hist(d, bins=np.linspace(-0.02, 0.02, 81), color="gray", edgecolor="k", log=True)
-ax.set_xlabel(r"$\log M_\ast$(v5_2b) $-$ $\log M_\ast$(v5_2)")
-ax.set_ylabel("Number of spectra")
-ax.set_title("(a) Existing values are unchanged", fontsize=26, loc="left")
-ax.text(0.04, 0.95,
-        f"N = {both.sum():,}\nidentical: {np.mean(d == 0)*100:.2f}%\n"
-        f"$|\\Delta| > 0.01$: {np.sum(np.abs(d) > 0.01)}",
-        transform=ax.transAxes, fontsize=22, va="top")
+# # ---------------- (a) 既存の値は変わらない ----------------
+# ax = axes[0]
+# d = new[both] - old[both]
+# ax.hist(d, bins=np.linspace(-0.02, 0.02, 81), color="gray", edgecolor="k", log=True)
+# ax.set_xlabel(r"$\log M_\ast$(v5_2b) $-$ $\log M_\ast$(v5_2)")
+# ax.set_ylabel("Number of spectra")
+# ax.set_title("(a) Existing values are unchanged", fontsize=26, loc="left")
+# ax.text(0.04, 0.95,
+#         f"N = {both.sum():,}\nidentical: {np.mean(d == 0)*100:.2f}%\n"
+#         f"$|\\Delta| > 0.01$: {np.sum(np.abs(d) > 0.01)}",
+#         transform=ax.transAxes, fontsize=22, va="top")
 
-# ---------------- (b) 埋まった行の大半は体積の外 ----------------
-ax = axes[1]
-zb = np.linspace(0, 0.7, 71)
-ax.hist(z[original & zok], bins=zb, histtype="step", color="k", lw=2.5, label="mass in v5_2")
-ax.hist(z[rescued & zok],  bins=zb, histtype="step", color="firebrick", lw=2.5, label="new in v5_2b")
-ax.axvline(Z_MAX, color="k", ls="--", lw=2)
-ax.axvspan(0, Z_MAX, color="tab:blue", alpha=0.08)
-ax.text(Z_MAX + 0.01, 0.97, r"$z_{\rm max}$", transform=ax.get_xaxis_transform(), fontsize=24, va="top")
-n_in  = np.sum(rescued & zok & (z < Z_MAX))
-n_out = np.sum(rescued & zok & (z >= Z_MAX))
-ax.text(0.45, 0.80, f"new in v5_2b:\n  $z < z_{{\\rm max}}$: {n_in:,}\n  $z \\geq z_{{\\rm max}}$: {n_out:,}",
-        transform=ax.transAxes, fontsize=22, va="top", color="firebrick")
-ax.set_xlim(0, 0.7)
-ax.set_xlabel(r"$z$"); ax.set_ylabel("Number of spectra")
-ax.set_title("(b) Most new values are outside our volume", fontsize=26, loc="left")
-ax.legend(fontsize=20, loc="upper right")
+# # ---------------- (b) 埋まった行の大半は体積の外 ----------------
+# ax = axes[1]
+# zb = np.linspace(0, 0.7, 71)
+# ax.hist(z[original & zok], bins=zb, histtype="step", color="k", lw=2.5, label="mass in v5_2")
+# ax.hist(z[rescued & zok],  bins=zb, histtype="step", color="firebrick", lw=2.5, label="new in v5_2b")
+# ax.axvline(Z_MAX, color="k", ls="--", lw=2)
+# ax.axvspan(0, Z_MAX, color="tab:blue", alpha=0.08)
+# ax.text(Z_MAX + 0.01, 0.97, r"$z_{\rm max}$", transform=ax.get_xaxis_transform(), fontsize=24, va="top")
+# n_in  = np.sum(rescued & zok & (z < Z_MAX))
+# n_out = np.sum(rescued & zok & (z >= Z_MAX))
+# ax.text(0.45, 0.80, f"new in v5_2b:\n  $z < z_{{\\rm max}}$: {n_in:,}\n  $z \\geq z_{{\\rm max}}$: {n_out:,}",
+#         transform=ax.transAxes, fontsize=22, va="top", color="firebrick")
+# ax.set_xlim(0, 0.7)
+# ax.set_xlabel(r"$z$"); ax.set_ylabel("Number of spectra")
+# ax.set_title("(b) Most new values are outside our volume", fontsize=26, loc="left")
+# ax.legend(fontsize=20, loc="upper right")
 
-# ---------------- (c) 体積内の埋まった銀河は普通の M*–SFR 関係 ----------------
-ax = axes[2]
-vol = zok & (z < Z_MAX) & sfr_ok
-m_o = original & vol
-m_r = rescued & vol
-ax.hexbin(new[m_o], logSFR[m_o], gridsize=120, bins="log", cmap="Greys",
-          extent=(7, 12.5, -3, 2.5), mincnt=1)
-ax.scatter(new[m_r], logSFR[m_r], s=1.5, alpha=0.3, color="firebrick", rasterized=True)
-ax.scatter([], [], s=40, color="firebrick", label=f"new in v5_2b (N = {m_r.sum():,})")
-ax.scatter([], [], s=40, marker="h", color="gray", label=f"mass in v5_2 (N = {m_o.sum():,})")
-n_sfr_m1 = np.sum(rescued & zok & (z < Z_MAX) & (logSFR == -1.0))
-ax.text(0.04, 0.95, f"$z < z_{{\\rm max}}$ only\nSFR = $-1$ (no estimate) excluded: {n_sfr_m1:,}",
-        transform=ax.transAxes, fontsize=20, va="top")
-ax.set_xlim(7, 12.5); ax.set_ylim(-3, 2.5)
-ax.set_xlabel(r"$\log(M_\ast/M_\odot)$ (v5_2b)"); ax.set_ylabel(r"$\log({\rm SFR}/M_\odot\,{\rm yr}^{-1})$")
-ax.set_title("(c) New galaxies in our volume follow the same relation", fontsize=26, loc="left")
-ax.legend(fontsize=18, loc="lower right")
+# # ---------------- (c) 体積内の埋まった銀河は普通の M*–SFR 関係 ----------------
+# ax = axes[2]
+# vol = zok & (z < Z_MAX) & sfr_ok
+# m_o = original & vol
+# m_r = rescued & vol
+# ax.hexbin(new[m_o], logSFR[m_o], gridsize=120, bins="log", cmap="Greys",
+#           extent=(7, 12.5, -3, 2.5), mincnt=1)
+# ax.scatter(new[m_r], logSFR[m_r], s=1.5, alpha=0.3, color="firebrick", rasterized=True)
+# ax.scatter([], [], s=40, color="firebrick", label=f"new in v5_2b (N = {m_r.sum():,})")
+# ax.scatter([], [], s=40, marker="h", color="gray", label=f"mass in v5_2 (N = {m_o.sum():,})")
+# n_sfr_m1 = np.sum(rescued & zok & (z < Z_MAX) & (logSFR == -1.0))
+# ax.text(0.04, 0.95, f"$z < z_{{\\rm max}}$ only\nSFR = $-1$ (no estimate) excluded: {n_sfr_m1:,}",
+#         transform=ax.transAxes, fontsize=20, va="top")
+# ax.set_xlim(7, 12.5); ax.set_ylim(-3, 2.5)
+# ax.set_xlabel(r"$\log(M_\ast/M_\odot)$ (v5_2b)"); ax.set_ylabel(r"$\log({\rm SFR}/M_\odot\,{\rm yr}^{-1})$")
+# ax.set_title("(c) New galaxies in our volume follow the same relation", fontsize=26, loc="left")
+# ax.legend(fontsize=18, loc="lower right")
 
-for ax in axes:
-    for s in ax.spines.values():
-        s.set_linewidth(2)
+# for ax in axes:
+#     for s in ax.spines.values():
+#         s.set_linewidth(2)
 
-plt.tight_layout()
-out = os.path.join(fig_dir, "mass_v52b_validation.png")
-plt.savefig(out, dpi=200, bbox_inches="tight"); plt.show()
+# plt.tight_layout()
+# out = os.path.join(fig_dir, "mass_v52b_validation.png")
+# plt.savefig(out, dpi=200, bbox_inches="tight"); plt.show()
+# print(f"[DONE] {out}")
+
+
+# === JADES BPT diagram ===
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+t = Table.read(root / "results/JADES/sample/jades_all_with_flags.fits")
+
+def values(name):
+    return np.ma.filled(np.ma.asarray(t[name]).astype(float), np.nan)
+
+mask = np.asarray(t["BASE_SAMPLE"], dtype=bool).copy()
+flux = {}
+
+for line in ["N2_6584", "HA_6563", "O3_5007", "HB_4861"]:
+    f = values(f"{line}_flux")
+    flux[line] = f
+    mask &= f > 0
+
+print(f"[BPT] BASE_SAMPLE のうち4輝線すべてのフラックス > 0: {mask.sum()} 天体")
+
+x = np.log10(flux["N2_6584"][mask] / flux["HA_6563"][mask])
+y = np.log10(flux["O3_5007"][mask] / flux["HB_4861"][mask])
+
+fig, ax = plt.subplots(figsize=(10, 9))
+if mask.any():
+    points = ax.scatter(x, y, c=values("z_Spec")[mask],
+                        cmap="viridis", edgecolors="black", s=50)
+    fig.colorbar(points, ax=ax, label=r"$z_{\rm spec}$")
+
+# 比較用の局所銀河の境界線
+xx = np.linspace(-2.5, 0.35, 400)
+ax.plot(xx, 0.61 / (xx - 0.47) + 1.19, "k-", label="Kewley+2001")
+xx = np.linspace(-2.5, -0.05, 400)
+ax.plot(xx, 0.61 / (xx - 0.05) + 1.30, "k--", label="Kauffmann+2003")
+
+ax.set_xlabel(r"$\log_{10}([\mathrm{N\,II}]6584/\mathrm{H}\alpha)$")
+ax.set_ylabel(r"$\log_{10}([\mathrm{O\,III}]5007/\mathrm{H}\beta)$")
+ax.set_title(f"JADES BPT (N = {mask.sum()}, all four fluxes > 0)")
+ax.legend()
+fig.tight_layout()
+
+out = root / "results/JADES/figure/sample/bpt_nii_JADES.png"
+out.parent.mkdir(parents=True, exist_ok=True)
+fig.savefig(out, dpi=200, bbox_inches="tight")
 print(f"[DONE] {out}")
+plt.show()
