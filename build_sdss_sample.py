@@ -462,3 +462,96 @@ for lo in np.arange(8.0, 12.0, 0.25):
     f3 = np.mean(bpt_class[l_] == 3) if l_.any() else np.nan
     print(f"  {lo:5.2f}-{lo+0.25:5.2f}  {b.sum():>9,}   {np.mean(lum[b]):6.2f}"
           f"        {med_k:+6.2f}             {med_l:+6.2f}               {f3:5.2f}")
+
+
+# =====================================
+# 13. 診断：BPT に載らない銀河（bpt_class == 3）が完全性にどう効いているか
+#     比較用の定義：分母と分子の両方から bpt_class == 3 を外す
+#     （選択・保存には使わない。確認のためだけ）
+# =====================================
+unpl   = parent & (bpt_class == 3)            # parent のうち BPT に載らない
+placed = parent & (bpt_class == 0)            # parent のうち BPT で星形成側
+line_bad = {l: ~(F[l] > 0) for l in ["H_BETA", "OIII_5007", "H_ALPHA", "NII_6584"]}
+sii_bad  = ~(F["SII_6731"] > 0)
+
+def show(name, m):
+    n, k = m.sum(), (m & lum).sum()
+    print(f"  {name:36s}: N = {n:>9,}   光度カット通過 = {k:>9,}  ({k / max(n, 1):6.1%})")
+
+print("\n===== 診断：parent の内訳 =====")
+show("parent 全体", parent)
+show("  BPT で星形成側", placed)
+show("  BPT に載らない", unpl)
+show("    うち [SII]6731 <= 0", unpl & sii_bad)
+show("    うち [SII]6731 > 0", unpl & ~sii_bad)
+
+print("\n===== 診断：BPT に載らない銀河で <= 0 の線（重複あり）=====")
+for l, m in line_bad.items():
+    show(f"{l} <= 0", unpl & m)
+
+print("\n===== 診断：BPT に載らない銀河の、<= 0 の線の組み合わせ =====")
+keys = list(line_bad.keys())
+code = np.zeros(N_ALL, int)
+for i, l in enumerate(keys):
+    code |= line_bad[l].astype(int) << i
+for c_ in sorted(np.unique(code[unpl]), key=lambda c_: -np.sum(unpl & (code == c_))):
+    name = " + ".join(keys[i] for i in range(len(keys)) if (c_ >> i) & 1)
+    show(name, unpl & (code == c_))
+
+print("\n===== 診断：全体の完全性 =====")
+print(f"  現在（分母 = parent）              : {lum[parent].mean():.3f}")
+print(f"  比較（分母 = parent − BPT に載らない）: {lum[placed].mean():.3f}")
+
+# 13a. 完全性の曲線：現在（黒）と比較（赤）（2×2）
+fig, axes = plt.subplots(2, 2, figsize=(24, 16))
+for ax, (key, (xv, bins, label)) in zip(axes.ravel(), QUANT.items()):
+    for den, colr, lab in [(parent, "k", "denominator: AGN removed"),
+                           (placed, "firebrick", "denominator: BPT star-forming only")]:
+        c, f, err, n_den, n_num = completeness(xv, den, den & lum, bins)
+        v = n_den >= NMIN_BIN
+        ax.errorbar(c[v], f[v], yerr=err[v], fmt="o-", color=colr, ms=5, lw=1.5, label=lab)
+    ax.set_ylim(0, 1.05)
+    ax.set_xlabel(label); ax.set_ylabel(r"$N(L_{6731} > L_{\rm min})\,/\,N$")
+axes[0, 0].legend(fontsize=20)
+plt.tight_layout()
+finish(fig, axes, os.path.join(fig_dir, f"diag_completeness_unplaceable_{METHOD}.png"))
+
+# 13b. M*–SFR 平面（1×3）
+#   (a) parent に占める BPT に載らない銀河の割合
+#   (b) 比較の定義での通過割合
+#   (c) (b) − 12 節 (b) の通過割合
+okp_pl = placed & np.isfinite(logM) & np.isfinite(logSFR)
+okp_un = unpl   & np.isfinite(logM) & np.isfinite(logSFR)
+H_un, _, _    = np.histogram2d(logM[okp_un],          logSFR[okp_un],          bins=[mb, sb])
+H_den2, _, _  = np.histogram2d(logM[okp_pl],          logSFR[okp_pl],          bins=[mb, sb])
+H_num2, _, _  = np.histogram2d(logM[okp_pl & lum],    logSFR[okp_pl & lum],    bins=[mb, sb])
+with np.errstate(invalid="ignore", divide="ignore"):
+    share_un = np.ma.masked_where(H_den < NMIN_2D, H_un / H_den)
+    frac2    = np.ma.masked_where(H_den2 < NMIN_2D, H_num2 / H_den2)
+diff = frac2 - frac_m
+
+fig, axes = plt.subplots(1, 3, figsize=(33, 10), sharey=True)
+ax = axes[0]
+pc = ax.pcolormesh(mb, sb, share_un.T, vmin=0, vmax=1, cmap="magma", shading="flat")
+fig.colorbar(pc, ax=ax, label="Fraction not on BPT")
+ax.set_title("(a) Not on BPT / AGN removed", fontsize=28, loc="left")
+
+ax = axes[1]
+pc = ax.pcolormesh(mb, sb, frac2.T, vmin=0, vmax=1, cmap="viridis", shading="flat")
+fig.colorbar(pc, ax=ax, label=r"$N(L_{6731} > L_{\rm min})\,/\,N$")
+cs = ax.contour(mc, sc, np.ma.filled(frac2, np.nan).T, levels=[0.5, 0.9],
+                colors=["white", "red"], linewidths=2.5)
+ax.clabel(cs, fmt="%.1f", fontsize=20)
+ax.set_title("(b) Fraction above $L_{\\rm min}$ (BPT SF only)", fontsize=28, loc="left")
+
+ax = axes[2]
+pc = ax.pcolormesh(mb, sb, diff.T, vmin=-0.3, vmax=0.3, cmap="RdBu_r", shading="flat")
+fig.colorbar(pc, ax=ax, label="(b) $-$ Sec. 12 (b)")
+ax.set_title("(c) Difference", fontsize=28, loc="left")
+
+for ax in axes:
+    ax.set_xlim(7, 12); ax.set_ylim(-3, 2.5)
+    ax.set_xlabel(r"$\log(M_\ast/M_\odot)$")
+axes[0].set_ylabel(r"$\log({\rm SFR}/M_\odot\,{\rm yr}^{-1})$")
+plt.tight_layout()
+finish(fig, axes, os.path.join(fig_dir, f"diag_mstar_sfr_unplaceable_{METHOD}.png"))
