@@ -1,5 +1,5 @@
 # =====================================================================
-# select_overlap_box.py
+# overlap_box_select.py
 #   M*–SFR 平面で、局所と高 z が重なる箱を決め、両方のサブサンプルを作る
 #   1. 候補の箱ごとに、銀河の数と中央値を数える
 #   2. 選んだ箱を図に描き、サブサンプルの一覧を保存する
@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Polygon
 from astropy.table import Table
 
 plt.rcParams.update({
@@ -29,9 +29,10 @@ FIG_DIR      = "results/figure/comparison"
 os.makedirs(OUT_DIR, exist_ok=True)
 os.makedirs(FIG_DIR, exist_ok=True)
 
-# 候補の箱：(log M* の下限, 上限, log SFR の下限, 上限)
+# 候補の箱：(log M* 下限, 上限, 質量下限での log SFR 下限, 上限, 傾き)
+# log SFR の境界は slope * (log M* - 質量下限) だけ上がる。傾き 0 なら長方形。
 BOXES = [
-    (9.0, 10.0, 0.0, 2.0),
+    (8.5, 10.0, -0.5, 0.0, 0.8),
 ]
 CHOSEN = 0          # 数を見て選んだ箱の番号
 
@@ -48,7 +49,10 @@ logM_j, logSFR_j = f64(jad["N26_logM"]), f64(jad["N26_logSFR_hb"])
 z_j = f64(jad["z_Spec"])
 
 def in_box(m, s, b):
-    return (m >= b[0]) & (m < b[1]) & (s >= b[2]) & (s < b[3])
+    m_min, m_max, sfr_min, sfr_max, slope = b
+    offset_sfr = s - slope * (m - m_min)
+    return ((m >= m_min) & (m < m_max)
+            & (offset_sfr >= sfr_min) & (offset_sfr < sfr_max))
 
 # ---- 1. 候補の箱ごとの数と中央値 ----
 rows = []
@@ -56,7 +60,8 @@ for k, b in enumerate(BOXES):
     ml = in_box(logM_l, logSFR_l, b)
     mj = sel_j & in_box(logM_j, logSFR_j, b)
     rows.append({
-        "box": k, "logM": f"{b[0]}–{b[1]}", "logSFR": f"{b[2]}–{b[3]}",
+        "box": k, "logM": f"{b[0]}–{b[1]}",
+        "logSFR_at_Mmin": f"{b[2]}–{b[3]}", "slope": b[4],
         "N_local": int(ml.sum()), "N_highz": int(mj.sum()),
         "med_logM_local": np.median(logM_l[ml]) if ml.any() else np.nan,
         "med_logM_highz": np.median(logM_j[mj]) if mj.any() else np.nan,
@@ -75,7 +80,10 @@ mj = sel_j & in_box(logM_j, logSFR_j, b)
 fig, ax = plt.subplots(figsize=(12, 10))
 ax.scatter(logM_l, logSFR_l, s=5, alpha=0.5, color="gray", rasterized=True)
 ax.scatter(logM_j[sel_j], logSFR_j[sel_j], s=30, color="firebrick", zorder=5)
-ax.add_patch(Rectangle((b[0], b[2]), b[1] - b[0], b[3] - b[2],
+shift = b[4] * (b[1] - b[0])
+vertices = [(b[0], b[2]), (b[1], b[2] + shift),
+            (b[1], b[3] + shift), (b[0], b[3])]
+ax.add_patch(Polygon(vertices, closed=True,
                        fill=False, edgecolor="tab:blue", lw=3, zorder=6))
 ax.scatter([], [], s=60, color="k",         label=f"Local ({len(logM_l):,}; in box {ml.sum():,})")
 ax.scatter([], [], s=60, color="firebrick", label=f"High-$z$ ({sel_j.sum()}; in box {mj.sum()})")
@@ -86,11 +94,15 @@ ax.legend(loc="upper left", fontsize=20)
 for sp in ax.spines.values():
     sp.set_linewidth(2)
 plt.tight_layout()
-plt.savefig(f"{FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}.png", dpi=200)
-plt.show()
+plt.savefig(f"{FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}_slope{b[4]}.png", dpi=200)
+print(f"[DONE] {FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}_slope{b[4]}.png")
 
 tag = f"logM{b[0]}-{b[1]}_logSFR{b[2]}-{b[3]}"
+if b[4] != 0:
+    tag += f"_slope{b[4]}"
 loc[ml].write(f"{OUT_DIR}/local_box_{tag}.fits", overwrite=True)
 jad[mj].write(f"{OUT_DIR}/highz_box_{tag}.fits", overwrite=True)
 print(f"\n[DONE] 局所 {ml.sum():,} 銀河 → {OUT_DIR}/local_box_{tag}.fits")
 print(f"[DONE] 高 z {mj.sum()} 銀河 → {OUT_DIR}/highz_box_{tag}.fits")
+print(f"[INFO] overlap_box_ne.py の TAG に指定する値: {tag}")
+plt.show()

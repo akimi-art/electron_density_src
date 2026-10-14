@@ -28,7 +28,7 @@ plt.rcParams.update({
 # 0. 設定
 # =====================================
 STEP3    = "results/JADES/JADES_DR3/master/jades_dr3_mr_step3_shibuya.fits"
-SPEC_DIR = "results/JADES/JADES_DR3/JADES_DR3_full_spectra"
+SPEC_DIR = "data/data_JADES/JADES_DR3/JADES_DR3_full_spectra"
 OUT_DIR  = "results/JADES/sample"
 FIG_DIR  = "results/JADES/figure/sample"
 os.makedirs(OUT_DIR, exist_ok=True)

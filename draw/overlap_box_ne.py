@@ -39,7 +39,7 @@ plt.rcParams.update({
 # =========================================================
 # 設定
 # =========================================================
-TAG       = "logM9.0-10.0_logSFR0.0-2.0"
+TAG = "logM8.5-10.0_logSFR-0.5-0.0_slope0.8"
 LOCAL_BOX = f"results/comparison/local_box_{TAG}.fits"
 HIGHZ_BOX = f"results/comparison/highz_box_{TAG}.fits"
 
@@ -293,7 +293,7 @@ for sp in ax.spines.values():
     sp.set_linewidth(2)
 fig.tight_layout()
 fig.savefig(OUT_STACK, dpi=200)
-plt.close(fig)
+plt.show()
 
 
 # =========================================================
@@ -333,5 +333,5 @@ for sp in ax.spines.values():
     sp.set_linewidth(2)
 fig.tight_layout()
 fig.savefig(OUT_FIG, dpi=200)
-plt.close(fig)
+plt.show()
 print("saved:", OUT_CSV, OUT_FIG, OUT_STACK, OUT_STACK_FITS)
