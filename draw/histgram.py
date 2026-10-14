@@ -136,7 +136,7 @@ plt.rcParams.update({
 
 # === ファイルパスを取得する === #
 current_dir = os.getcwd()
-file_fits = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_zlt0.2_Lgt1e+39.fits")
+file_fits = os.path.join(current_dir, "results/fits/sdss_sample_v2_zlt0.1879_Lgt1e+39_Ka03_Reu.fits")
 
 # === FITSファイルを開く === #
 # 重要な情報はhdul[1]の方にのっている
@@ -153,36 +153,36 @@ with fits.open(file_fits) as hdul:
     print("データ型:", ext_hdu.columns.formats)
         
     # 赤方偏位のデータをfloatとして書き出す
-    z_MEDIAN = ext_hdu.data['Z'].astype(float)
+    oh_MEDIAN = ext_hdu.data['oh_MEDIAN'].astype(float)
 
 # median
-z_median = np.median(z_MEDIAN)
+oh_median = np.median(oh_MEDIAN)
 
 # 16, 50, 84パーセンタイル
-z_p16, z_p50, z_p84 = np.percentile(z_MEDIAN, [16, 50, 84])
+oh_p16, oh_p50, oh_p84 = np.percentile(oh_MEDIAN, [16, 50, 84])
 
 # ±1σ相当
-z_err_low = z_p50 - z_p16
-z_err_high = z_p84 - z_p50
+oh_err_low = oh_p50 - oh_p16
+oh_err_high = oh_p84 - oh_p50
 
-print(f"Median z = {z_p50:.5f}")
-print(f"68% range = -{z_err_low:.5f} +{z_err_high:.5f}")
+print(f"Median oh = {oh_p50:.5f}")
+print(f"68% range = -{oh_err_low:.5f} +{oh_err_high:.5f}")
 
 # ヒストグラム
 fig, ax = plt.subplots(figsize=(8,6))
-sns.histplot(z_MEDIAN, bins=50, color="gray")
-ax.set_xlim(0, 0.20)
+sns.histplot(oh_MEDIAN, bins=1000, color="gray")
+ax.set_xlim(7, 12)
 # ax.set_ylim(0, 20000)
-ax.set_xlabel("$z$")
+ax.set_xlabel("$12+log(O/H)$")
 ax.set_ylabel("Number of galaxies")
 
-plt.axvline(x=z_p50, color='black', linestyle='--', linewidth=2.0)
+plt.axvline(x=oh_p50, color='black', linestyle='--', linewidth=2.0)
 
 for spine in ax.spines.values():
     spine.set_linewidth(2)
 
 plt.tight_layout()
-savepath = os.path.join(current_dir, "results/figure/SDSS_DR7_z_histogram")
-plt.savefig(savepath)
-print(f"Saved as {savepath}")
+# savepath = os.path.join(current_dir, "results/figure/SDSS_DR7_z_histogram")
+# plt.savefig(savepath)
+# print(f"Saved as {savepath}")
 plt.show()
