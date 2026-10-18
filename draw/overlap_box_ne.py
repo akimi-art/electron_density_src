@@ -328,7 +328,7 @@ ax.set_xscale("linear"); ax.set_yscale("linear")
 ax.set_xlabel(r"$z$")
 ax.set_ylabel(r"$\log_{10}(n_e\,/\,\mathrm{cm}^{-3})$")
 # ax.set_xlim(0, 10)
-# ax.set_ylim(0, 4)
+ax.set_ylim(1.5, 3.0)
 for sp in ax.spines.values():
     sp.set_linewidth(2)
 fig.tight_layout()
