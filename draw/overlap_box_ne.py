@@ -39,7 +39,7 @@ plt.rcParams.update({
 # =========================================================
 # 設定
 # =========================================================
-TAG = "logM8.5-10.0_logSFR-0.5-0.0_slope0.8"
+TAG = "logM8.5-10.0_logSFR-0.5-0.0_slope1.0_rectangle"
 LOCAL_BOX = f"results/comparison/local_box_{TAG}.fits"
 HIGHZ_BOX = f"results/comparison/highz_box_{TAG}.fits"
 
