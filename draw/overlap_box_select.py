@@ -3,6 +3,7 @@
 #   M*–SFR 平面で、局所と高 z が重なる箱を決め、両方のサブサンプルを作る
 #   1. 候補の箱ごとに、銀河の数と中央値を数える
 #   2. 選んだ箱を図に描き、サブサンプルの一覧を保存する
+#   3. 選択内の local / high-z の log M*・log SFR 分布を比較する
 # =====================================================================
 import os
 import numpy as np
@@ -35,6 +36,7 @@ BOXES = [
     (8.5, 10.0, -0.5, 0.0, 0.8),
 ]
 CHOSEN = 0          # 数を見て選んだ箱の番号
+HIST_BINS = 12      # 両サンプルで共通の等幅ビン数
 
 def f64(col):
     return np.ma.filled(np.ma.asarray(col).astype(float), np.nan)
@@ -96,6 +98,43 @@ for sp in ax.spines.values():
 plt.tight_layout()
 plt.savefig(f"{FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}_slope{b[4]}.png", dpi=200)
 print(f"[DONE] {FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}_slope{b[4]}.png")
+
+# ---- 3. 選択領域内の質量・SFR 分布（面積を 1 に正規化） ----
+# SFR の表示範囲は傾いた箱の全頂点から決める（負の傾きにも対応）。
+sfr_limits = (min(v[1] for v in vertices), max(v[1] for v in vertices))
+fig_hist, axes = plt.subplots(1, 2, figsize=(16, 8))
+panels = [
+    (logM_l[ml], logM_j[mj], (b[0], b[1]),
+     r"$\log(M_\ast/M_\odot)$"),
+    (logSFR_l[ml], logSFR_j[mj], sfr_limits,
+     r"$\log({\rm SFR}/M_\odot\,{\rm yr}^{-1})$"),
+]
+for ax_hist, (local_values, highz_values, limits, xlabel) in zip(axes, panels):
+    edges = np.linspace(*limits, HIST_BINS + 1)
+    for values, color, label in [
+        (local_values, "gray", "Local"),
+        (highz_values, "firebrick", "High-$z$"),
+    ]:
+        values = values[np.isfinite(values)]
+        if values.size:
+            median = np.median(values)
+            ax_hist.hist(values, bins=edges, density=True, histtype="step",
+                         linewidth=2.5, color=color,
+                         label=f"{label}: N={values.size:,}, median={median:.2f}")
+            ax_hist.axvline(median, color=color, linestyle="--", linewidth=2)
+        else:
+            # 空サンプルでは density=True によるゼロ除算を避ける。
+            ax_hist.plot([], [], color=color, label=f"{label}: N=0")
+    ax_hist.set_xlim(*limits)
+    ax_hist.set_xlabel(xlabel)
+    ax_hist.set_ylabel("Probability density")
+    ax_hist.tick_params(which="major", length=12)
+    for sp in ax_hist.spines.values():
+        sp.set_linewidth(2)
+fig_hist.tight_layout()
+hist_path = f"{FIG_DIR}/mstar_sfr_hist_overlap_box{CHOSEN}_slope{b[4]}.png"
+fig_hist.savefig(hist_path, dpi=200)
+print(f"[DONE] {hist_path}")
 
 tag = f"logM{b[0]}-{b[1]}_logSFR{b[2]}-{b[3]}"
 if b[4] != 0:
