@@ -8,7 +8,7 @@ SFR v7 と同じく、各線の flux を平均で
 oh_MEDIAN でビン分けし、oh_P16/P84 は代表的な個別測定区間の表示に
 使用する。金属量の誤差によるビン間移動は伝播しない。
 local は Hα 規格化・追加の質量/SFR 選別を使用しない。
-JADES は BASE_SAMPLE + 有効な N26_logOH の同一銀河群を1スタックにする。
+JADES は BASE_SAMPLE + N26_logOH >= 8.3 の同一銀河群を1スタックにする。
 横棒は JADES 金属量の16–84%分布であり、測定誤差ではない。
 
 実行: python electron_density_src/analysis/SDSS/stacked_sii_ne_vs_oh.py
@@ -49,16 +49,21 @@ ROOT = Path(__file__).resolve().parents[3]
 FITS_PATH = ROOT / 'results/fits/sdss_sample_v2_zlt0.1879_Lgt1e+39_Ka03_Reu.fits'
 OUT_CSV = ROOT / 'results/csv/stacked_sii_ne_vs_oh.csv'
 OUT_PNG = ROOT / 'results/figure/stacked_sii_ne_vs_oh.png'
+OUT_MASS_OH_COMPARISON = ROOT / 'results/figure/stellar_mass_vs_metallicity_sdss_jades.png'
 OUT_MASS_OH_PNG = ROOT / 'results/figure/stellar_mass_vs_metallicity_sfr_sdss.png'
 FLAGS_PATH = ROOT / 'results/fits/mpajhu_dr7_v5_2_master_v2_Ka03_Reu.fits'   # 全行 + フラグ
 OUT_COMPL_CSV = ROOT / 'results/csv/completeness_vs_oh.csv'
 OUT_COMPL_PNG = ROOT / 'results/figure/completeness_vs_oh.png'
 JADES_PATH = ROOT / 'results/JADES/sample/jades_all_with_flags.fits'
+JADES_OH_MIN = 8.3  # 12+log(O/H) の下限（スタックと質量分布で共通）
 JADES_OH_COLUMN = 'N26_logOH'  # 既存推定値。R23からの再推定ではない。
 JADES_N_MC = 500
 OUT_JADES_CSV = ROOT / 'results/csv/stacked_sii_ne_vs_oh_jades.csv'
 OUT_JADES_STACK = ROOT / 'results/figure/stacked_sii_ne_vs_oh_jades_stack.png'
 OUT_JADES_OH_HIST = ROOT / 'results/figure/jades_metallicity_histogram.png'
+OUT_JADES_MASS_HIST = ROOT / 'results/figure/jades_oh_sample_mass_histogram.png'
+OUT_JADES_MASS_CSV = ROOT / 'results/csv/jades_oh_sample_mass_summary.csv'
+JADES_MASS_HIST_BIN_WIDTH = 0.2
 JADES_OH_HIST_BIN_WIDTH = 0.1
 BIN_WIDTH = 0.1
 NMIN = 100
@@ -73,6 +78,39 @@ MASS_OH_PLOT_NMIN = 5
 
 def column(tab, name):
     return np.ma.filled(np.ma.asarray(tab[name], dtype=float), np.nan)
+
+
+def plot_sdss_jades_mass_metallicity(sdss, show=False):
+    """各入力カタログで質量・金属量が有効な全銀河を表示する。
+
+    BASE_SAMPLE、O/H 下限、SFR や [SII] の追加選別は適用しない。
+    SDSS の入力自体は FITS_PATH の選択済みカタログ。
+    """
+    jades = Table.read(JADES_PATH)
+    fig, ax = plt.subplots(figsize=(10, 10))
+    for tab, mass_col, oh_col, color, label, size, alpha in [
+        (sdss, 'sm_MEDIAN', 'oh_MEDIAN', 'gray', 'SDSS', 3, 0.15),
+        (jades, 'N26_logM', JADES_OH_COLUMN, 'tab:red', 'JADES', 20, 0.8),
+    ]:
+        mass, oh = column(tab, mass_col), column(tab, oh_col)
+        # 欠損値 (-99.9 など) を除外。誤差列の有無は要求しない。
+        valid = np.isfinite(mass) & np.isfinite(oh) & (mass > 0) & (oh > 0)
+        ax.scatter(mass[valid], oh[valid], s=size, color=color, alpha=alpha,
+                   rasterized=True, label=f'{label} (N={valid.sum():,})')
+        print(f'Mass–O/H plot: {label} {valid.sum():,}/{len(tab):,} valid')
+    ax.set_xlabel(r'$\log(M_\ast/M_\odot)$')
+    ax.set_ylabel(r'$12+\log(\mathrm{O/H})$')
+    ax.legend(fontsize=16, markerscale=2)
+    ax.tick_params(which='major', length=10)
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
+    fig.tight_layout()
+    OUT_MASS_OH_COMPARISON.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT_MASS_OH_COMPARISON, dpi=200)
+    print('Saved:', OUT_MASS_OH_COMPARISON)
+    if show:
+        plt.show()
+    plt.close(fig)
 
 
 def ratio_draws(f1, e1, f2, e2, n_mc, rng):
@@ -102,6 +140,7 @@ def main():
     assert 'SELECTED_V2' in tab.colnames, 'SELECTED_V2 列がありません（選択後のファイルではない可能性）'
     assert np.all(np.asarray(tab['SELECTED_V2'], bool)), '選択されていない行が含まれています'
     print(f'Selected sample confirmed: {len(tab)} rows (all SELECTED_V2)')
+    plot_sdss_jades_mass_metallicity(tab, show=args.show)
     oh, oh16, oh84 = [column(tab, k) for k in ('oh_MEDIAN', 'oh_P16', 'oh_P84')]
     f1, f2, e1, e2 = [column(tab, k) for k in (
         'SII_6717_FLUX', 'SII_6731_FLUX',
@@ -223,7 +262,7 @@ def main():
     ax.set_xlabel(r'$12+\log_{10}(\mathrm{O/H})$')
     ax.set_ylabel(r'$\log_{10}(n_e\,/\,\mathrm{cm}^{-3})$')
     # local の表示範囲に加え、JADES の点と区間が入るように拡張する。
-    jades = calculate_jades_point()
+    jades = calculate_jades_point(oh_min=JADES_OH_MIN)
     if jades['status'] == 'ok':
         jx = jades['oh_median']
         jy = np.log10(jades['ne'])
@@ -294,7 +333,7 @@ def plot_mass_metallicity(tab, show=False):
     plt.close(fig)
 
 
-def calculate_jades_point(oh_min=None):
+def calculate_jades_point(oh_min=JADES_OH_MIN):
     """overlap_box_ne と同じ5パラメータ[SII]モデルでJADESを1スタック。
 
     金属量はカタログ値の中央値。R23換算・金属量測定誤差のMCは行わない。
@@ -309,6 +348,7 @@ def calculate_jades_point(oh_min=None):
         selected &= oh >= oh_min
     if not selected.any():
         raise ValueError('No JADES BASE_SAMPLE galaxies with metallicity')
+    mass_summary = summarize_jades_mass(tab, selected)
     wave_grid = np.arange(6500., 6900., 0.5)
     fit_win = (wave_grid >= 6650) & (wave_grid <= 6800)
     fluxes, errors = [], []
@@ -393,11 +433,12 @@ def calculate_jades_point(oh_min=None):
     status = ('ok' if np.all(np.isfinite([ne_best, ne_lo, ne_hi]))
               and 0 < ne_lo <= ne_best <= ne_hi else 'unconstrained_interval')
     result = dict(N=int(selected.sum()), z_median=np.median(z[selected]),
-                  oh_column=JADES_OH_COLUMN, oh_median=oh50, oh_p16=oh16, oh_p84=oh84,
+                  oh_column=JADES_OH_COLUMN, oh_min=oh_min, oh_median=oh50, oh_p16=oh16, oh_p84=oh84,
                   oh_interval_type='sample_percentiles_not_measurement_error',
                   R=ratio, R_p16=r16, R_p84=r84, ne=ne_best, ne_lo=ne_lo, ne_hi=ne_hi,
                   dv=best[2], sigma=best[3], Te=TE, n_mc=JADES_N_MC,
                   mc_success_fraction=np.isfinite(ratios).mean(), status=status)
+    result.update(mass_summary)
     OUT_JADES_CSV.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame([result]).to_csv(OUT_JADES_CSV, index=False)
     OUT_JADES_STACK.parent.mkdir(parents=True, exist_ok=True)
@@ -425,10 +466,57 @@ def calculate_jades_point(oh_min=None):
     ax.legend(fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_JADES_STACK, dpi=200)
-    plt.close(fig)
+    plt.show()
     print('Saved:', OUT_JADES_CSV, OUT_JADES_STACK, OUT_JADES_CSV.with_suffix('.fits'))
     print('JADES:', result)
     return result
+
+
+def summarize_jades_mass(tab, selected):
+    """O/H スタックの選択を保ったまま、質量が有効な銀河の分布を要約。
+
+    16–84% は銀河間の分布の広がりであり、中央値の測定誤差ではない。
+    質量欠損を理由に O/H スタックのサンプルを減らすことはしない。
+    """
+    mass = column(tab, 'N26_logM')[selected]
+    valid = np.isfinite(mass) & (mass > 0)
+    values = mass[valid]
+    summary = dict(mass_column='N26_logM', mass_N=int(valid.sum()),
+                   mass_N_missing=int((~valid).sum()),
+                   logM_p16=np.nan, logM_median=np.nan, logM_p84=np.nan,
+                   logM_std=np.nan, logM_min=np.nan, logM_max=np.nan,
+                   mass_interval_type='sample_percentiles_not_measurement_error')
+    if values.size:
+        p16, median, p84 = np.percentile(values, [16, 50, 84])
+        summary.update(logM_p16=p16, logM_median=median, logM_p84=p84,
+                       logM_std=np.std(values, ddof=1) if values.size > 1 else np.nan,
+                       logM_min=values.min(), logM_max=values.max())
+        print(f'JADES O/H sample mass: {values.size}/{len(mass)} valid; '
+              f'log(M*/Msun) = {median:.3f} -{median-p16:.3f} +{p84-median:.3f}; '
+              f'16–84% = [{p16:.3f}, {p84:.3f}] (sample spread)')
+        width = JADES_MASS_HIST_BIN_WIDTH
+        edges = np.arange(np.floor(values.min()/width)*width,
+                          np.floor(values.max()/width)*width+1.5*width, width)
+        fig, ax = plt.subplots(figsize=(9, 6))
+        ax.axvspan(p16, p84, color='tab:red', alpha=0.12,
+                   label=f'16–84%: {p16:.2f}–{p84:.2f}')
+        ax.hist(values, bins=edges, histtype='step', color='tab:red', linewidth=2,
+                label=f'JADES O/H sample (N={values.size})')
+        ax.axvline(median, color='k', linestyle='--', label=f'Median: {median:.2f}')
+        ax.set_xlabel(r'$\log_{10}(M_\ast/M_\odot)$')
+        ax.set_ylabel('Number of galaxies')
+        ax.legend(fontsize=12)
+        fig.tight_layout()
+        OUT_JADES_MASS_HIST.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(OUT_JADES_MASS_HIST, dpi=200)
+        plt.show()
+        print('Saved:', OUT_JADES_MASS_HIST)
+    else:
+        print('JADES O/H sample: no valid stellar masses')
+    OUT_JADES_MASS_CSV.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([dict(N_OH_sample=len(mass), **summary)]).to_csv(OUT_JADES_MASS_CSV, index=False)
+    print('Saved:', OUT_JADES_MASS_CSV)
+    return summary
 
 
 def plot_jades_metallicity_histogram(metallicity):
@@ -454,7 +542,7 @@ def plot_jades_metallicity_histogram(metallicity):
     fig.tight_layout()
     OUT_JADES_OH_HIST.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT_JADES_OH_HIST, dpi=200)
-    plt.close(fig)
+    plt.show()
     print('Saved:', OUT_JADES_OH_HIST)
 
 
