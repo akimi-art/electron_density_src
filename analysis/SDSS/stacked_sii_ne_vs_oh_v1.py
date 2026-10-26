@@ -23,7 +23,6 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from astropy.io import fits
 from astropy.table import Table
 from scipy.optimize import curve_fit
@@ -40,7 +39,6 @@ plt.rcParams.update({
     "xtick.labelsize": 28, "ytick.labelsize": 28,
     "font.family": "STIXGeneral", "mathtext.fontset": "stix",
 })
-SMALL_STYLE = {"font.size": 20, "axes.labelsize": 24}   # n_e–O/H 図用
 
 
 # =====================================================================
@@ -345,7 +343,7 @@ def stack_jades(jd):
     OUT['jades_stack_fits'].parent.mkdir(parents=True, exist_ok=True)
     Table(dict(WAVE=WAVE_GRID, FLUX=stack, FLUX_ERR=stack_err, N_GAL=n_pix)).write(
         OUT['jades_stack_fits'], overwrite=True)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     ax.step(WAVE_GRID, stack, where='mid', color='k', label=f'JADES mean (N={res["N"]})')
     ax.fill_between(WAVE_GRID, stack - stack_err, stack + stack_err, alpha=0.3, color='gray')
     wf = np.linspace(*FIT_WINDOW, 1000)
@@ -359,7 +357,7 @@ def stack_jades(jd):
         ax.set_ylim(ymin - pad, ymax + pad)
     ax.set_xlabel('Rest-frame wavelength [Å]')
     ax.set_ylabel('Mean flux')
-    ax.legend(fontsize=12)
+    # ax.legend(fontsize=12)
     finish(fig, OUT['jades_stack_png'])
     return res
 
@@ -368,21 +366,18 @@ def stack_jades(jd):
 # 作図
 # =====================================================================
 def plot_overview(loc, jd):
-    """M*–O/H 平面の全銀河と比較領域 (枠 = JADES の領域, 帯 = local の M* 範囲)。"""
-    fig, ax = plt.subplots(figsize=(10, 10))
+    """M*–O/H 平面の全銀河と local の M* 範囲の帯。"""
+    fig, ax = plt.subplots(figsize=(6, 6))
     for mass, oh, color, label, s, a in [
             (loc['mass'], loc['oh'], 'gray', 'SDSS', 3, 0.15),
-            (jd['mass'], jd['oh'], 'tab:red', 'JADES', 20, 0.8)]:
+            (jd['mass'], jd['oh'], 'tab:red', 'JADES', 10, 0.8)]:
         ok = np.isfinite(mass) & np.isfinite(oh) & (mass > 0) & (oh > 0)
         ax.scatter(mass[ok], oh[ok], s=s, color=color, alpha=a, rasterized=True,
                    label=f'{label} (N={ok.sum():,})')
     ax.axvspan(*LOCAL_MASS_RANGE, color='tab:blue', alpha=0.08, label=r'Local $M_\ast$ range')
-    ax.add_patch(Rectangle((JADES_MASS_RANGE[0], JADES_OH_RANGE[0]),
-                           np.diff(JADES_MASS_RANGE)[0], np.diff(JADES_OH_RANGE)[0],
-                           fill=False, edgecolor='tab:blue', lw=2.5, label='JADES region'))
     ax.set_xlabel(r'$\log(M_\ast/M_\odot)$')
     ax.set_ylabel(r'$12+\log(\mathrm{O/H})$')
-    ax.legend(fontsize=16, markerscale=2)
+    # ax.legend(fontsize=16, markerscale=2)
     ax.tick_params(which='major', length=10)
     finish(fig, OUT['overview_png'])
 
@@ -390,7 +385,7 @@ def plot_overview(loc, jd):
 def plot_distributions(loc, jd):
     """比較に使う local / JADES の M* と O/H の分布 (確率密度) と中央値。
     local は M* 範囲内の有効な銀河 (O/H ビン内の flux カット前)。"""
-    fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     print('[分布] 中央値 local / JADES (差)')
     for ax, key, label in [(axes[0], 'mass', r'$\log(M_\ast/M_\odot)$'),
                            (axes[1], 'oh', r'$12+\log(\mathrm{O/H})$')]:
@@ -404,7 +399,7 @@ def plot_distributions(loc, jd):
         ax.set_xlabel(label)
         ax.set_ylabel('Probability density')
         print(f'  {key:4s}: {np.median(lv):.3f} / {np.median(jv):.3f} ({np.median(jv) - np.median(lv):+.3f})')
-    axes[0].legend(fontsize=16)
+    # axes[0].legend(fontsize=16)
     finish(fig, OUT['dist_png'])
 
 
@@ -415,14 +410,14 @@ def plot_jades_histograms(jd):
                                     ('oh', JADES_OH_HIST_BIN_WIDTH, 'crimson', OUT['jades_oh_hist_png'])]:
         v = jd[key][jd['sel']]
         p16, med, p84 = np.percentile(v, [16, 50, 84])
-        fig, ax = plt.subplots(figsize=(9, 6))
+        fig, ax = plt.subplots(figsize=(6, 6))
         ax.axvspan(p16, p84, color=color, alpha=0.12, label=f'16–84%: {p16:.2f}–{p84:.2f}')
         ax.hist(v, bins=bin_edges(v, width), histtype='step', color=color, lw=2,
                 label=f'JADES (N={len(v)})')
         ax.axvline(med, color='k', ls='--', lw=1.5, label=f'Median: {med:.2f}')
         ax.set_xlabel(r'$\log_{10}(M_\ast/M_\odot)$' if key == 'mass' else r'$12+\log_{10}(\mathrm{O/H})$')
         ax.set_ylabel('Number of galaxies')
-        ax.legend(fontsize=12)
+        # ax.legend(fontsize=12)
         finish(fig, path)
         if key == 'mass':
             summary = dict(mass_column=JADES_MASS_COL, mass_N=len(v),
@@ -452,7 +447,7 @@ def plot_completeness(edges):
     save_csv(pd.DataFrame(dict(oh_center=centers, f=frac, f_err=ferr, N_den=n_den, N_num=n_num)),
              OUT['compl_csv'])
     v = n_den >= COMPL_NMIN
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     ax.errorbar(centers[v], frac[v], yerr=ferr[v], fmt='o-', color='k', ms=5, lw=1.5)
     ax.set_ylim(0, 1.05)
     ax.set_xlabel(r'$12+\log_{10}(\mathrm{O/H})$')
@@ -462,33 +457,32 @@ def plot_completeness(edges):
 
 def plot_ne_vs_oh(res, jres):
     """log n_e vs 12+log(O/H): local の O/H ビンと JADES の 1 点。"""
-    with plt.rc_context(SMALL_STYLE):
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ok = res['status_mean'].eq('ok').to_numpy()
-        x = res['oh_median'].to_numpy()
-        y = np.log10(res['ne_mean'].to_numpy())
-        ax.errorbar(x[ok], y[ok],
-                    xerr=np.vstack([x - res['oh_p16_median'], res['oh_p84_median'] - x])[:, ok],
-                    yerr=np.vstack([y - np.log10(res['ne_mean_p16']), np.log10(res['ne_mean_p84']) - y])[:, ok],
-                    fmt='s', color='k', capsize=3,
-                    label=rf'Local (${LOCAL_MASS_RANGE[0]}\leq\log M_\ast<{LOCAL_MASS_RANGE[1]}$)')
-        if (~ok).any():
-            print(f'[local] 区間が定まらない {(~ok).sum()} ビンは描いていません (CSV 参照)')
-        xlim, ylim = [x.min() - 0.1, x.max() + 0.1], [1.25, 3]
-        if jres['status'] == 'ok':
-            jx, jy = jres['oh_median'], np.log10(jres['ne'])
-            jlo, jhi = np.log10(jres['ne_lo']), np.log10(jres['ne_hi'])
-            ax.errorbar(jx, jy, xerr=[[jx - jres['oh_p16']], [jres['oh_p84'] - jx]],
-                        yerr=[[jy - jlo], [jhi - jy]], fmt='*', ms=14, color='crimson',
-                        capsize=4, label=f'JADES (N={jres["N"]})')
-            xlim = [min(xlim[0], jres['oh_p16'] - 0.1), max(xlim[1], jres['oh_p84'] + 0.1)]
-            ylim = [min(ylim[0], jlo - 0.1), max(ylim[1], jhi + 0.1)]
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        ax.set_xlabel(r'$12+\log_{10}(\mathrm{O/H})$')
-        ax.set_ylabel(r'$\log_{10}(n_e\,/\,\mathrm{cm}^{-3})$')
-        ax.legend(fontsize=12)
-        finish(fig, OUT['ne_png'])
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ok = res['status_mean'].eq('ok').to_numpy()
+    x = res['oh_median'].to_numpy()
+    y = np.log10(res['ne_mean'].to_numpy())
+    ax.errorbar(x[ok], y[ok],
+                xerr=np.vstack([x - res['oh_p16_median'], res['oh_p84_median'] - x])[:, ok],
+                yerr=np.vstack([y - np.log10(res['ne_mean_p16']), np.log10(res['ne_mean_p84']) - y])[:, ok],
+                fmt='s', ms=10, color='k', capsize=3,
+                label=rf'Local (${LOCAL_MASS_RANGE[0]}\leq\log M_\ast<{LOCAL_MASS_RANGE[1]}$)')
+    if (~ok).any():
+        print(f'[local] 区間が定まらない {(~ok).sum()} ビンは描いていません (CSV 参照)')
+    xlim, ylim = [x.min() - 0.1, x.max() + 0.1], [1.25, 3]
+    if jres['status'] == 'ok':
+        jx, jy = jres['oh_median'], np.log10(jres['ne'])
+        jlo, jhi = np.log10(jres['ne_lo']), np.log10(jres['ne_hi'])
+        ax.errorbar(jx, jy, xerr=[[jx - jres['oh_p16']], [jres['oh_p84'] - jx]],
+                    yerr=[[jy - jlo], [jhi - jy]], fmt='s', ms=10, color='crimson',
+                    capsize=4, label=f'JADES (N={jres["N"]})')
+        xlim = [min(xlim[0], jres['oh_p16'] - 0.1), max(xlim[1], jres['oh_p84'] + 0.1)]
+        ylim = [min(ylim[0], jlo - 0.1), max(ylim[1], jhi + 0.1)]
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel(r'$12+\log(\mathrm{O/H})$')
+    ax.set_ylabel(r'$\log n_{\mathrm{e}}$')
+    # ax.legend(fontsize=12)
+    finish(fig, OUT['ne_png'])
 
 
 def plot_sfr_map(loc):
@@ -499,7 +493,7 @@ def plot_sfr_map(loc):
     med, _, _, _ = binned_statistic_2d(m[ok], oh[ok], sfr[ok], statistic='median', bins=bins)
     counts = np.histogram2d(m[ok], oh[ok], bins=bins)[0]
     color = np.ma.masked_where((counts < MAP_NMIN) | ~np.isfinite(med), med)
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=(10, 10))
     pc = ax.pcolormesh(bins[0], bins[1], color.T, shading='flat', cmap='viridis', rasterized=True)
     fig.colorbar(pc, ax=ax, pad=0.02).set_label(r'Median $\log_{10}(\mathrm{SFR}\,/\,M_\odot\,\mathrm{yr}^{-1})$')
     ax.set_xlim(8, 12)
