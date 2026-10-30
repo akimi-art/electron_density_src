@@ -103,9 +103,9 @@ b = BOXES[CHOSEN]
 ml = in_box(logM_l, logSFR_l, b)
 mj = sel_j & in_box(logM_j, logSFR_j, b)
 
-fig, ax = plt.subplots(figsize=(12, 12))
-ax.scatter(logM_l, logSFR_l, s=5, alpha=0.5, color="gray", rasterized=True)
-ax.scatter(logM_j[sel_j], logSFR_j[sel_j], s=30, color="firebrick", zorder=5)
+fig, ax = plt.subplots(figsize=(6, 6))
+ax.scatter(logM_l, logSFR_l, s=1, alpha=0.5, color="gray", rasterized=True)
+ax.scatter(logM_j[sel_j], logSFR_j[sel_j], s=4, color="firebrick", zorder=5)
 vertices = box_vertices(b)
 ax.add_patch(Polygon(vertices, closed=True,
                        fill=False, edgecolor="tab:blue", lw=3, zorder=6))
@@ -114,7 +114,6 @@ ax.scatter([], [], s=60, color="firebrick", label=f"High-$z$ ({sel_j.sum()}; in 
 ax.set_xlim(6, 12); ax.set_ylim(-3, 3)
 ax.set_xlabel(r"$\log(M_\ast/M_\odot)$")
 ax.set_ylabel(r"$\log({\rm SFR}/M_\odot\,{\rm yr}^{-1})$")
-ax.legend(loc="upper left", fontsize=20)
 for sp in ax.spines.values():
     sp.set_linewidth(2)
 plt.tight_layout()
@@ -125,7 +124,7 @@ print(f"[DONE] {FIG_DIR}/mstar_sfr_overlap_box{CHOSEN}_slope{b[4]}_{BOX_SHAPE}.p
 # SFR の表示範囲は傾いた箱の全頂点から決める（負の傾きにも対応）。
 mass_limits = (min(v[0] for v in vertices), max(v[0] for v in vertices))
 sfr_limits = (min(v[1] for v in vertices), max(v[1] for v in vertices))
-fig_hist, axes = plt.subplots(1, 2, figsize=(16, 8))
+fig_hist, axes = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
 panels = [
     (logM_l[ml], logM_j[mj], mass_limits,
      r"$\log(M_\ast/M_\odot)$"),

@@ -303,8 +303,9 @@ df = pd.DataFrame([res_loc, res_hz])
 df.to_csv(OUT_CSV, index=False)
 print(df.to_string())
 
-fig, ax = plt.subplots(figsize=(8, 8))
-for r, col in [(res_loc, "k"), (res_hz, "r")]:
+fig, ax = plt.subplots(figsize=(6, 6))
+# サンプルごとの (結果, 色, マーカーサイズ, キャップサイズ)
+for r, col, ms, capsize in [(res_loc, "k", 12, 10), (res_hz, "crimson", 12, 10)]:
     x = r["z_med"]
     xerr = [[x - r["z_p16"]], [r["z_p84"] - x]]
     lab = f"{r['sample']} ({r['method']}, N={r['N']})"
@@ -313,22 +314,22 @@ for r, col in [(res_loc, "k"), (res_hz, "r")]:
         ylo = y - np.log10(r["ne_lo"]) if np.isfinite(r["ne_lo"]) and r["ne_lo"] > 0 else 0.0
         yhi = np.log10(r["ne_hi"]) - y if np.isfinite(r["ne_hi"]) and r["ne_hi"] > 0 else 0.0
         ax.errorbar(x, y, xerr=xerr, yerr=[[ylo], [yhi]],
-                    ms=10, mew=2, fmt="o", color=col, capsize=10, label=lab)
+                    ms=ms, mew=2, fmt="s", color=col, capsize=capsize, label=lab)
     else:
         # best の R が低密度極限超え → R_p16 から上限
         ne_limit = r["ne_hi"]
         if np.isfinite(ne_limit) and ne_limit > 0:
             y = np.log10(ne_limit)
             ax.errorbar(x, y, xerr=xerr, yerr=[[-np.log10(0.6)], [0]], uplims=True,
-                        ms=10, mew=2, fmt="v", color=col, capsize=10, label=lab + " (upper limit)")
+                        ms=ms, mew=2, fmt="v", color=col, capsize=capsize, label=lab + " (upper limit)")
         else:
             print(f"[{r['sample']}] n_e 上限も定まらない (R_p16 も低密度極限超え)")
 
 ax.set_xscale("linear"); ax.set_yscale("linear")
 ax.set_xlabel(r"$z$")
-ax.set_ylabel(r"$\log_{10}(n_e\,/\,\mathrm{cm}^{-3})$")
+ax.set_ylabel(r"$\log(n_e\,/\,\mathrm{cm}^{-3})$")
 # ax.set_xlim(0, 10)
-ax.set_ylim(1.5, 3.0)
+ax.set_ylim(1.8, 2.4)
 for sp in ax.spines.values():
     sp.set_linewidth(2)
 fig.tight_layout()

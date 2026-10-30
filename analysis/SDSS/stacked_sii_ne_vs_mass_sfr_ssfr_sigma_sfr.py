@@ -287,7 +287,8 @@ def plot_results(results, show):
                          'font.size': 32, 'axes.labelsize': 32, 'xtick.labelsize': 32,
                          'ytick.labelsize': 32, 'xtick.direction': 'in', 'ytick.direction': 'in',
                          'xtick.top': True, 'ytick.right': True, 'axes.linewidth': 2})
-    fig, axes = plt.subplots(1, 4, figsize=(24, 6), sharey=True, gridspec_kw={'wspace': 0})
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12), sharey=True, gridspec_kw={'wspace': 0})
+    axes = axes.ravel()
     for ax, (key, config) in zip(axes, PANELS.items()):
         for sample, color in [('local', 'k'), ('high-z', 'crimson')]:
             sub = results[(results.parameter == key) & (results['sample'] == sample) & (results.status == 'ok')]
@@ -297,24 +298,26 @@ def plot_results(results, show):
             ax.errorbar(x, y, xerr=np.vstack([x-sub.x_p16, sub.x_p84-x]),
                         yerr=np.vstack([y-np.log10(sub.ne_lo), np.log10(sub.ne_hi)-y]),
                         fmt='s', color=color, ms=8 if sample == 'local' else 11,
-                        capsize=3, lw=1.5, zorder=3 if sample == 'high-z' else 2)
+                        capsize=6, lw=1.5, zorder=3 if sample == 'high-z' else 2)
         ax.set_xlim(config['xlim'])
         ax.set_xlabel(config['label'])
         ax.xaxis.set_major_locator(MaxNLocator(nbins=4, prune='both'))
         ax.tick_params(which='major', length=10, width=2)
         ax.tick_params(which='minor', length=5, width=1.5)
         ax.minorticks_on()
-        ax.tick_params(labelleft=ax is axes[0])
-    axes[0].set_ylabel(r'$\log(n_{\mathrm{e}}/\mathrm{cm}^{-3})$')
+        ax.tick_params(labelleft=ax in axes[::2])
+    for ax in axes[::2]:
+        ax.set_ylabel(r'$\log(n_{\mathrm{e}}/\mathrm{cm}^{-3})$')
     valid = results[results.status == 'ok']
     if not valid.empty:
-        axes[0].set_ylim(min(0.5, np.log10(valid.ne_lo.min())-0.15),
-                         max(3.5, np.log10(valid.ne_hi.max())+0.15))
+        axes[0].set_ylim(min(1.25, np.log10(valid.ne_lo.min())-0.15),
+                         max(3.0, np.log10(valid.ne_hi.max())+0.15))
     else:
-        axes[0].set_ylim(0.5, 3.5)
+        axes[0].set_ylim(1.25, 3.0)
         warnings.warn('制約可能な電子密度がありません。CSVのstatusを確認してください')
-    # tight_layout は使わず、4枚の描画領域を直接接続する。
-    fig.subplots_adjust(left=0.065, right=0.99, bottom=0.20, top=0.97, wspace=0)
+    # 各行の左右の描画領域を接続し、上下には軸ラベルの余白を確保する。
+    fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.98,
+                        wspace=0, hspace=0.30)
     FIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG_PATH, dpi=200)
     fig.savefig(FIG_PATH.with_suffix('.pdf'))
