@@ -44,7 +44,7 @@ PANELS = {
     'mass': dict(xlim=(9.0, 10.5), highz_bins=[(9.4, 9.65), (9.65, 10.0)], label=r'$\log(M_\ast/M_\odot)$'),
     'sfr': dict(xlim=(-1.0, 1.5), highz_bins=[(0.0, 0.6), (0.6, 1.0)], label=r'$\log(\mathrm{SFR}/[M_\odot\,\mathrm{yr}^{-1}])$'),
     'ssfr': dict(xlim=(-10.5, -8.4), highz_bins=[(-9.0, -8.6), (-8.6, -8.4)], label=r'$\log(\mathrm{sSFR}/\mathrm{yr}^{-1})$'),
-    'sigma': dict(xlim=(-2.0, 0.5), highz_bins=[(-0.5, 0.0), (0.0, 0.5)], label=r'$\log(\Sigma_{\mathrm{SFR}}/[M_\odot\,\mathrm{yr}^{-1}\,\mathrm{kpc}^{-2}])$'),
+    'sigma': dict(xlim=(-2.0, 0.6), highz_bins=[(-0.6, 0.0), (0.0, 0.6)], label=r'$\log(\Sigma_{\mathrm{SFR}}/[M_\odot\,\mathrm{yr}^{-1}\,\mathrm{kpc}^{-2}])$'),
 }
 LOCAL_BIN_WIDTH = 0.2
 NMIN = 100
