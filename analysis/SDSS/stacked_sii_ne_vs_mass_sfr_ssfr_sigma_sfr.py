@@ -7,7 +7,7 @@ JADES_spectra_stack_x_ssfr_equal_width_v3.py のサンプル選択・静止系�
 local: 選択済み SDSS v2、ビン内で両線の2–98%共通 flux カット後、平均 flux の比。
 high-z: CSV + grating別スペクトル、5パラメータ [SII] フィットの積分 flux 比。
 誤差: 固定サンプルの独立 Gaussian flux MC（bootstrap ではない）。
-Te=10^4 K。横棒は使用銀河の16–84%分布であり、測定誤差ではない。
+Te=10^4 K。横棒はビンの下端〜上端であり、測定誤差ではない。点の横位置は使用銀河の中央値。
 物理的な [SII] 比の範囲外をクリップせず、制約できない区間はCSVに残して描画しない。
 
 実行（作業ディレクトリは任意）:
@@ -38,16 +38,14 @@ CSV_DIR = ROOT / 'results/csv' / STEM
 STACK_DIR = CSV_DIR / 'jades_stacks'
 FIG_PATH = ROOT / 'results/figure' / f'{STEM}.png'
 
-# ビン境界は lo <= x < hi。以下はすべて log（底10）。
-mass_bins = [(9.3, 10.0)]
-sfr_bins = [(0.7, 0.9), (1.1, 1.3)]
-ssfr_bins = [(-9.0, -8.4)]
-sigma_bins = [(-1.0, 0.0)]
+# xlim: 図の表示範囲。highz_range: high-z の等個数ビン分割対象範囲。
+# 両者は独立に設定する（すべて常用対数、選択範囲は下端を含み上端を含まない）。
+JADES_N_BINS = 2
 PANELS = {
-    'mass': dict(bins=mass_bins, xlim=(9.0, 10.5), label=r'$\log(M_\ast/M_\odot)$'),
-    'sfr': dict(bins=sfr_bins, xlim=(-1.0, 1.5), label=r'$\log(\mathrm{SFR}/[M_\odot\,\mathrm{yr}^{-1}])$'),
-    'ssfr': dict(bins=ssfr_bins, xlim=(-10.5, -8.4), label=r'$\log(\mathrm{sSFR}/\mathrm{yr}^{-1})$'),
-    'sigma': dict(bins=sigma_bins, xlim=(-2.0, 0.5), label=r'$\log(\Sigma_{\mathrm{SFR}}/[M_\odot\,\mathrm{yr}^{-1}\,\mathrm{kpc}^{-2}])$'),
+    'mass': dict(xlim=(9.0, 10.5), highz_range=(9.0, 10.0), label=r'$\log(M_\ast/M_\odot)$'),
+    'sfr': dict(xlim=(-1.0, 1.5), highz_range=(0.0, 1.0), label=r'$\log(\mathrm{SFR}/[M_\odot\,\mathrm{yr}^{-1}])$'),
+    'ssfr': dict(xlim=(-10.5, -8.4), highz_range=(-9.4, -8.4), label=r'$\log(\mathrm{sSFR}/\mathrm{yr}^{-1})$'),
+    'sigma': dict(xlim=(-2.0, 0.5), highz_range=(-0.5, 0.5), label=r'$\log(\Sigma_{\mathrm{SFR}}/[M_\odot\,\mathrm{yr}^{-1}\,\mathrm{kpc}^{-2}])$'),
 }
 LOCAL_BIN_WIDTH = 0.2
 NMIN = 100
@@ -235,18 +233,38 @@ def stack_local(d, key, config, n_mc, rng):
     return rows
 
 
-def stack_highz(items, key, config, n_mc, rng):
+def equal_number_bins(items, key, config, n_bins):
+    """範囲は下端を含み上端を含まない。順位で分割し個数差を最大1にする。
+
+    同値の境界ではID順で分けるため、所属の再現にはmembersのbin_indexを使う。
+    """
+    if n_bins < 1:
+        raise ValueError('high-z bin count must be positive')
+    low, high = config['highz_range']
+    eligible = sorted(
+        (it for it in items if np.isfinite(it[key]) and low <= it[key] < high
+         and 0.5 <= it['z'] < 8), key=lambda it: (it[key], it['id']))
+    if not eligible:
+        warnings.warn(f'JADES {key}: no galaxies in highz_range')
+        return []
+    if len(eligible) < n_bins:
+        warnings.warn(f'JADES {key}: reducing bin count to {len(eligible)}')
+    groups = [[eligible[i] for i in indices] for indices in
+              np.array_split(np.arange(len(eligible)), min(n_bins, len(eligible)))]
+    edges = [low] + [a[-1][key] + (b[0][key] - a[-1][key]) / 2
+                     for a, b in zip(groups[:-1], groups[1:])] + [high]
+    return [(edges[i], edges[i+1], group) for i, group in enumerate(groups)]
+
+
+def stack_highz(items, key, config, n_mc, rng, n_bins=JADES_N_BINS):
     rows, members = [], []
-    for low, high in config['bins']:
-        selected = [it for it in items if np.isfinite(it[key]) and low <= it[key] < high and 0.5 <= it['z'] < 8]
+    for bin_index, (low, high, selected) in enumerate(equal_number_bins(items, key, config, n_bins), 1):
         row = dict(sample='high-z', parameter=key, bin_lo=low, bin_hi=high,
+                   bin_index=bin_index, binning='equal_number',
                    N=len(selected), Te=TE, n_mc=n_mc, status='empty_bin')
-        if not selected:
-            warnings.warn(f'JADES {key} [{low}, {high}): empty bin')
-            rows.append(row)
-            continue
         for it in selected:
-            members.append(dict(parameter=key, bin_lo=low, bin_hi=high, id=it['id'],
+            members.append(dict(parameter=key, bin_lo=low, bin_hi=high,
+                                bin_index=bin_index, binning='equal_number', id=it['id'],
                                 x=it[key], z=it['z'], spec_file=it['spec_file'], grating=it['grating']))
         F, E = np.array([it['flux'] for it in selected]), np.array([it['err'] for it in selected])
         valid = np.isfinite(F) & np.isfinite(E) & (E > 0)
@@ -257,7 +275,7 @@ def stack_highz(items, key, config, n_mc, rng):
                         out=np.full(WAVE_GRID.size, np.nan), where=count > 0)
         # Gaussian MCで平均を取る分布のsigma = sqrt(sum(err_i**2))/N。
         # スタックをこのsigmaで揺らすことは個々のfluxを揺らして平均することと等価。
-        tag = f'{key}_{low:.1f}_{high:.1f}'
+        tag = f'{key}_equal_number_{n_bins}_bin{bin_index}'
         path = STACK_DIR / f'{tag}.fits'
         Table(dict(WAVE=WAVE_GRID, FLUX=flux, FLUX_ERR=err, N_GAL=count)).write(path, overwrite=True)
         row.update(position_summary(np.array([it[key] for it in selected])))
@@ -295,7 +313,7 @@ def plot_results(results, show):
             if sub.empty:
                 continue
             x, y = sub.x.to_numpy(), np.log10(sub['ne'].to_numpy())
-            ax.errorbar(x, y, xerr=np.vstack([x-sub.x_p16, sub.x_p84-x]),
+            ax.errorbar(x, y, xerr=np.vstack([x-sub.bin_lo, sub.bin_hi-x]),
                         yerr=np.vstack([y-np.log10(sub.ne_lo), np.log10(sub.ne_hi)-y]),
                         fmt='s', color=color, ms=8 if sample == 'local' else 11,
                         capsize=6, lw=1.5, zorder=3 if sample == 'high-z' else 2)
@@ -331,10 +349,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--local-n-mc', type=int, default=LOCAL_N_MC)
     parser.add_argument('--jades-n-mc', type=int, default=JADES_N_MC)
+    parser.add_argument('--jades-n-bins', type=int, default=JADES_N_BINS)
     parser.add_argument('--no-show', action='store_true')
     args = parser.parse_args()
     if min(args.local_n_mc, args.jades_n_mc) < 2:
         parser.error('MC回数は2以上にしてください')
+    if args.jades_n_bins < 1:
+        parser.error('high-z のビン数は1以上にしてください')
     CSV_DIR.mkdir(parents=True, exist_ok=True)
     STACK_DIR.mkdir(parents=True, exist_ok=True)
     local, jades = load_local(), load_jades()
@@ -342,7 +363,7 @@ def main():
     rows, members = [], []
     for key, config in PANELS.items():
         rows.extend(stack_local(local, key, config, args.local_n_mc, rng))
-        highz_rows, used = stack_highz(jades, key, config, args.jades_n_mc, rng)
+        highz_rows, used = stack_highz(jades, key, config, args.jades_n_mc, rng, args.jades_n_bins)
         rows.extend(highz_rows)
         members.extend(used)
     results = pd.DataFrame(rows)
@@ -350,7 +371,7 @@ def main():
     for name in ('x', 'x_p16', 'x_p84', 'ne', 'ne_lo', 'ne_hi'):
         if name not in results:
             results[name] = np.nan
-    results['x_interval_type'] = 'sample_percentiles_not_measurement_error'
+    results['x_interval_type'] = 'bin_edges_not_measurement_error'
     results.to_csv(CSV_DIR / 'density_results.csv', index=False)
     pd.DataFrame(members).to_csv(CSV_DIR / 'jades_members.csv', index=False)
     print(results.groupby(['sample', 'parameter', 'status']).size().to_string())
