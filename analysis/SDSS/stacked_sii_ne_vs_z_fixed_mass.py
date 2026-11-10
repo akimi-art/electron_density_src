@@ -9,6 +9,7 @@ import emcee
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.container import ErrorbarContainer
 from astropy.table import Table
 import stacked_sii_ne_vs_mass_sfr_ssfr_sigma_sfr_v1 as base
 
@@ -34,6 +35,15 @@ madder_red = '#A41F35'
 deep_red   = '#A62B2B'
 forest     = 'forestgreen'  # matplotlib標準のフォレストグリーン
 crimson    = '#DC143C'
+
+def symbol_legend(ax, fontsize):
+    """Show only the data marker for measurements; preserve model line styles."""
+    handles, labels = ax.get_legend_handles_labels()
+    handles = [handle.lines[0] if isinstance(handle, ErrorbarContainer) else handle
+               for handle in handles]
+    ax.legend(handles, labels, fontsize=fontsize, loc='upper left', frameon=False,
+              numpoints=1)
+
 
 def fit_and_plot(result):
     """MCMC in log density with asymmetric Gaussian measurement errors.
@@ -93,30 +103,64 @@ def fit_and_plot(result):
     low, median, high = np.percentile(prediction, [16, 50, 84], axis=0)
     pd.DataFrame(dict(z=grid, log_ne_p16=low, log_ne_median=median, log_ne_p84=high)).to_csv(OUT/'mcmc_curve.csv', index=False)
     fig, ax = plt.subplots(figsize=(6, 6))
-    ax.fill_between(grid, low, high, color='0.8', alpha=0.7, linewidth=0, label='68% credible interval')
+    ax.fill_between(grid, low, high, color='0.8', alpha=0.7, linewidth=0)
     # A single curve evaluated at the posterior median parameters.
     ax.plot(grid, summaries['log10_c']['median']+summaries['p']['median']*np.log10(1+grid),
-            color='black', lw=1.6, label=r'$n_{\rm e}=c(1+z)^p$')
+            color='black', lw=1.6,
+            label=fr'$n_{{\rm e}}={summaries["c"]["median"]:.1f}(1+z)^{{{summaries["p"]["median"]:.2f}}}$')
     groups = [
-        (data[data['sample'] == 'local'], 's', 'black', 'Local'),
-        (data[(data['sample'] == 'high-z') & (data.bin_index == 1)], 's', forest, 'JADES (low-z)'),
-        (data[(data['sample'] == 'high-z') & (data.bin_index == 2)], 's', crimson, 'JADES (high-z)'),
+        (data[data['sample'] == 'local'], 'o', 'black', 'SDSS'),
+        (data[(data['sample'] == 'high-z') & (data.bin_index == 1)], '*', forest, 'JADES (low-z)'),
+        (data[(data['sample'] == 'high-z') & (data.bin_index == 2)], '*', crimson, 'JADES (high-z)'),
     ]
     for sub, marker, color, label in groups:
         ax.errorbar(sub.z_median, sub.log_ne,
                     xerr=np.vstack([sub.z_median-sub.bin_lo, sub.bin_hi-sub.z_median]),
                     yerr=np.vstack([sub.log_ne-sub.log_ne_lo, sub.log_ne_hi-sub.log_ne]),
-                    fmt=marker, color=color, capsize=4, label=label, zorder=3)
+                    fmt=marker, color=color, capsize=13, capthick=2, elinewidth=1.8, ms=15 if marker == 'o' else 21, label=label, zorder=3)
     ax.set_xlabel(r'$z$')
-    ax.set_ylabel(r'$\log_{10}(n_{\rm e}/{\rm cm}^{-3})$')
+    ax.set_ylabel(r'$\log(n_{\rm e}/{\rm cm}^{-3})$')
     ax.set_xlim(0, max(data.bin_hi)*1.04)
     for spine in ax.spines.values():
         spine.set_linewidth(2)
     ax.tick_params(direction='in', top=True, right=True)
+    symbol_legend(ax, fontsize=12)
     fig.tight_layout()
     FIG.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG.with_suffix('.png'), dpi=200)
     fig.savefig(FIG.with_suffix('.pdf'))
+    # Companion figure for comparing redshift exponents at fixed normalization.
+    for exponent, style in [(1, '--'), (2, '-.'), (3, ':')]:
+        ax.plot(grid, summaries['log10_c']['median'] + exponent*np.log10(1+grid),
+                color='black', ls=style, lw=1.5, label='_nolegend_', zorder=1)
+        label_z = grid[-1]*0.86
+        label_y = summaries['log10_c']['median'] + exponent*np.log10(1+label_z)
+        ax.annotate(fr'$p={exponent}$', xy=(label_z, label_y),
+                    xytext=(0, 8), textcoords='offset points', fontsize=16,
+                    ha='center', va='bottom',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=1))
+    symbol_legend(ax, fontsize=16)
+    fig.tight_layout()
+    comparison = FIG.with_name(FIG.name + '_power_comparison')
+    fig.savefig(comparison.with_suffix('.png'), dpi=200)
+    fig.savefig(comparison.with_suffix('.pdf'))
+    cfit, pfit = summaries['c'], summaries['p']
+    mass_low, mass_high = float(data.mass_lo.iloc[0]), float(data.mass_hi.iloc[0])
+    caption = (
+        r'\caption{Electron density as a function of redshift at fixed stellar mass '
+        + fr'(${mass_low:g} \leq \log(M_*/M_\odot) < {mass_high:g}$). '
+        + r'The black circle shows the stacked SDSS measurement; the green and red stars show '
+        + r'the lower- and higher-redshift JADES measurements, respectively. '
+        + r'Horizontal bars span the redshift ranges of the contributing galaxies; '
+        + r'vertical bars show the 16th--84th percentile measurement intervals. '
+        + r'The solid black line shows the relation evaluated at the MCMC posterior median parameters, '
+        + fr'$n_{{\rm e}} = ({cfit["median"]:.1f}^{{+{cfit["plus"]:.1f}}}_{{-{cfit["minus"]:.1f}}})'
+        + fr'\,(1+z)^{{{pfit["median"]:.3f}^{{+{pfit["plus"]:.3f}}}_{{-{pfit["minus"]:.3f}}}}}\,{{\rm cm}}^{{-3}}$. '
+        + r'The gray band indicates the pointwise 68\% credible interval of the mean relation. '
+        + r'The dashed, dash-dotted, and dotted black lines show $n_{\rm e} \propto (1+z)^p$ '
+        + r'with $p=1$, 2, and 3, respectively, normalized to the same posterior median $c$ as the solid curve.}'
+    )
+    (OUT/'power_comparison_caption.tex').write_text(caption + '\n')
     plt.close(fig)
     print(f'Fit results saved to {OUT}/mcmc_fit.json and {OUT}/mcmc_curve.csv')
     print(f'Figure saved to {FIG}.png and {FIG}.pdf')

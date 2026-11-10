@@ -23,6 +23,8 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.container import ErrorbarContainer
+from matplotlib.lines import Line2D
 from astropy.io import fits
 from astropy.table import Table
 from scipy.optimize import curve_fit
@@ -33,9 +35,9 @@ plt.rcParams.update({
     "figure.figsize": (12, 6), "font.size": 32, "axes.labelsize": 32, "axes.titlesize": 32,
     "axes.grid": False, "xtick.direction": "in", "ytick.direction": "in",
     "xtick.top": True, "ytick.right": True,
-    "xtick.major.size": 32, "ytick.major.size": 32, "xtick.major.width": 2, "ytick.major.width": 2,
+    "xtick.major.size": 16, "ytick.major.size": 16, "xtick.major.width": 2, "ytick.major.width": 2,
     "xtick.minor.visible": True, "ytick.minor.visible": True,
-    "xtick.minor.size": 8, "ytick.minor.size": 8, "xtick.minor.width": 1.5, "ytick.minor.width": 1.5,
+    "xtick.minor.size": 4, "ytick.minor.size": 4, "xtick.minor.width": 1.5, "ytick.minor.width": 1.5,
     "xtick.labelsize": 28, "ytick.labelsize": 28,
     "font.family": "STIXGeneral", "mathtext.fontset": "stix",
 })
@@ -366,18 +368,22 @@ def stack_jades(jd):
 # 作図
 # =====================================================================
 def plot_overview(loc, jd):
-    """M*–O/H 平面の全銀河と local の M* 範囲の帯。"""
+    """M*–O/H overview with only the comparison mass band."""
     fig, ax = plt.subplots(figsize=(6, 6))
-    for mass, oh, color, label, s, a in [
-            (loc['mass'], loc['oh'], 'gray', 'SDSS', 3, 0.15),
-            (jd['mass'], jd['oh'], 'tab:red', 'JADES', 10, 0.8)]:
+    for mass, oh, color, marker, size, alpha in [
+            (loc['mass'], loc['oh'], 'gray', 'o', 3, 0.15),
+            (jd['mass'], jd['oh'], 'crimson', '*', 35, 0.80)]:
         ok = np.isfinite(mass) & np.isfinite(oh) & (mass > 0) & (oh > 0)
-        ax.scatter(mass[ok], oh[ok], s=s, color=color, alpha=a, rasterized=True,
-                   label=f'{label} (N={ok.sum():,})')
-    ax.axvspan(*LOCAL_MASS_RANGE, color='tab:blue', alpha=0.08, label=r'Local $M_\ast$ range')
+        ax.scatter(mass[ok], oh[ok], s=size, marker=marker, color=color,
+                   alpha=alpha, rasterized=True, linewidths=0)
+    band = ax.axvspan(*LOCAL_MASS_RANGE, color='tab:blue', alpha=0.08)
+    handles = [Line2D([], [], color='black', marker='o', ls='', ms=8),
+               Line2D([], [], color='crimson', marker='*', ls='', ms=8), band]
+    labels = ['SDSS', 'JADES',
+              'Mass range']
+    ax.legend(handles, labels, fontsize=16, frameon=False, loc='upper left')
     ax.set_xlabel(r'$\log(M_\ast/M_\odot)$')
     ax.set_ylabel(r'$12+\log(\mathrm{O/H})$')
-    # ax.legend(fontsize=16, markerscale=2)
     ax.tick_params(which='major', length=10)
     finish(fig, OUT['overview_png'])
 
@@ -464,8 +470,8 @@ def plot_ne_vs_oh(res, jres):
     ax.errorbar(x[ok], y[ok],
                 xerr=np.vstack([x - res['oh_p16_median'], res['oh_p84_median'] - x])[:, ok],
                 yerr=np.vstack([y - np.log10(res['ne_mean_p16']), np.log10(res['ne_mean_p84']) - y])[:, ok],
-                fmt='s', ms=10, color='k', capsize=3,
-                label=rf'Local (${LOCAL_MASS_RANGE[0]}\leq\log M_\ast<{LOCAL_MASS_RANGE[1]}$)')
+                fmt='o', ms=8, color='k', capsize=6,
+                label='SDSS')
     if (~ok).any():
         print(f'[local] 区間が定まらない {(~ok).sum()} ビンは描いていません (CSV 参照)')
     xlim, ylim = [x.min() - 0.1, x.max() + 0.1], [1.25, 3]
@@ -473,15 +479,17 @@ def plot_ne_vs_oh(res, jres):
         jx, jy = jres['oh_median'], np.log10(jres['ne'])
         jlo, jhi = np.log10(jres['ne_lo']), np.log10(jres['ne_hi'])
         ax.errorbar(jx, jy, xerr=[[jx - jres['oh_p16']], [jres['oh_p84'] - jx]],
-                    yerr=[[jy - jlo], [jhi - jy]], fmt='s', ms=10, color='crimson',
-                    capsize=4, label=f'JADES (N={jres["N"]})')
+                    yerr=[[jy - jlo], [jhi - jy]], fmt='*', ms=21, color='crimson',
+                    capsize=6, label='JADES')
         xlim = [min(xlim[0], jres['oh_p16'] - 0.1), max(xlim[1], jres['oh_p84'] + 0.1)]
         ylim = [min(ylim[0], jlo - 0.1), max(ylim[1], jhi + 0.1)]
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.set_xlabel(r'$12+\log(\mathrm{O/H})$')
     ax.set_ylabel(r'$\log n_{\mathrm{e}}$')
-    # ax.legend(fontsize=12)
+    handles, labels = ax.get_legend_handles_labels()
+    handles = [h.lines[0] if isinstance(h, ErrorbarContainer) else h for h in handles]
+    ax.legend(handles, labels, fontsize=16, frameon=False, numpoints=1)
     finish(fig, OUT['ne_png'])
 
 

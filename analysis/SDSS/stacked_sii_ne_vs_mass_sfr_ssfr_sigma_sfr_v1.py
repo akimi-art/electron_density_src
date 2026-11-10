@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from matplotlib.container import ErrorbarContainer
 from astropy.io import fits
 from astropy.table import Table
 from astropy.cosmology import Planck18
@@ -307,8 +308,14 @@ def plot_results(results, show):
             x, y = sub.x.to_numpy(), np.log10(sub['ne'].to_numpy())
             ax.errorbar(x, y, xerr=np.vstack([x-sub.bin_lo, sub.bin_hi-x]),
                         yerr=np.vstack([y-np.log10(sub.ne_lo), np.log10(sub.ne_hi)-y]),
-                        fmt='s', color=color, ms=8 if sample == 'local' else 11,
-                        capsize=6, lw=1.5, zorder=3 if sample == 'high-z' else 2)
+                        fmt='o' if sample == 'local' else '*', color=color,
+                        ms=8 if sample == 'local' else 21,
+                        capsize=6, capthick=2, lw=1.8,
+                        label='SDSS' if sample == 'local' else 'JADES',
+                        zorder=3 if sample == 'high-z' else 2)
+        handles, labels = ax.get_legend_handles_labels()
+        handles = [h.lines[0] if isinstance(h, ErrorbarContainer) else h for h in handles]
+        ax.legend(handles, labels, fontsize=20, loc='upper left', frameon=False, numpoints=1)
         ax.set_xlim(config['xlim'])
         ax.set_xlabel(config['label'])
         ax.xaxis.set_major_locator(MaxNLocator(nbins=4, prune='both'))
