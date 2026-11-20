@@ -129,16 +129,15 @@ def fit_and_plot(result):
     FIG.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG.with_suffix('.png'), dpi=200)
     fig.savefig(FIG.with_suffix('.pdf'))
-    # Companion figure for comparing redshift exponents at fixed normalization.
-    for exponent, style in [(1, '--'), (2, '-.'), (3, ':')]:
-        ax.plot(grid, summaries['log10_c']['median'] + exponent*np.log10(1+grid),
-                color='black', ls=style, lw=1.5, label='_nolegend_', zorder=1)
-        label_z = grid[-1]*0.86
-        label_y = summaries['log10_c']['median'] + exponent*np.log10(1+label_z)
-        ax.annotate(fr'$p={exponent}$', xy=(label_z, label_y),
-                    xytext=(0, 8), textcoords='offset points', fontsize=16,
-                    ha='center', va='bottom',
-                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=1))
+    # Companion figure showing the cubic redshift scaling.
+    ax.plot(grid, summaries['log10_c']['median'] + 3*np.log10(1+grid),
+            color='black', ls='-', lw=1.5, label='_nolegend_', zorder=1)
+    label_z = grid[-1]*0.86
+    label_y = summaries['log10_c']['median'] + 3*np.log10(1+label_z)
+    ax.annotate(r'$p=3$', xy=(label_z, label_y),
+                xytext=(0, 8), textcoords='offset points', fontsize=16,
+                ha='center', va='bottom',
+                bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=1))
     symbol_legend(ax, fontsize=16)
     fig.tight_layout()
     comparison = FIG.with_name(FIG.name + '_power_comparison')
@@ -153,12 +152,12 @@ def fit_and_plot(result):
         + r'the lower- and higher-redshift JADES measurements, respectively. '
         + r'Horizontal bars span the redshift ranges of the contributing galaxies; '
         + r'vertical bars show the 16th--84th percentile measurement intervals. '
-        + r'The solid black line shows the relation evaluated at the MCMC posterior median parameters, '
+        + r'The solid black line in the gray band shows the relation evaluated at the MCMC posterior median parameters, '
         + fr'$n_{{\rm e}} = ({cfit["median"]:.1f}^{{+{cfit["plus"]:.1f}}}_{{-{cfit["minus"]:.1f}}})'
         + fr'\,(1+z)^{{{pfit["median"]:.3f}^{{+{pfit["plus"]:.3f}}}_{{-{pfit["minus"]:.3f}}}}}\,{{\rm cm}}^{{-3}}$. '
         + r'The gray band indicates the pointwise 68\% credible interval of the mean relation. '
-        + r'The dashed, dash-dotted, and dotted black lines show $n_{\rm e} \propto (1+z)^p$ '
-        + r'with $p=1$, 2, and 3, respectively, normalized to the same posterior median $c$ as the solid curve.}'
+        + r'The solid line labeled $p=3$ shows $n_{\rm e} \propto (1+z)^3$, '
+        + r'normalized to the same posterior median $c$.}'
     )
     (OUT/'power_comparison_caption.tex').write_text(caption + '\n')
     plt.close(fig)
