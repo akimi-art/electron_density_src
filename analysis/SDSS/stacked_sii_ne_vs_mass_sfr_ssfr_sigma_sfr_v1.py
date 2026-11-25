@@ -293,15 +293,16 @@ def stack_highz(items, key, config, n_mc, rng):
     return rows, members
 
 
-def plot_results(results, show):
+def plot_results(results, show, sdss_only=False):
     plt.rcParams.update({'font.family': 'STIXGeneral', 'mathtext.fontset': 'stix',
                          'font.size': 32, 'axes.labelsize': 32, 'xtick.labelsize': 32,
                          'ytick.labelsize': 32, 'xtick.direction': 'in', 'ytick.direction': 'in',
                          'xtick.top': True, 'ytick.right': True, 'axes.linewidth': 2})
     fig, axes = plt.subplots(2, 2, figsize=(12, 12), sharey=True, gridspec_kw={'wspace': 0})
     axes = axes.ravel()
+    samples = [('local', 'k')] if sdss_only else [('local', 'k'), ('high-z', 'crimson')]
     for ax, (key, config) in zip(axes, PANELS.items()):
-        for sample, color in [('local', 'k'), ('high-z', 'crimson')]:
+        for sample, color in samples:
             sub = results[(results.parameter == key) & (results['sample'] == sample) & (results.status == 'ok')]
             if sub.empty:
                 continue
@@ -335,13 +336,15 @@ def plot_results(results, show):
     # 各行の左右の描画領域を接続し、上下には軸ラベルの余白を確保する。
     fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.98,
                         wspace=0, hspace=0.30)
-    FIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIG_PATH, dpi=200)
-    fig.savefig(FIG_PATH.with_suffix('.pdf'))
+    path = FIG_PATH.with_stem(f'{FIG_PATH.stem}_sdss_only') if sdss_only else FIG_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=200)
+    if not sdss_only:
+        fig.savefig(path.with_suffix('.pdf'))
     if show:
         plt.show()
     plt.close(fig)
-    print('Saved:', FIG_PATH)
+    print('Saved:', path)
 
 
 def main():
@@ -349,7 +352,12 @@ def main():
     parser.add_argument('--local-n-mc', type=int, default=LOCAL_N_MC)
     parser.add_argument('--jades-n-mc', type=int, default=JADES_N_MC)
     parser.add_argument('--no-show', action='store_true')
+    parser.add_argument('--sdss-only', action='store_true',
+                        help='Draw the SDSS-only panels from the saved density results.')
     args = parser.parse_args()
+    if args.sdss_only:
+        plot_results(pd.read_csv(CSV_DIR / 'density_results.csv'), not args.no_show, sdss_only=True)
+        return
     if min(args.local_n_mc, args.jades_n_mc) < 2:
         parser.error('MC回数は2以上にしてください')
     CSV_DIR.mkdir(parents=True, exist_ok=True)

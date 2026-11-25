@@ -3,19 +3,19 @@
 """
 stacked_sii_ne_vs_oh.py
 
-M*–O/H 平面の同じ領域で local (SDSS) と high-z (JADES) の [SII] から n_e を求め,
+local (SDSS) と high-z (JADES) の金属量ビンごとに [SII] から n_e を求め,
 log n_e vs 12+log(O/H) に描く。
 
-  local : JADES と同じ M* 範囲で区切り, O/H ビンごとに各線の flux の平均の比を取る
+  local : O/H ビンごとに各線の flux の平均の比を取る
           (ビン内で両線の flux の 2–98% を共通選別)。
           誤差は固定サンプルの独立 Gaussian flux MC (bootstrap ではない)。
-  JADES : BASE_SAMPLE かつ M*・O/H の長方形領域の銀河を静止系で平均スタックし,
+  JADES : BASE_SAMPLE の各 O/H ビンに入る銀河を静止系で平均スタックし,
           [SII] ダブレット (5 パラメータ) をフィット。誤差はスタックの MC。
 
 金属量はどちらも strong-line 法のカタログ値 (較正の違いは考慮しない)。
 O/H・M* の横棒や 16–84% は銀河間の分布であり, 測定誤差ではない。
 
-実行: python electron_density_src/analysis/SDSS/stacked_sii_ne_vs_oh.py [--n-mc N]
+実行: python electron_density_src/analysis/SDSS/stacked_sii_ne_vs_oh_v1.py [--comparison-only] [--n-mc N]
 """
 from pathlib import Path
 import argparse
@@ -54,9 +54,7 @@ FLAGS_PATH = ROOT / 'results/fits/mpajhu_dr7_v5_2_master_v2_Ka03_Reu.fits'      
 JADES_PATH = ROOT / 'results/JADES/sample/jades_all_with_flags.fits'
 
 # ---- 比較領域 (lo <= x < hi) ----
-JADES_MASS_RANGE = (9.0, 9.5)          # JADES の log(M*/Msun)
-JADES_OH_RANGE = (8.1, 8.5)            # JADES の 12+log(O/H)
-LOCAL_MASS_RANGE = JADES_MASS_RANGE    # local は M* のみで区切る (O/H はビン分け)
+JADES_OH_RANGE = (8.5, 9.0)            # JADES の 12+log(O/H)
 
 # ---- 列名 ----
 LOCAL_COLS = dict(mass='sm_MEDIAN', oh='oh_MEDIAN', oh16='oh_P16', oh84='oh_P84',
@@ -157,7 +155,7 @@ def save_csv(df, path):
 # データの読み込みと選択
 # =====================================================================
 def load_local():
-    """local の選択後サンプル。'use' = 有効な O/H・[SII] かつ M* 範囲内。"""
+    """local の選択後サンプル。'use' = 有効な O/H・[SII]。"""
     tab = Table.read(LOCAL_PATH, hdu=1)
     assert 'SELECTED_V2' in tab.colnames, 'SELECTED_V2 列がありません（選択後のファイルではない可能性）'
     assert np.all(np.asarray(tab['SELECTED_V2'], bool)), '選択されていない行が含まれています'
@@ -167,25 +165,24 @@ def load_local():
              & (d['oh16'] > 0) & (d['oh16'] <= d['oh']) & (d['oh'] <= d['oh84'])
              & np.isfinite(d['f1']) & np.isfinite(d['f2'])
              & np.isfinite(d['e1']) & np.isfinite(d['e2']) & (d['e1'] > 0) & (d['e2'] > 0))
-    d['use'] = valid & in_range(d['mass'], LOCAL_MASS_RANGE)
+    d['use'] = valid
     if not d['use'].any():
-        raise ValueError('local: M* 範囲内に有効な O/H・[SII] がありません')
-    print(f'[local] 選択後 {len(tab):,} → O/H・[SII] 有効 {valid.sum():,} '
-          f'→ logM* {LOCAL_MASS_RANGE} {d["use"].sum():,}')
+        raise ValueError('local: 有効な O/H・[SII] がありません')
+    print(f'[local] 選択後 {len(tab):,} → O/H・[SII] 有効 {valid.sum():,}')
     return d
 
 
 def load_jades():
-    """JADES。'sel' = BASE_SAMPLE かつ M*・O/H の長方形領域内。"""
+    """JADES。'sel' = BASE_SAMPLE かつ O/H 範囲内。"""
     tab = Table.read(JADES_PATH)
     d = dict(tab=tab, mass=column(tab, JADES_MASS_COL), oh=column(tab, JADES_OH_COL),
              z=column(tab, 'z_Spec'))
     d['sel'] = (np.asarray(tab['BASE_SAMPLE'], bool)
-                & in_range(d['mass'], JADES_MASS_RANGE) & in_range(d['oh'], JADES_OH_RANGE)
+                & in_range(d['oh'], JADES_OH_RANGE)
                 & np.isfinite(d['z']) & (d['z'] > 0))
     if not d['sel'].any():
         raise ValueError('JADES: 領域内に BASE_SAMPLE の銀河がありません')
-    print(f'[JADES] logM* {JADES_MASS_RANGE}, O/H {JADES_OH_RANGE}: N = {d["sel"].sum()}')
+    print(f'[JADES] O/H {JADES_OH_RANGE}: N = {d["sel"].sum()}')
     return d
 
 
@@ -290,7 +287,7 @@ def read_rest_spectrum(path, z):
     return fr, er
 
 
-def stack_jades(jd):
+def stack_jades(jd, oh_range):
     rows = jd['tab'][jd['sel']]
     spectra = []
     for row in rows:
@@ -328,8 +325,7 @@ def stack_jades(jd):
     status = ('ok' if np.all(np.isfinite([ne, ne_lo, ne_hi])) and 0 < ne_lo <= ne <= ne_hi
               else 'unconstrained_interval')
     res = dict(N=len(rows), z_median=np.median(jd['z'][jd['sel']]), oh_column=JADES_OH_COL,
-               mass_range_lo=JADES_MASS_RANGE[0], mass_range_hi=JADES_MASS_RANGE[1],
-               oh_range_lo=JADES_OH_RANGE[0], oh_range_hi=JADES_OH_RANGE[1],
+               oh_range_lo=oh_range[0], oh_range_hi=oh_range[1],
                oh_median=oh50, oh_p16=oh16, oh_p84=oh84,
                oh_interval_type='sample_percentiles_not_measurement_error',
                R=R, R_p16=r16, R_p84=r84, ne=ne, ne_lo=ne_lo, ne_hi=ne_hi,
@@ -342,9 +338,14 @@ def stack_jades(jd):
         print(f'[JADES] N = {res["N"]}, R = {R:.3f}: n_e の区間が定まりません (CSV 参照)')
 
     # スタックの保存と確認図
-    OUT['jades_stack_fits'].parent.mkdir(parents=True, exist_ok=True)
+    suffix = f'_oh_{oh_range[0]:.1f}_{oh_range[1]:.1f}'
+    fits_path = OUT['jades_stack_fits']
+    png_path = OUT['jades_stack_png']
+    fits_path = fits_path.with_stem(fits_path.stem + suffix)
+    png_path = png_path.with_stem(png_path.stem + suffix)
+    fits_path.parent.mkdir(parents=True, exist_ok=True)
     Table(dict(WAVE=WAVE_GRID, FLUX=stack, FLUX_ERR=stack_err, N_GAL=n_pix)).write(
-        OUT['jades_stack_fits'], overwrite=True)
+        fits_path, overwrite=True)
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.step(WAVE_GRID, stack, where='mid', color='k', label=f'JADES mean (N={res["N"]})')
     ax.fill_between(WAVE_GRID, stack - stack_err, stack + stack_err, alpha=0.3, color='gray')
@@ -360,7 +361,7 @@ def stack_jades(jd):
     ax.set_xlabel('Rest-frame wavelength [Å]')
     ax.set_ylabel('Mean flux')
     # ax.legend(fontsize=12)
-    finish(fig, OUT['jades_stack_png'])
+    finish(fig, png_path)
     return res
 
 
@@ -368,7 +369,7 @@ def stack_jades(jd):
 # 作図
 # =====================================================================
 def plot_overview(loc, jd):
-    """M*–O/H overview with only the comparison mass band."""
+    """M*–O/H overview."""
     fig, ax = plt.subplots(figsize=(6, 6))
     for mass, oh, color, marker, size, alpha in [
             (loc['mass'], loc['oh'], 'gray', 'o', 3, 0.15),
@@ -376,11 +377,9 @@ def plot_overview(loc, jd):
         ok = np.isfinite(mass) & np.isfinite(oh) & (mass > 0) & (oh > 0)
         ax.scatter(mass[ok], oh[ok], s=size, marker=marker, color=color,
                    alpha=alpha, rasterized=True, linewidths=0)
-    band = ax.axvspan(*LOCAL_MASS_RANGE, color='tab:blue', alpha=0.08)
     handles = [Line2D([], [], color='black', marker='o', ls='', ms=8),
-               Line2D([], [], color='crimson', marker='*', ls='', ms=8), band]
-    labels = ['SDSS', 'JADES',
-              'Mass range']
+               Line2D([], [], color='crimson', marker='*', ls='', ms=8)]
+    labels = ['SDSS', 'JADES']
     ax.legend(handles, labels, fontsize=16, frameon=False, loc='upper left')
     ax.set_xlabel(r'$\log(M_\ast/M_\odot)$')
     ax.set_ylabel(r'$12+\log(\mathrm{O/H})$')
@@ -390,7 +389,7 @@ def plot_overview(loc, jd):
 
 def plot_distributions(loc, jd):
     """比較に使う local / JADES の M* と O/H の分布 (確率密度) と中央値。
-    local は M* 範囲内の有効な銀河 (O/H ビン内の flux カット前)。"""
+    local は有効な銀河 (O/H ビン内の flux カット前)。"""
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     print('[分布] 中央値 local / JADES (差)')
     for ax, key, label in [(axes[0], 'mass', r'$\log(M_\ast/M_\odot)$'),
@@ -409,29 +408,47 @@ def plot_distributions(loc, jd):
     finish(fig, OUT['dist_png'])
 
 
+def plot_jades_oh_histogram(tab):
+    oh = column(tab, JADES_OH_COL)
+    oh = oh[np.isfinite(oh) & (oh > 0)]
+    if not oh.size:
+        raise ValueError('JADES: 有効な金属量がありません')
+    edges = bin_edges(oh, JADES_OH_HIST_BIN_WIDTH)
+    counts, _ = np.histogram(oh, edges)
+    assert counts.sum() == oh.size
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.stairs(counts, edges, fill=True, facecolor='mistyrose',
+              edgecolor='crimson', linewidth=2)
+    ax.text(0.05, 0.95, f'JADES ($N={oh.size}$)', transform=ax.transAxes,
+            ha='left', va='top', fontsize=20)
+    ax.set(xlim=(edges[0], edges[-1]), ylim=(0, 1.12 * counts.max()),
+           xlabel=r'$12+\log_{10}(\mathrm{O/H})$', ylabel='Number of galaxies')
+    ax.yaxis.get_major_locator().set_params(integer=True)
+    print(f'[JADES] 有効な金属量: N = {oh.size}, 範囲 {oh.min():.3f}–{oh.max():.3f}')
+    finish(fig, OUT['jades_oh_hist_png'])
+
+
 def plot_jades_histograms(jd):
-    """JADES 比較サンプルの M* と O/H のヒストグラム。M* の要約を CSV に保存して返す。"""
-    summary = {}
-    for key, width, color, path in [('mass', JADES_MASS_HIST_BIN_WIDTH, 'tab:red', OUT['jades_mass_hist_png']),
-                                    ('oh', JADES_OH_HIST_BIN_WIDTH, 'crimson', OUT['jades_oh_hist_png'])]:
-        v = jd[key][jd['sel']]
-        p16, med, p84 = np.percentile(v, [16, 50, 84])
-        fig, ax = plt.subplots(figsize=(6, 6))
-        ax.axvspan(p16, p84, color=color, alpha=0.12, label=f'16–84%: {p16:.2f}–{p84:.2f}')
-        ax.hist(v, bins=bin_edges(v, width), histtype='step', color=color, lw=2,
-                label=f'JADES (N={len(v)})')
-        ax.axvline(med, color='k', ls='--', lw=1.5, label=f'Median: {med:.2f}')
-        ax.set_xlabel(r'$\log_{10}(M_\ast/M_\odot)$' if key == 'mass' else r'$12+\log_{10}(\mathrm{O/H})$')
-        ax.set_ylabel('Number of galaxies')
-        # ax.legend(fontsize=12)
-        finish(fig, path)
-        if key == 'mass':
-            summary = dict(mass_column=JADES_MASS_COL, mass_N=len(v),
-                           logM_p16=p16, logM_median=med, logM_p84=p84,
-                           logM_std=np.std(v, ddof=1) if len(v) > 1 else np.nan,
-                           logM_min=v.min(), logM_max=v.max(),
-                           mass_interval_type='sample_percentiles_not_measurement_error')
+    """比較サンプルの M* と全カタログの O/H を描き、M* の要約を保存する。"""
+    color = 'tab:red'
+    v = jd['mass'][jd['sel']]
+    p16, med, p84 = np.percentile(v, [16, 50, 84])
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.axvspan(p16, p84, color=color, alpha=0.12, label=f'16–84%: {p16:.2f}–{p84:.2f}')
+    ax.hist(v, bins=bin_edges(v, JADES_MASS_HIST_BIN_WIDTH), histtype='step', color=color, lw=2,
+            label=f'JADES (N={len(v)})')
+    ax.axvline(med, color='k', ls='--', lw=1.5, label=f'Median: {med:.2f}')
+    ax.set_xlabel(r'$\log_{10}(M_\ast/M_\odot)$')
+    ax.set_ylabel('Number of galaxies')
+    # ax.legend(fontsize=12)
+    finish(fig, OUT['jades_mass_hist_png'])
+    summary = dict(mass_column=JADES_MASS_COL, mass_N=len(v),
+                   logM_p16=p16, logM_median=med, logM_p84=p84,
+                   logM_std=np.std(v, ddof=1) if len(v) > 1 else np.nan,
+                   logM_min=v.min(), logM_max=v.max(),
+                   mass_interval_type='sample_percentiles_not_measurement_error')
     save_csv(pd.DataFrame([summary]), OUT['jades_mass_csv'])
+    plot_jades_oh_histogram(jd['tab'])
     return summary
 
 
@@ -461,36 +478,51 @@ def plot_completeness(edges):
     finish(fig, OUT['compl_png'])
 
 
-def plot_ne_vs_oh(res, jres):
-    """log n_e vs 12+log(O/H): local の O/H ビンと JADES の 1 点。"""
+def stack_jades_bins(jd):
+    """Fit a stack in each configured metallicity bin."""
+    edges = JADES_OH_RANGE
+    results = []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        selected = jd['sel'] & in_range(jd['oh'], (lo, hi))
+        print(f'[JADES] {lo:.1f} <= 12+log(O/H) < {hi:.1f}: N = {selected.sum()}')
+        results.append(stack_jades(dict(jd, sel=selected), (lo, hi)))
+    bins = pd.DataFrame(results)
+    save_csv(bins, OUT['jades_csv'])
+    return bins
+
+
+def plot_ne_vs_oh(res, jades_bins, sdss_only=False):
+    """log n_e vs 12+log(O/H): SDSS と JADES の O/H ビン。"""
     fig, ax = plt.subplots(figsize=(6, 6))
     ok = res['status_mean'].eq('ok').to_numpy()
     x = res['oh_median'].to_numpy()
     y = np.log10(res['ne_mean'].to_numpy())
     ax.errorbar(x[ok], y[ok],
-                xerr=np.vstack([x - res['oh_p16_median'], res['oh_p84_median'] - x])[:, ok],
+                xerr=np.vstack([x - res['oh_lo'], res['oh_hi'] - x])[:, ok],
                 yerr=np.vstack([y - np.log10(res['ne_mean_p16']), np.log10(res['ne_mean_p84']) - y])[:, ok],
                 fmt='o', ms=8, color='k', capsize=6,
                 label='SDSS')
     if (~ok).any():
         print(f'[local] 区間が定まらない {(~ok).sum()} ビンは描いていません (CSV 参照)')
-    xlim, ylim = [x.min() - 0.1, x.max() + 0.1], [1.25, 3]
-    if jres['status'] == 'ok':
+    ymax = 3
+    for i, jres in enumerate(jades_bins[jades_bins['status'].eq('ok')].to_dict('records')):
         jx, jy = jres['oh_median'], np.log10(jres['ne'])
         jlo, jhi = np.log10(jres['ne_lo']), np.log10(jres['ne_hi'])
-        ax.errorbar(jx, jy, xerr=[[jx - jres['oh_p16']], [jres['oh_p84'] - jx]],
+        ymax = max(ymax, jhi + 0.1)
+        if sdss_only:
+            continue
+        ax.errorbar(jx, jy, xerr=[[jx - jres['oh_range_lo']], [jres['oh_range_hi'] - jx]],
                     yerr=[[jy - jlo], [jhi - jy]], fmt='*', ms=21, color='crimson',
-                    capsize=6, label='JADES')
-        xlim = [min(xlim[0], jres['oh_p16'] - 0.1), max(xlim[1], jres['oh_p84'] + 0.1)]
-        ylim = [min(ylim[0], jlo - 0.1), max(ylim[1], jhi + 0.1)]
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+                    capsize=6, label='JADES' if i == 0 else None)
+    ax.set_xlim(8, 9)
+    ax.set_ylim(1.25, ymax)
     ax.set_xlabel(r'$12+\log(\mathrm{O/H})$')
     ax.set_ylabel(r'$\log n_{\mathrm{e}}$')
     handles, labels = ax.get_legend_handles_labels()
     handles = [h.lines[0] if isinstance(h, ErrorbarContainer) else h for h in handles]
     ax.legend(handles, labels, fontsize=16, frameon=False, numpoints=1)
-    finish(fig, OUT['ne_png'])
+    path = OUT['ne_png']
+    finish(fig, path.with_stem(f'{path.stem}_sdss_only') if sdss_only else path)
 
 
 def plot_sfr_map(loc):
@@ -517,7 +549,29 @@ def plot_sfr_map(loc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--n-mc', type=int, default=N_MC)
+    parser.add_argument('--plot-only', action='store_true',
+                        help='Draw only the electron-density comparison from the saved CSV results.')
+    parser.add_argument('--sdss-only', action='store_true',
+                        help='Draw the SDSS-only metallicity plot from the saved density results.')
+    parser.add_argument('--restack-jades', action='store_true',
+                        help='Recompute JADES bins and compare with the saved SDSS results.')
+    parser.add_argument('--jades-oh-histogram', action='store_true',
+                        help='Draw the metallicity histogram for all valid JADES catalog values.')
+    parser.add_argument('--comparison-only', action='store_true',
+                        help='Recompute both samples and draw the electron-density comparison.')
     args = parser.parse_args()
+    if args.jades_oh_histogram:
+        plot_jades_oh_histogram(Table.read(JADES_PATH))
+        return
+    if args.restack_jades:
+        res = pd.read_csv(OUT['local_csv'])
+        plot_ne_vs_oh(res, stack_jades_bins(load_jades()))
+        return
+    if args.plot_only or args.sdss_only:
+        res = pd.read_csv(OUT['local_csv'])
+        jres = pd.read_csv(OUT['jades_csv'])
+        plot_ne_vs_oh(res, jres, sdss_only=args.sdss_only)
+        return
     if args.n_mc < 2:
         parser.error('--n-mc must be at least 2')
     rng = np.random.default_rng(SEED)
@@ -526,24 +580,17 @@ def main():
     loc = load_local()
     jd = load_jades()
 
-    # 2. 比較領域と分布の確認
-    plot_overview(loc, jd)
-    plot_distributions(loc, jd)
-    jades_mass_summary = plot_jades_histograms(jd)
-
-    # 3. local: O/H ビンごとの n_e と completeness
     edges = bin_edges(loc['oh'][loc['use']], OH_BIN_WIDTH)
-    plot_completeness(edges)
+    if not args.comparison_only:
+        plot_overview(loc, jd)
+        plot_distributions(loc, jd)
+        plot_jades_histograms(jd)
+        plot_completeness(edges)
+
     res = stack_local(loc, edges, args.n_mc, rng)
-
-    # 4. JADES: スタックの n_e
-    jres = stack_jades(jd)
-    jres.update(jades_mass_summary)
-    save_csv(pd.DataFrame([jres]), OUT['jades_csv'])
-
-    # 5. 結果の図
-    plot_ne_vs_oh(res, jres)
-    plot_sfr_map(loc)
+    plot_ne_vs_oh(res, stack_jades_bins(jd))
+    if not args.comparison_only:
+        plot_sfr_map(loc)
     print(f'出力: {CSV_DIR} , {FIG_DIR}')
 
 
