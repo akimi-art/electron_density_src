@@ -21,7 +21,7 @@ SII_WINDOW = (WAVE_GRID > LINE_CENTERS[0] - 100) & (
 )
 
 
-def matched_rows(paths):
+def matched_rows(paths, extra_fields=()):
     """Find master rows by the plate, MJD and fiber in each spSpec filename."""
     keys = [
         (int(plate), int(mjd), int(fiber))
@@ -41,7 +41,7 @@ def matched_rows(paths):
         if not matched:
             raise RuntimeError("No local spSpec files matched the master catalog.")
         matched_paths, row_indices = zip(*matched)
-        fields = ("Z", *FLUX_COLUMNS, *(f"{name}_ERR" for name in FLUX_COLUMNS))
+        fields = ("Z", *FLUX_COLUMNS, *(f"{name}_ERR" for name in FLUX_COLUMNS), *extra_fields)
         values = {name: np.asarray(catalog[name][list(row_indices)], float) for name in fields}
     return matched_paths, values
 
@@ -67,10 +67,14 @@ def resample(path, redshift):
 
 def mean_stack(flux, noise, counts):
     """Apply the JADES 500-draw mean-stack estimator at each wavelength."""
+    return mean_stack_from_sums(np.nansum(flux, axis=0), np.nansum(noise**2, axis=0), counts)
+
+
+def mean_stack_from_sums(flux_sum, variance_sum, counts):
     covered = counts > 0
-    means = np.nanmean(flux[:, covered], axis=0)
+    means = flux_sum[covered] / counts[covered]
     # The average of independent Gaussian draws is itself Gaussian.
-    scale = np.sqrt(np.nansum(noise[:, covered] ** 2, axis=0)) / counts[covered]
+    scale = np.sqrt(variance_sum[covered]) / counts[covered]
     rng = np.random.default_rng(42)
     draws = rng.normal(means[:, None], scale[:, None], size=(len(means), 500))
     p16, median, p84 = np.percentile(draws, [16, 50, 84], axis=1)
@@ -81,7 +85,7 @@ def mean_stack(flux, noise, counts):
     return stack, stack_err
 
 
-def fit_doublet(wave, stack, stack_err):
+def fit_doublet(wave, stack, stack_err, *, return_ratio=False):
     """Fit the JADES shared-width doublet plus linear continuum in vacuum."""
     fit_range = (wave > 6650) & (wave < 6800)
     use = fit_range & np.isfinite(stack) & np.isfinite(stack_err) & (stack_err > 0)
@@ -105,7 +109,8 @@ def fit_doublet(wave, stack, stack_err):
     print(f"[S II] fit: ratio={params[0] / params[1]:.3f}, "
           f"sigma={abs(params[2]):.3f} Å, shift={params[3]:+.3f} Å")
     model_wave = np.linspace(6650, 6800, 1000)
-    return model_wave, model(model_wave, *params), LINE_CENTERS + params[3]
+    result = model_wave, model(model_wave, *params), LINE_CENTERS + params[3]
+    return (*result, params[0] / params[1]) if return_ratio else result
 
 
 def main():
@@ -161,6 +166,11 @@ def main():
     stack, stack_err = mean_stack(raw, np.asarray(spectrum_errors)[keep], counts)
     model_wave, model_flux, fitted_centers = fit_doublet(wave, stack, stack_err)
 
+    plot_single_stack(wave, stack, stack_err, model_wave, model_flux, fitted_centers, args.output)
+
+
+def plot_single_stack(wave, stack, stack_err, model_wave, model_flux, fitted_centers, output):
+    """Save the SDSS stack, measured uncertainty band, and doublet fit."""
     plt.rcParams.update({
         "figure.figsize": (12, 6),
         "font.size": 32, "axes.labelsize": 32, "axes.titlesize": 32,
@@ -196,9 +206,9 @@ def main():
     pad = 0.05 * ((ymax - ymin) if ymax > ymin else max(abs(ymin), 1e-30))
     ax.set_ylim(ymin - pad, ymax + pad)
     print(f"Plot y limits: {ymin - pad:.3f} to {ymax + pad:.3f}")
-    fig.savefig(args.output, dpi=220)
+    fig.savefig(output, dpi=220)
     plt.close(fig)
-    print(f"Saved {args.output}")
+    print(f"Saved {output}")
 
 
 if __name__ == "__main__":
