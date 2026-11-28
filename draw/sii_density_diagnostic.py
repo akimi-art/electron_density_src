@@ -42,8 +42,8 @@ def main():
                 label=rf"$T_{{\rm e}}$ = {temperature:,} K")
 
     ax.set(xlim=(0, 5), ylim=(0.4, 1.56),
-           xlabel=r"$\log_{10}(n_{\rm e}/\mathrm{cm}^{-3})$",
-           ylabel=r"$R_{[\mathrm{S\,II}]}=F(\lambda6716)/F(\lambda6731)$")
+           xlabel=r"$\log(n_{\rm e}/\mathrm{cm}^{-3})$",
+           ylabel=r"$R_{[\mathrm{S\,II}]}$")
     ax.set_yticks(np.arange(0.4, 1.51, 0.2))
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     ax.yaxis.set_minor_locator(AutoMinorLocator(4))

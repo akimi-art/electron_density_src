@@ -93,9 +93,9 @@ def sii_model(w, f1, f2, dv, sig, c0):
     g = lambda m, f: f * np.exp(-0.5 * ((w - m) / sig) ** 2) / (np.sqrt(2 * np.pi) * sig)
     return g(m1, f1) + g(m2, f2) + c0
 
-def fit_sii(y, err):
+def fit_sii(y, err, *, fit_window=FIT_WINDOW):
     """フィット窓内で 5 パラメータのフィット。flux を正規化して解き, 元の単位に戻す。"""
-    m = (WAVE_GRID >= FIT_WINDOW[0]) & (WAVE_GRID <= FIT_WINDOW[1]) \
+    m = (WAVE_GRID >= fit_window[0]) & (WAVE_GRID <= fit_window[1]) \
         & np.isfinite(y) & np.isfinite(err) & (err > 0)
     if m.sum() <= 5:
         raise ValueError('JADES: フィットに使えるピクセルが足りません')

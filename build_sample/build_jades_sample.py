@@ -267,10 +267,19 @@ def finish(ax, path):
     plt.tight_layout(); plt.savefig(path, dpi=200); plt.show()
     print(f"[DONE] {path}")
 
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.hist(z[base], bins=15, color="0.7", edgecolor="black")
-ax.set_xlabel(r"$z$"); ax.set_ylabel("Number of galaxies")
-finish(ax, f"{FIG_DIR}/hist_z_JADES.png")
+fig, ax = plt.subplots(figsize=(6, 6))
+ax.hist(z[base], bins=15, color="gray", edgecolor="black", alpha=0.8)
+ticks = ax.get_xticks()
+ax.set_xticks(ticks[ticks > 0])
+ax.set_xlim(0, np.max(z[base]))
+ax.set_xlabel("z")
+ax.set_ylabel("Number of galaxies")
+for spine in ax.spines.values():
+    spine.set_linewidth(2)
+hist_path = f"{FIG_DIR}/hist_z_JADES.png"
+fig.savefig(hist_path, dpi=200, bbox_inches="tight")
+plt.show()
+print(f"[DONE] {hist_path}")
 
 for x, pname, xlabel, fname in [
         (logM,        "MASS",  r"$\log(M_\ast/M_\odot)$",                                   "hist_mass_JADES.png"),

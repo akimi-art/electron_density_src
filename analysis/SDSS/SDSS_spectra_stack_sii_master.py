@@ -169,37 +169,41 @@ def main():
     plot_single_stack(wave, stack, stack_err, model_wave, model_flux, fitted_centers, args.output)
 
 
-def plot_single_stack(wave, stack, stack_err, model_wave, model_flux, fitted_centers, output):
-    """Save the SDSS stack, measured uncertainty band, and doublet fit."""
+def plot_single_stack(wave, stack, stack_err, model_wave, model_flux, fitted_centers, output,
+                      *, minor_tick_size=4, figsize=(12, 7.5),
+                      ylabel_size=None,
+                      ylabel=r"$f_\lambda$ [$10^{-17}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$]"):
+    """Save a stack, measured uncertainty band, and doublet fit."""
     plt.rcParams.update({
-        "figure.figsize": (12, 6),
-        "font.size": 32, "axes.labelsize": 32, "axes.titlesize": 32,
-        "axes.grid": False, "axes.linewidth": 2,
+        "figure.figsize": figsize,
+        "font.size": 38, "axes.labelsize": 38, "axes.titlesize": 38,
+        "axes.grid": False, "axes.linewidth": 3,
         "xtick.direction": "in", "ytick.direction": "in",
         "xtick.top": True, "ytick.right": True,
         "xtick.major.size": 16, "ytick.major.size": 16,
-        "xtick.major.width": 2, "ytick.major.width": 2,
+        "xtick.major.width": 2.8, "ytick.major.width": 2.8,
         "xtick.minor.visible": True, "ytick.minor.visible": True,
-        "xtick.minor.size": 4, "ytick.minor.size": 4,
-        "xtick.minor.width": 1.5, "ytick.minor.width": 1.5,
-        "xtick.labelsize": 28, "ytick.labelsize": 28,
+        "xtick.minor.size": minor_tick_size, "ytick.minor.size": minor_tick_size,
+        "xtick.minor.width": 2, "ytick.minor.width": 2,
+        "xtick.labelsize": 34, "ytick.labelsize": 34,
         "font.family": "STIXGeneral", "mathtext.fontset": "stix",
     })
     fig, ax = plt.subplots(layout="constrained")
+    fig.get_layout_engine().set(w_pad=0.12, h_pad=0.16)
     lower_band, upper_band = stack - stack_err, stack + stack_err
     ax.fill_between(
         wave, lower_band, upper_band,
         step="mid", color="gray", alpha=0.4,
     )
-    ax.step(wave, stack, where="mid", color="black", lw=0.8)
-    ax.plot(model_wave, model_flux, color="red")
+    ax.step(wave, stack, where="mid", color="black", lw=1.6)
+    ax.plot(model_wave, model_flux, color="red", lw=2.4)
     for center, linestyle in zip(fitted_centers, ("--", "-.")):
-        ax.axvline(center, color="red", ls=linestyle)
+        ax.axvline(center, color="red", ls=linestyle, lw=2)
     ax.set(
         xlabel=r"$\lambda$ [Å]",
-        ylabel=r"$f_\lambda$ [$10^{-17}$ erg s$^{-1}$ cm$^{-2}$ Å$^{-1}$]",
         xlim=(wave[0], wave[-1]),
     )
+    ax.set_ylabel(ylabel, fontsize=ylabel_size)
     # Match the JADES plot: use the visible error envelope plus 5% padding.
     visible = np.isfinite(lower_band) & np.isfinite(upper_band)
     ymin, ymax = lower_band[visible].min(), upper_band[visible].max()

@@ -49,22 +49,26 @@ def stack_bin(indices, paths, redshifts):
 def plot_stacks(rows, output):
     plt.rcParams.update({
         "font.family": "STIXGeneral", "mathtext.fontset": "stix",
-        "font.size": 14, "axes.linewidth": 2, "xtick.direction": "in",
+        "font.size": 18, "axes.labelsize": 18, "axes.titlesize": 19,
+        "xtick.labelsize": 17, "ytick.labelsize": 17,
+        "axes.linewidth": 2.8, "xtick.direction": "in",
         "ytick.direction": "in", "xtick.top": True, "ytick.right": True,
         "xtick.minor.visible": True, "ytick.minor.visible": True,
+        "xtick.major.width": 2, "ytick.major.width": 2,
+        "xtick.minor.width": 1.5, "ytick.minor.width": 1.5,
     })
     ncols = min(4, len(rows))
     nrows = (len(rows) + ncols - 1) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(4.3 * ncols, 2.9 * nrows),
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4.8 * ncols, 3.2 * nrows),
                              sharex=True, squeeze=False, layout="constrained")
     for ax, row in zip(axes.flat, rows):
         wave, stack, err = (row[name][SII_WINDOW] for name in ("WAVE", "FLUX", "FLUX_ERR"))
         lower, upper = stack - err, stack + err
         ax.fill_between(wave, lower, upper, step="mid", color="gray", alpha=0.4)
-        ax.step(wave, stack, where="mid", color="black", lw=0.8)
-        ax.plot(row["FIT_WAVE"], row["FIT_FLUX"], color="red")
+        ax.step(wave, stack, where="mid", color="black", lw=1.5)
+        ax.plot(row["FIT_WAVE"], row["FIT_FLUX"], color="red", lw=2.2)
         for center, style in zip(row["FIT_CENTERS"], ("--", "-.")):
-            ax.axvline(center, color="red", ls=style, lw=0.9)
+            ax.axvline(center, color="red", ls=style, lw=1.6)
         lo, hi = np.nanmin(lower), np.nanmax(upper)
         pad = 0.05 * (hi - lo)
         ax.set(xlim=(wave[0], wave[-1]), ylim=(lo - pad, hi + pad))
@@ -87,7 +91,7 @@ def plot_individual_stacks(stacks, directory):
         output = directory / f'SDSS_DR7_SII_mass_{row["MASS_LO"]:.1f}_{row["MASS_HI"]:.1f}.png'
         wave, flux, error = (row[name][SII_WINDOW] for name in ("WAVE", "FLUX", "FLUX_ERR"))
         plot_single_stack(wave, flux, error, row["FIT_WAVE"], row["FIT_FLUX"],
-                          row["FIT_CENTERS"], output)
+                          row["FIT_CENTERS"], output, minor_tick_size=8, figsize=(12, 6), ylabel_size=27)
 
 
 def main():

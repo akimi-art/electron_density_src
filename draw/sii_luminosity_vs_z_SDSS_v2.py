@@ -9,7 +9,6 @@ v0との変更点
 ・SIIの暗い側のみをサンプル選択に含める
 ・フラックス一定の曲線とSDSSの観測装置の特性をつなげる
 ・フラックス一定の曲線とLuminosity一定の曲線の交点をサンプル選択に使用
-・使用するファイル(merged)にReの情報をあらかじめ入れておく
 ・BPT分類を行い、SF領域のみに絞る
 
 使用方法:
@@ -38,15 +37,16 @@ from matplotlib.colors import TwoSlopeNorm
 from matplotlib.colors import LogNorm
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import Normalize
+from matplotlib.ticker import AutoMinorLocator, FuncFormatter
 
 
 # 軸の設定
 plt.rcParams.update({
     # --- 図全体 ---
-    "figure.figsize": (12, 6),       # 図サイズ
-    "font.size": 32,                 # 全体フォントサイズ
-    "axes.labelsize": 32,            # 軸ラベルのサイズ
-    "axes.titlesize": 32,            # タイトルのサイズ
+    "figure.figsize": (6, 6),       # 図サイズ
+    "font.size": 20,                 # 全体フォントサイズ
+    "axes.labelsize": 28,            # 軸ラベルのサイズ
+    "axes.titlesize": 28,            # タイトルのサイズ
     "axes.grid": False,              # グリッドOFF
 
     # --- 目盛り設定 (ticks) ---
@@ -56,8 +56,8 @@ plt.rcParams.update({
     "ytick.right": True,             # 右にも目盛り
 
     # 主目盛り（major ticks）
-    "xtick.major.size": 32,          # 長さ
-    "ytick.major.size": 32,
+    "xtick.major.size": 16,          # 長さ
+    "ytick.major.size": 16,
     "xtick.major.width": 2,          # 太さ
     "ytick.major.width": 2,
 
@@ -85,6 +85,7 @@ plt.rcParams.update({
 
 L_MIN = 1e39          # erg s^-1
 FLUX_LIMIT = 1e-17    # erg s^-1 cm^-2
+# FLUX_LIMIT = 3e-18    # erg s^-1 cm^-2
 
 UNIT_FLUX = 1e-17     # MPA-JHU flux unit
 
@@ -92,8 +93,7 @@ UNIT_FLUX = 1e-17     # MPA-JHU flux unit
 # FITS 読み込み
 # =====================================
 current_dir = os.getcwd()
-# 先にfitsファイルにReの情報を入れておく
-fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged_radius.fits")
+fits_path = os.path.join(current_dir, "results/fits/mpajhu_dr7_v5_2_merged.fits")
 
 # 保存
 fig_dir = os.path.join(current_dir, "results/figure")
@@ -231,13 +231,12 @@ mask_complete = (
 # =====================================
 # BPT diagram
 # =====================================
-
-fig, ax = plt.subplots(figsize=(12,12))
+fig, ax = plt.subplots(figsize=(6,6))
 
 ax.scatter(
     log_NII_HA,
     log_OIII_HB,
-    s=1,
+    s=0.25,
     alpha=0.1,
     color="gray"
 )
@@ -245,8 +244,8 @@ ax.scatter(
 ax.scatter(
     log_NII_HA[mask_sf],
     log_OIII_HB[mask_sf],
-    s=1,
-    alpha=0.2,
+    s=0.25,
+    alpha=0.1,
     color="firebrick"
 )
 
@@ -274,7 +273,7 @@ ax.text(
     x0,
     y0+0.1,
     "Kauffmann+03",
-    fontsize=32,
+    fontsize=20,
     color="black"
 )
 
@@ -336,11 +335,12 @@ print("================================\n")
 # 図の描画
 # =====================================
 # 6731の方
-fig, ax = plt.subplots(figsize=(12, 6))
-fig.subplots_adjust(left=0.10, right=0.95, bottom=0.15, top=0.95)
+fig, ax = plt.subplots(figsize=(6, 6))
 
 # 全体
-ax.scatter(z, L6731, s=6, alpha=0.3, color="gray")
+positive_luminosity = np.isfinite(L6731) & (L6731 > 0)
+ax.scatter(z[positive_luminosity], np.log10(L6731[positive_luminosity]),
+           s=1, alpha=0.2, color="gray")
 
 mask_sii = (
     mask_finite &
@@ -351,29 +351,32 @@ mask_sii = (
 # 完全サンプル
 ax.scatter(
     z[mask_sii],
-    L6731[mask_sii],
-    s=0.2,
-    alpha=1,
+    np.log10(L6731[mask_sii]),
+    s=1,
+    alpha=0.2,
     color="firebrick",
 )
 
 # カット線
 ax.axvline(Z_MAX, color="k", linestyle="-", linewidth=2.0)
-ax.axhline(L_MIN, color="k", linestyle="-", linewidth=2.0)
+ax.axhline(np.log10(L_MIN), color="k", linestyle="-", linewidth=2.0)
 
 #  L([S II] 6731) の一定フラックス線
-z_grid = np.linspace(0.0, 0.4, 200)
+z_grid = np.linspace(0.0, 0.4, 200)[1:]
 d_L_grid = cosmo.luminosity_distance(z_grid).to(u.cm).value 
 L_const = 4 * np.pi * d_L_grid**2 * FLUX_LIMIT
-ax.plot(z_grid, L_const, color="black", linestyle="-", linewidth=2.0)
+ax.plot(z_grid, np.log10(L_const), color="black", linestyle="-", linewidth=2.0)
 
 # 軸設定
-ax.set_yscale("log")
 ax.set_xlim(0, 0.4)
-ax.set_ylim(1e36, 1e42)
+ax.set_ylim(36, 42)
+ax.set_yticks(range(36, 43))
+ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.0f}" if value % 2 == 1 else ""))
+ax.xaxis.set_minor_locator(AutoMinorLocator())
+ax.yaxis.set_minor_locator(AutoMinorLocator())
 
 ax.set_xlabel("z")
-ax.set_ylabel(r"L([S II] 6731) [erg s$^{-1}$]")
+ax.set_ylabel(r"$\log$ L([S II] 6731) [erg s$^{-1}$]")
 
 
 # 枠線強調
@@ -381,7 +384,7 @@ for spine in ax.spines.values():
     spine.set_linewidth(2)
 
 save_path = os.path.join(fig_dir, "sii6731_luminosity_vs_z_v2.png")
-plt.savefig(save_path, dpi=200, bbox_inches="tight")
+fig.savefig(save_path, dpi=200, bbox_inches="tight")
 plt.show()
 
 print(f"[DONE] 図を保存: {save_path}")
@@ -409,7 +412,7 @@ print(f"[DONE] 書き出し完了: {out_path}")
 # =====================================
 # 抽出された銀河の赤方偏位のヒストグラム描画
 # =====================================
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 ax.hist(
     z[mask_complete],
@@ -421,12 +424,12 @@ ax.hist(
 
 z_median = np.median(z[mask_complete])
 z_max = np.max(z[mask_complete])
-ax.axvline(
-    z_median,
-    color="k",
-    linestyle="--",
-    linewidth=2,
-)
+# ax.axvline(
+#     z_median,
+#     color="k",
+#     linestyle="--",
+#     linewidth=2,
+# )
 
 # 横軸の0.00を消す
 ticks = ax.get_xticks()
@@ -468,13 +471,13 @@ mask_plot = (
     (L6731 > 0)
 )
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 ax.scatter(
     Mstar[mask_plot],
     np.log10(L6731[mask_plot]),
-    s=1,
-    alpha=0.2,
+    s=0.25,
+    alpha=0.1,
     color="black",
 )
 
@@ -522,15 +525,15 @@ mask_plot = (
     (L6731 > 0)
 )
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 sc = ax.scatter(
     Mstar[mask_plot],
     np.log10(L6731[mask_plot]),
     c=z[mask_plot],
     cmap="viridis",
-    s=1,
-    alpha=0.5,
+    s=0.25,
+    alpha=0.1,
 )
 
 cbar = plt.colorbar(sc)
@@ -568,11 +571,12 @@ plt.show()
 print(f"[DONE] Saved: {save_path}")
 
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 plt.scatter(
     Mstar[mask_plot],
     z[mask_plot],
-    s=0.1
+    s=0.25,
+    alpha=0.1
 )
 ax.set_xlabel(
     r"$\log(M_\star/M_\odot)$"
@@ -617,13 +621,13 @@ mask_mass = (
 )
 
 # プロット
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 ax.scatter(
     Mstar[mask_mass],
     np.log10(L6731_sel[mask_mass]),
-    s=1,
-    alpha=0.2,
+    s=0.25,
+    alpha=0.1,
     color="black",
 )
 
@@ -722,7 +726,7 @@ plt.tight_layout()
 plt.show()
 
 
-fig, ax = plt.subplots(figsize=(10,6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 colors = ["blue", "green", "orange", "red"]
 
@@ -772,15 +776,15 @@ mask_plot = (
     (Lha > 0)
 )
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 
 sc = ax.scatter(
     Mstar[mask_plot],
     np.log10(Lha[mask_plot]),
     c=z[mask_plot],
     cmap="viridis",
-    s=1,
-    alpha=0.5,
+    s=0.25,
+    alpha=0.1,
 )
 
 cbar = plt.colorbar(sc)
@@ -821,11 +825,11 @@ print(f"[DONE] Saved: {save_path}")
 # =====================================
 # 図の描画(Ha)
 # =====================================
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(6, 6))
 fig.subplots_adjust(left=0.10, right=0.95, bottom=0.15, top=0.95)
 
 # 全体
-ax.scatter(z, Lha, s=6, alpha=0.3, color="gray")
+ax.scatter(z, Lha, s=0.25, alpha=0.1, color="gray")
 
 mask_complete_ha = (
     mask_finite &
@@ -837,8 +841,8 @@ mask_complete_ha = (
 ax.scatter(
     z[mask_complete_ha],
     Lha[mask_complete_ha],
-    s=0.2,
-    alpha=1,
+    s=0.25,
+    alpha=0.1,
     color="firebrick",
 )
 
@@ -929,7 +933,7 @@ for mmin, mmax in zip(mass_bins[:-1], mass_bins[1:]):
 fraction = np.array(fraction)
 
 
-fig, ax = plt.subplots(figsize=(10,6))
+fig, ax = plt.subplots(figsize=(6,6))
 
 ax.plot(
     mass_center,
@@ -1021,7 +1025,7 @@ for mmin, mmax in zip(mass_bins[:-1], mass_bins[1:]):
 fraction = np.array(fraction)
 
 
-fig, ax = plt.subplots(figsize=(10,6))
+fig, ax = plt.subplots(figsize=(6,6))
 
 ax.plot(
     mass_center,
